@@ -60,7 +60,6 @@ export const plantillaDeRutina = (rutina: Rutina): PlantillaRutina => ({
             pesoObjetivo: e.pesoObjetivo ?? null,
             descansoSeg: e.descansoSeg ?? null,
             notas: e.notas ?? "",
-            modoFallo: e.modoFallo ?? null,
         })),
     })),
 });

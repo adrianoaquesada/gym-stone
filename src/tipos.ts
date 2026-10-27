@@ -13,11 +13,6 @@ export type TipoRutina = "planificada" | "libre";
 export type EstadoRutina = "activa" | "pausada" | "finalizada";
 export type UnidadPeso = "kg" | "lb";
 
-/* Cómo se leen las repeticiones de un ejercicio (ausente o null = número fijo):
-     · "minimo" → mínimo al fallo: llegar a ese número y seguir hasta el fallo
-     · "todas"  → al fallo: tantas repeticiones como puedas (sin número) */
-export type ModoReps = "todas" | "minimo";
-
 /* Qué mide y registra un ejercicio (valores guardados en las notas):
      · "peso"      → reps con carga: volumen y 1RM. Ausente/null = este
                      (es el de los datos escritos antes de este cambio)
@@ -25,8 +20,8 @@ export type ModoReps = "todas" | "minimo";
      · "intervalo" → ciclos trabajo/resto (trabajoSeg, transicionSeg, descansoSeg) */
 export type TipoEjercicio = "peso" | "tiempo" | "intervalo";
 
-/* Tipo de serie dentro de un ejercicio (sustituye a ModoReps, que aún vive
-   en las notas antiguas — ver DISENO.md, decisión 5):
+/* Tipo de serie dentro de un ejercicio (sustituye al antiguo modo de reps;
+   ver DISENO.md, decisión 5):
      · "calentamiento" → serie previa ligera
      · "trabajo"       → la normal. Ausente/null = esta
      · "descenso"      → drop set
@@ -50,8 +45,6 @@ export interface EjercicioDef {
     notas: string;
     tipoSerie?: TipoSerie | null;   // tipo de las series del plan; ausente/null
                                     // = "trabajo". "fallo" ⇒ reps al fallo
-                                    // (sustituye a modoFallo)
-    modoFallo?: ModoReps | null;    // cómo se lee repsObjetivo (ver ModoReps)
 }
 
 export interface DiaRutina {
@@ -87,9 +80,6 @@ export interface EjercicioSesion {
     series: SerieSesion[];
     notas?: string;
     descansoSeg?: number;           // elegido al añadir el ejercicio
-    modoFallo?: ModoReps | null;    // modo de reps elegido en la sesión guiada:
-                                    // viaja con el registro para reanudar (en la
-                                    // rutina libre no hay plan del que traerlo)
     sinRegistrar?: boolean;         // planificado pero sin datos (⏳)
     pista?: string;                 // solo en el formulario («última vez: …»)
 }
