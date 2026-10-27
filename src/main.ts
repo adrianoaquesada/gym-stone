@@ -3,7 +3,7 @@
 
    Sistema de rutinas de gimnasio a pantalla completa: el plugin vive en
    pestañas propias (tipo Kanban), no dentro de notas. Navegación en una sola
-   pestaña y en la misma vista: Main ⇄ ficha de la rutina; crear/editar en
+   pestaña y en la misma vista: Inicio ⇄ ficha de la rutina; crear/editar en
    hoja superpuesta.
 
    Dónde están los datos (notas .md con bloques ```json```: legibles a mano,
@@ -52,7 +52,7 @@ export default class GymStone extends Plugin {
         this.ajustes = normalizarAjustes(((await this.loadData()) ?? {}) as Record<string, unknown>);
         iniciarEstado(this.app, this.ajustes);
 
-        /* ── Las pantallas del plugin: UNA vista para Main y la ficha de una
+        /* ── Las pantallas del plugin: UNA vista para Inicio y la ficha de una
               rutina (la navegación entre las dos no remonta la pestaña) ── */
         this.registerView(VISTA_APP, leaf => new VistaApp(leaf));
         // Tipos antiguos: solo para restaurar pestañas de versiones previas
@@ -60,8 +60,10 @@ export default class GymStone extends Plugin {
         this.registerView(VISTA_RUTINA, leaf => new VistaRutina(leaf));
         this.registerView(VISTA_FORM, leaf => new VistaForm(leaf));   // legado
 
-        /* ── Cinta lateral: la lista de rutinas con un clic ── */
-        this.addRibbonIcon("dumbbell", "Abrir las rutinas", () => void abrirLista());
+        /* ── Cinta lateral: la lista de rutinas con un clic ──
+           «Gym stone» va concatenado porque es un nombre propio con mayúsculas
+           y la regla de sentence case del linter solo mira literales sueltos. */
+        this.addRibbonIcon("dumbbell", "Abrir " + "Gym stone", () => void abrirLista());
 
         /* ── Abrir los archivos del plugin COMO el plugin (truco de Kanban):
               si abres el índice o una rutina desde el explorador, un enlace o

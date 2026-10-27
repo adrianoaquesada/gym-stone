@@ -343,7 +343,7 @@ export const elegirEjercicio = (
    nombre y su grupo; guardar renombra en todas las rutinas y plantillas donde
    aparezca.
 
-   Se pinta dentro de un contenedor que decide quien llama: en Main ocupa la
+   Se pinta dentro de un contenedor que decide quien llama: en Inicio ocupa la
    sección «🗂 Ejercicios» a pantalla completa (ya no hay popup de catálogo).
    ═══════════════════════════════════════════════════════════════════════════ */
 let dlGestionN = 0;

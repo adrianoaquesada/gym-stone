@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   La pantalla «Main»: el índice hecho interfaz, con tres secciones a pantalla
+   La pantalla «Inicio»: el índice hecho interfaz, con tres secciones a pantalla
    completa que se cambian desde el carrusel de navegación (sin barra de
    desplazamiento):
 
@@ -11,7 +11,7 @@
      · Ejercicios   → el catálogo global, también a pantalla completa.
 
    NO es una vista de Obsidian: solo PINTA en el contenedor que le pasa la
-   pestaña que la aloja (ui/vista-app.ts). Main y la ficha de una rutina son
+   pestaña que la aloja (ui/vista-app.ts). Inicio y la ficha de una rutina son
    dos pantallas de UNA misma pestaña, así que cambiar de una a otra no
    destruye ni remonta la vista: los componentes que comparten (cabecera
    naranja, carrusel de navegación, KPIs) se repintan en el mismo sitio y no
@@ -36,19 +36,19 @@ import { elegirDiaGuiada } from "./sesion-guiada";
 import { abrirTemporizador } from "./temporizador";
 import { abrirFormulario, abrirRutina } from "./vistas";
 
-/* Las secciones de Main, en el orden del carrusel de navegación. */
-type SeccionMain = "rutinas" | "medidas" | "ejercicios";
+/* Las secciones de Inicio, en el orden del carrusel de navegación. */
+type SeccionInicio = "rutinas" | "medidas" | "ejercicios";
 
-export class PantallaMain {
+export class PantallaInicio {
     /* Sección que se muestra ahora. Rutinas es la de por defecto al llegar
        (también al volver desde una rutina): la restablece la pestaña en su
        setState. No viaja en el estado de la pestaña. */
-    seccion: SeccionMain = "rutinas";
+    seccion: SeccionInicio = "rutinas";
 
     /* Repinta la pestaña entera: se lo pasa la vista que la aloja. */
     constructor(private readonly alRepintar: () => void) {}
 
-    private irA(s: SeccionMain): void {
+    private irA(s: SeccionInicio): void {
         this.seccion = s;
         this.alRepintar();
     }
@@ -57,9 +57,9 @@ export class PantallaMain {
        construido, de una sola tacada: ver VistaApp#pintar). */
     async pintar(cont: HTMLElement): Promise<void> {
         // Cabecera naranja: el título de esta pantalla («casa»)
-        pintarCabecera(cont, [{ texto: "🏋️ Main" }]);
+        pintarCabecera(cont, [{ texto: "🏋️ Inicio" }]);
 
-        // Carrusel de navegación: las tres secciones de Main, la acción
+        // Carrusel de navegación: las tres secciones de Inicio, la acción
         // principal (según la sección) y, al final, a la derecha, el
         // temporizador. En «Ejercicios» no hay acción principal: el catálogo
         // no crea rutinas, así que el botón desaparece.
@@ -153,7 +153,7 @@ export class PantallaMain {
             return;
         }
         // Sin encabezado propio: el título de la sección («⚖️ Medidas e IMC»)
-        // ya pone Main, y su línea punteada no debe aparecer debajo
+        // ya pone Inicio, y su línea punteada no debe aparecer debajo
         seccionMedidas(cont, medidas, { titulo: false });
     }
 
@@ -238,8 +238,8 @@ export class PantallaMain {
             : f.estado === "finalizada" || this.semanaDe(f) > f.semanas ? CONFIG.AZUL : CONFIG.VERDE;
 }
 
-/* Datos de los que solo depende Main (índice, medidas y los archivos de las
+/* Datos de los que solo depende Inicio (índice, medidas y los archivos de las
    rutinas): un cambio en el vault que no toque nada de eso no la repinta.
    Lo usa la pestaña que la aloja (vista-app.ts). */
-export const esRutaDeMain = (ruta: string): boolean =>
+export const esRutaDeInicio = (ruta: string): boolean =>
     ruta === rutaIndice() || ruta === rutaMedidas() || ruta.startsWith(carpetaDatos() + "/");

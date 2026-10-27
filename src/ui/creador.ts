@@ -433,7 +433,31 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
 
             const inReps = num(ej.repsObjetivo, 1, 1, "Repeticiones objetivo");
             inReps.oninput = () => { ej.repsObjetivo = Math.max(1, Number(inReps.value) || 1); };
-            celda("Reps", inReps);
+            // Cómo se leen esas reps: número fijo, mínimo al fallo o al fallo
+            // (en «al fallo» el número se oculta: no hay objetivo que fijar)
+            const selModo = el("select", "gym-mini");
+            for (const [v, t] of [["", "Reps fijas"], ["minimo", "Mínimo al fallo"], ["todas", "Al fallo"]] as const) {
+                const o = el("option", null, t); o.value = v; selModo.appendChild(o);
+            }
+            selModo.value = ej.modoFallo ?? "";
+            selModo.title = "Cómo se leen esas reps: número exacto, llegar al menos a ese número y seguir hasta el fallo, o tantas repeticiones como puedas.";
+            const cReps = el("div", "gym-reps");
+            cReps.append(selModo, inReps);
+            const pintaModo = () => {
+                const todas = ej.modoFallo === "todas";
+                inReps.style.display = todas ? "none" : "";
+                inReps.placeholder = ej.modoFallo === "minimo" ? "mín." : "reps";
+                inReps.title = ej.modoFallo === "minimo"
+                    ? "Mínimo de repeticiones: después de ese número se sigue hasta el fallo"
+                    : "Repeticiones objetivo";
+            };
+            selModo.onchange = () => {
+                const v = selModo.value;
+                ej.modoFallo = v === "minimo" || v === "todas" ? v : null;
+                pintaModo();
+            };
+            pintaModo();
+            celda("Reps", cReps);
 
             const inPeso = num(pesoACampo(ej.pesoObjetivo), 0, 0.5, `Peso objetivo (${pesoActual()}, opcional)`);
             celda(`Peso (${pesoActual()})`, inPeso);
@@ -626,10 +650,11 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
                 id: e.id || `${slug(d.nombre || "dia")}-${slug(e.nombre || `ej-${j}`)}`,
                 nombre: limpiarNombre(e.nombre),
                 series: Math.max(1, Number(e.series) || 1),
-                repsObjetivo: Math.max(1, Number(e.repsObjetivo) || 1),
+                repsObjetivo: e.modoFallo === "todas" ? null : Math.max(1, Number(e.repsObjetivo) || 1),
                 pesoObjetivo: e.pesoObjetivo ?? null,
                 descansoSeg: e.descansoSeg ?? null,
                 notas: e.notas ?? "",
+                modoFallo: e.modoFallo ?? null,
             })),
         }));
         const union = [...new Set(dias.flatMap(d => d.diasSemana))].sort();

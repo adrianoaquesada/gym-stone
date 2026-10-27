@@ -18,7 +18,7 @@ import { rutaMedidas } from "../ajustes";
 import {
     catalogoEjercicios, escribirRutina, esLibre,
     leerMedidas, leerRutina, medidasVacias, resumenLibre, rutaDatosDe, semanaActual,
-    semanasTotales, transcurrida,
+    semanasTotales, textoRepsObjetivo, transcurrida,
 } from "../datos";
 import { fechaLegible, hoy, msgError, sumarDias } from "../util";
 import { pesoTexto } from "../unidades";
@@ -90,7 +90,7 @@ export const pintarDashboard = async (
     // fila, empujado al final a la derecha. Estadísticas e Historial siguen
     // abriéndose como popup (mismo patrón que editar rutina)
     pintarNavegacion(cont2, [
-        { texto: "← Main", alPulsar: () => void abrirLista() },
+        { texto: "← Inicio", alPulsar: () => void abrirLista() },
         { texto: "✏️ Editar", alPulsar: () => void abrirFormulario({ modo: "editar", rutinaId }) },
         { texto: "🎯 Empezar sesión guiada", alPulsar: () => elegirDiaGuiada(rutina, pintar), principal: true },
         { texto: "＋ Registrar sesión", alPulsar: () => abrirRegistro(rutina, { fecha: hoy(), diaId: rutina.dias?.[0]?.id }, pintar) },
@@ -190,7 +190,7 @@ const seccionDetalles = (c: HTMLElement, rutina: Rutina, pintar: Pintar): void =
                 const li = el("li");
                 li.append(e.nombre, " ",
                     el("span", "gym-tenue",
-                        `· ${e.series}×${e.repsObjetivo}` +
+                        `· ${e.series}×${textoRepsObjetivo(e)}` +
                         (e.pesoObjetivo ? ` @ ${pesoTexto(e.pesoObjetivo)}` : "") +
                         (e.descansoSeg ? ` · desc. ${e.descansoSeg}s` : "")));
                 ul.appendChild(li);

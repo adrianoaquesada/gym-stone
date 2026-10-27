@@ -9,9 +9,9 @@ import { carpetaDatos } from "../ajustes";
 import { diffDias, diaSemana, esFechaValida, hoy, lunesDe, sumarDias, tsDe, tsAhora } from "../util/fechas";
 import { norm, slug } from "../util/texto";
 import { archivosMdEnCarpeta, leerNotaDatos } from "./archivos";
-import { semanasTotales } from "./rutinas";
+import { semanasTotales, tipoEjercicioDe } from "./rutinas";
 import type {
-    DiaRutina, EjercicioCatalogo, EjercicioDef, Rutina, SerieSesion, Sesion,
+    DiaRutina, EjercicioCatalogo, EjercicioDef, ModoReps, Rutina, SerieSesion, Sesion, TipoEjercicio,
 } from "../tipos";
 
 /* ── Localizadores ──────────────────────────────────────────────────────── */
@@ -285,6 +285,39 @@ export const descansoDe = (rutina: Rutina | null | undefined, ejercicioId: strin
     }
     return null;
 };
+
+// Último modo de reps (ver ModoReps) conocido para un ejercicio: 1º en la
+// sesión más reciente que lo registre, 2º en el plan de cualquier día de la
+// rutina. null si nunca ha constado: por defecto, número fijo.
+export const modoRepsDe = (rutina: Rutina | null | undefined, ejercicioId: string): ModoReps | null => {
+    const sesiones = [...(rutina?.sesiones ?? [])]
+        .filter(s => esFechaValida(s.fecha) && !s.enCurso)
+        .sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0));
+    for (let i = sesiones.length - 1; i >= 0; i--) {
+        const m = (sesiones[i].ejercicios ?? []).find(x => x.ejercicioId === ejercicioId)?.modoFallo;
+        if (m === "todas" || m === "minimo") return m;
+    }
+    for (const d of (rutina?.dias ?? [])) {
+        for (const e of (d.ejercicios ?? [])) {
+            const m = e.modoFallo;
+            if (e.id === ejercicioId && (m === "todas" || m === "minimo")) return m;
+        }
+    }
+    return null;
+};
+
+// Tipo de ejercicio (ver TipoEjercicio) de un ejercicio: del plan de
+// cualquier día de la rutina. "peso" si nunca ha constado: es el de los
+// registros escritos antes del cambio y el de los ejercicios huérfanos.
+export const tipoEjercicioDeRutina =
+    (rutina: Rutina | null | undefined, ejercicioId: string): TipoEjercicio => {
+        for (const d of rutina?.dias ?? []) {
+            for (const e of (d.ejercicios ?? [])) {
+                if (e.id === ejercicioId) return tipoEjercicioDe(e);
+            }
+        }
+        return "peso";
+    };
 
 // Resumen de una rutina libre: sin días "programados" contra los que medir la
 // adherencia, lo que cuenta es cuántos días has entrenado y la racha de

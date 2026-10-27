@@ -13,16 +13,45 @@ export type TipoRutina = "planificada" | "libre";
 export type EstadoRutina = "activa" | "pausada" | "finalizada";
 export type UnidadPeso = "kg" | "lb";
 
+/* Cómo se leen las repeticiones de un ejercicio (ausente o null = número fijo):
+     · "minimo" → mínimo al fallo: llegar a ese número y seguir hasta el fallo
+     · "todas"  → al fallo: tantas repeticiones como puedas (sin número) */
+export type ModoReps = "todas" | "minimo";
+
+/* Qué mide y registra un ejercicio (valores guardados en las notas):
+     · "peso"      → reps con carga: volumen y 1RM. Ausente/null = este
+                     (es el de los datos escritos antes de este cambio)
+     · "tiempo"    → hold: segundos mantenidos (duracionObjetivo / duracionSeg)
+     · "intervalo" → ciclos trabajo/resto (trabajoSeg, transicionSeg, descansoSeg) */
+export type TipoEjercicio = "peso" | "tiempo" | "intervalo";
+
+/* Tipo de serie dentro de un ejercicio (sustituye a ModoReps, que aún vive
+   en las notas antiguas — ver DISENO.md, decisión 5):
+     · "calentamiento" → serie previa ligera
+     · "trabajo"       → la normal. Ausente/null = esta
+     · "descenso"      → drop set
+     · "fallo"         → las reps se leen al fallo, sin objetivo */
+export type TipoSerie = "calentamiento" | "trabajo" | "descenso" | "fallo";
+
 /* ── Definición (el plan: vive en la rutina, no en las sesiones) ────────── */
 
 export interface EjercicioDef {
     id: string;
     nombre: string;
-    series: number;                 // número de series OBJETIVO
+    tipoEjercicio?: TipoEjercicio | null; // ausente/null = "peso" (datos previos)
+    series: number;                 // número de series OBJETIVO; en "intervalo",
+                                    // número de ciclos planificados
     repsObjetivo: number | null;
     pesoObjetivo: number | null;    // SIEMPRE en kg
-    descansoSeg: number | null;
+    duracionObjetivo?: number | null; // solo "tiempo": segundos objetivo del hold
+    descansoSeg: number | null;     // "intervalo": descanso DENTRO del ciclo
+    trabajoSeg?: number | null;     // solo "intervalo": segundos de trabajo por ciclo
+    transicionSeg?: number | null;  // solo "intervalo": transición entre ejercicios
     notas: string;
+    tipoSerie?: TipoSerie | null;   // tipo de las series del plan; ausente/null
+                                    // = "trabajo". "fallo" ⇒ reps al fallo
+                                    // (sustituye a modoFallo)
+    modoFallo?: ModoReps | null;    // cómo se lee repsObjetivo (ver ModoReps)
 }
 
 export interface DiaRutina {
@@ -37,6 +66,10 @@ export interface DiaRutina {
 export interface SerieSesion {
     reps?: number | null;
     peso?: number | null;           // SIEMPRE en kg
+    duracionSeg?: number | null;    // "tiempo": segundos mantenidos;
+                                    // "intervalo": duración del trabajo del ciclo
+    tipoSerie?: TipoSerie | null;   // ausente/null = "trabajo" (o el tipo del plan):
+                                    // se etiqueta al registrar la serie
     saltada?: boolean;              // planificada pero no hecha (⏭)
     t?: number;                     // ms desde el inicio de la sesión en que se
                                     // registró (sesión guiada; el formulario a
@@ -54,6 +87,9 @@ export interface EjercicioSesion {
     series: SerieSesion[];
     notas?: string;
     descansoSeg?: number;           // elegido al añadir el ejercicio
+    modoFallo?: ModoReps | null;    // modo de reps elegido en la sesión guiada:
+                                    // viaja con el registro para reanudar (en la
+                                    // rutina libre no hay plan del que traerlo)
     sinRegistrar?: boolean;         // planificado pero sin datos (⏳)
     pista?: string;                 // solo en el formulario («última vez: …»)
 }

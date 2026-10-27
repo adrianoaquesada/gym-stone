@@ -12,6 +12,11 @@ REANUDAR.md
 CONVERSION.md
 scripts/
 
+# Trabajo con IA (instrucciones, flujo por fases y cambios): solo local
+.opencode/
+docs/
+AGENTS.md
+
 # ── Sistema / editor ───────────────────────────────────────────────────────
 .DS_Store
 *.log

@@ -35,14 +35,14 @@ primera → **🎯** en su fila para empezar la **sesión guiada** y registrar s
 descansos. El progreso se guarda solo, en notas `.md` de tu vault.
 
 **Toda la navegación ocurre en una sola pestaña** (se cambia de
-pantalla dentro de ella, nunca se abren pestañas de más), y Main ⇄ la ficha de una rutina
+pantalla dentro de ella, nunca se abren pestañas de más), y Inicio ⇄ la ficha de una rutina
 cambia **en la misma vista, sin remontar la pestaña**: mientras se leen los datos sigue
 visible lo anterior (nunca un destello en blanco) y el scroll solo se reinicia al cambiar de
 pantalla. La navegación no toca archivos: los `.md` son solo consulta y guardado. Hay un
 **carrusel de pestañas** bajo la cabecera naranja: una sola línea que se recorre deslizando,
 **sin barra de desplazamiento visible**:
 
-- **📋 Main**: tres secciones a pantalla completa que se cambian desde el carrusel, y **📋
+- **📋 Inicio**: tres secciones a pantalla completa que se cambian desde el carrusel, y **📋
   Rutinas es la que sale por defecto**. Ahí están el índice de todas las rutinas (estado,
   fechas, semana en curso y sesiones hechas) con sus KPIs justo debajo del encabezado, y en
   cada fila editas (✏️) o borras (🗑) la rutina, o inicias su sesión guiada (🎯) sin entrar a
@@ -53,22 +53,27 @@ pantalla. La navegación no toca archivos: los `.md` son solo consulta y guardad
   confirmación, las entradas que ya no usan ni rutinas ni plantillas). El carrusel cierra la
   acción principal (**＋ Nueva rutina**, **＋ Registrar medidas** en Medidas e IMC y NINGUNA en
   Ejercicios) y, al final a la derecha, **⏱ Temporizador**.
-- **🏋️ Rutina**: el dashboard de la rutina a todo el ancho, con su carrusel: **← Main**,
+- **🏋️ Rutina**: el dashboard de la rutina a todo el ancho, con su carrusel: **← Inicio**,
   **✏️ Editar**, **🎯 Empezar sesión guiada** (naranja), **＋ Registrar sesión**,
   **📝 Anotación**, **⚖️ Registrar medidas**, **📈 Estadísticas** y **🗓 Historial**
   (las dos últimas se abren como **popup** con ✕ y Esc) y, **al final a la derecha, ⏱
   Temporizador**. En el **modo sesión guiada** (pensado para el móvil) entrenas un ejercicio a la vez:
   descansos con **−15 s** / **＋30 s**, **tiempo activo real** (las pausas no cuentan ni en el
   cronómetro ni en los tiempos de las series) y «entre series» desglosado en descanso y
-  ejecución. Al pulsar un día del calendario se abre su detalle: KPIs del día, gráficos de
+  ejecución. En la cabecera de cada ejercicio se cambian también el descanso y el **modo de
+  reps** (fijas · mínimo al fallo · al fallo), igual que en el formulario de edición; en las
+  rutinas libres es donde se configura, porque ahí no hay plan.
+  Al pulsar un día del calendario se abre su detalle: KPIs del día, gráficos de
   volumen, tiempos por serie y la **🕒 línea de tiempo** de toda la sesión; los días con
   anotación muestran su 📝 siempre a la vista.
 - **✏️ Nueva/Editar**: el formulario se abre en una **hoja superpuesta** sobre lo que estés
   mirando (✕ o Esc la cierran y vuelves exactamente a donde estabas), con estado de la
   rutina (🟢 Activa · ⏸ Pausada · 🏁 Finalizada), selector **kg | lb** y búsqueda de
-  ejercicios por nombre o **grupo muscular** con chips.
+  ejercicios por nombre o **grupo muscular** con chips. En cada ejercicio se elige cómo se
+  leen las reps: **fijas** (ese número), **mínimo al fallo** (llegar al menos a ese número
+  y seguir hasta el fallo) o **al fallo** (tantas repeticiones como puedas).
 
-La **cabecera naranja** muestra el título («🏋️ Main» en la lista; el nombre y las fechas de
+La **cabecera naranja** muestra el título («🏋️ Inicio» en la lista; el nombre y las fechas de
 la rutina en su ficha), y el menú **⋮** de arriba a la derecha lleva **«Alternar pesos
 kg ↔ libras»** y **«Abrir como Markdown»** para cualquier pestaña del plugin.
 

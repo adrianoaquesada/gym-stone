@@ -7,7 +7,7 @@
    sub-secciones 4b-4d (progresión, medidas y récords) se pintan desde aquí:
    el gestor llama a seccionEstadisticas, que la abre entera dentro de un
    modal (sin caja colapsable). EXCEPCIÓN: 4c (peso corporal e IMC) está
-   exportada porque Main la pinta también, a pantalla completa, en su
+   exportada porque Inicio la pinta también, a pantalla completa, en su
    sección «Medidas e IMC».
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -205,7 +205,7 @@ function seccionProgresion(c: HTMLElement, rutina: Rutina): void {
 }
 
 /* ── 4c · Peso corporal e IMC ──
-   También la usa Main (sección «Medidas e IMC»), así que va exportada: ahí
+   También la usa Inicio (sección «Medidas e IMC»), así que va exportada: ahí
    el encabezado lo pone la propia sección, y con { titulo: false } se omiten
    tanto el texto «Peso corporal — evolución e IMC» como su línea punteada. */
 export function seccionMedidas(

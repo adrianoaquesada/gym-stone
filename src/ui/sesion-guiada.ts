@@ -13,7 +13,7 @@ import { CONFIG } from "../config";
 import { ReclamoDespierta } from "../despierta";
 import {
     descansoDe, diaPorId, diaProgramado, esLibre, esSaltada, esSinRegistrar,
-    escribirRutina, seriesHechas, ultimosValores,
+    escribirRutina, modoRepsDe, seriesHechas, textoRepsObjetivo, ultimosValores,
 } from "../datos";
 import type { EjercicioDef, EjercicioSesion, Rutina, SerieSesion, Sesion } from "../tipos";
 import { pesoACampo, pesoAKg, pesoTexto } from "../unidades";
@@ -40,7 +40,7 @@ export const cerrarSesionesAbiertas = (): void => {
    `objetivo` es el EjercicioDef del plan (o un equivalente local cuando el
    ejercicio viene de una sesión guardada en la rutina libre): solo se leen
    estos campos, así que aquí basta ese subconjunto. */
-type ObjetivoSesion = Pick<EjercicioDef, "series" | "repsObjetivo" | "pesoObjetivo" | "descansoSeg" | "notas">;
+type ObjetivoSesion = Pick<EjercicioDef, "series" | "repsObjetivo" | "modoFallo" | "pesoObjetivo" | "descansoSeg" | "notas">;
 
 interface DefSesion {
     id: string;
@@ -150,6 +150,12 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
     // En la libre no: la sesión empieza VACÍA y se van añadiendo ejercicios
     // con «＋ Añadir ejercicio» (es lo que permite alternar variantes).
 
+    // Reps objetivo leyendo el MODO del ejercicio: en «al fallo» no hay número
+    // que precargar ni al que volver (cada serie es la que salga), y en
+    // «mínimo al fallo» el número solo es la base que se puede superar.
+    const repsObjetivoDe = (d: DefSesion): number | null =>
+        d.objetivo.modoFallo === "todas" ? null : d.objetivo.repsObjetivo ?? null;
+
     let idx = 0, pausado = false;
     // Descanso: { restanteMs, totalMs, ej } — ej = ejercicio AL QUE PERTENECE.
     // Viaja al navegar (mirar otro ejercicio no lo quita): mientras esté en
@@ -200,7 +206,12 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                     defs.push({
                         id: g.ejercicioId,
                         nombre: g.nombre ?? g.ejercicioId,
-                        objetivo: { series: hechas, repsObjetivo: null, pesoObjetivo: null, descansoSeg: desc, notas: "" },
+                        objetivo: {
+                            series: hechas, repsObjetivo: null, pesoObjetivo: null,
+                            // El modo de reps se eligió en la sesión: viaja con el guardado
+                            modoFallo: g.modoFallo ?? null,
+                            descansoSeg: desc, notas: "",
+                        },
                         plan: hechas, planOrigen: hechas,   // todo lo guardado ya estaba en plan
                         series: (g.series ?? []).map(aSerieGuardada),
                         notas: g.notas || "",
@@ -306,7 +317,14 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         if ((descanso?.restanteMs ?? 0) > 0) return;   // durante el descanso tampoco: hay que esperar (o ⏭ Saltar descanso)
         const ej = defs[idx];
         if (iSet !== ej.series.length) return;   // solo la serie que toca, en orden: evita huecos que rompen la lista
-        const reps = aNumero(inReps[iSet]?.value) ?? ej.objetivo.repsObjetivo ?? null;
+        const reps = aNumero(inReps[iSet]?.value) ?? repsObjetivoDe(ej) ?? null;
+        if (reps == null && ej.objetivo.modoFallo === "todas") {
+            // En «al fallo» no hay número de reserva que poner en su sitio: sin
+            // las reps escritas no se registra la serie (volumen y gráficas
+            // saldrían a cero). Escribe lo que has hecho y vuelve a pulsar ✔.
+            toast("✏️ Escribe las repeticiones que has hecho en esta serie.", false);
+            return;
+        }
         const peso = pesoAKg(inPeso[iSet]?.value) ?? ej.objetivo.pesoObjetivo ?? null;
         const t0 = transcurridoMs();   // «t» = cuándo pasó (tiempo activo, sin pausas)
         const serie: SerieSesion = { reps, peso, t: t0 };
@@ -393,6 +411,8 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                     series: plan0, repsObjetivo: u?.reps ?? null, pesoObjetivo: u?.peso ?? null,
                     // El descanso viene del selector (con el del último registro ya
                     // precargado); si no se puso ninguno, los 90 s de siempre.
+                    // El modo de reps, del último registro o del plan del ejercicio.
+                    modoFallo: modoRepsDe(rutina, r.id),
                     descansoSeg: r.descansoSeg || 90, notas: "",
                 },
                 plan: plan0, planOrigen: plan0,
@@ -484,8 +504,10 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         contEj.appendChild(el("div", "gym-et", `Ejercicio ${idx + 1} de ${defs.length}`));
         contEj.appendChild(el("div", "gym-modo-ej", ej.nombre));
         const cMeta = el("div", "font-size:.9em;opacity:.8;");
+        // Las reps según el modo: «10 reps», «mín. 8 (fallo)» o «al fallo»
+        const repsTxt = textoRepsObjetivo(ej.objetivo);
         cMeta.appendChild(el("span", "",
-            `${ej.plan} × ${ej.objetivo.repsObjetivo ?? "–"} reps @ ${ej.objetivo.pesoObjetivo != null ? pesoTexto(ej.objetivo.pesoObjetivo) : "sin peso"}`));
+            `${ej.plan} × ${ej.objetivo.modoFallo ? repsTxt : `${repsTxt} reps`} @ ${ej.objetivo.pesoObjetivo != null ? pesoTexto(ej.objetivo.pesoObjetivo) : "sin peso"}`));
         // El descanso se puede cambiar en caliente desde aquí (subrayado a
         // puntos: no es texto, es un control). 0 o vacío vuelve a 90 s.
         const dSeg = Number(ej.objetivo.descansoSeg) || 90;
@@ -501,6 +523,29 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             pintarEjercicio();
         };
         cMeta.appendChild(bDesc);
+        // El modo de reps también se cambia aquí, igual que el descanso: en la
+        // rutina libre no hay plan del que traerlo, así que esta cabecera es el
+        // único sitio donde configurarlo. Si el ejercicio viene del plan, el
+        // cambio se aplica a ESE ejercicio (se guarda con la rutina, como el
+        // descanso hecho en caliente).
+        const selModo = el("select");
+        for (const [v, t] of [["", "Reps fijas"], ["minimo", "Mínimo al fallo"], ["todas", "Al fallo"]] as const) {
+            const o = el("option", null, t); o.value = v; selModo.appendChild(o);
+        }
+        selModo.value = ej.objetivo.modoFallo ?? "";
+        selModo.title = "Cómo se leen esas reps: número exacto, llegar al menos a ese número y seguir hasta el fallo, o tantas repeticiones como puedas.";
+        selModo.style.cssText = "font-size:.95em;font-family:inherit;background:var(--background-secondary);" +
+            "border:1px solid var(--background-modifier-border);border-radius:6px;padding:1px 5px;" +
+            "cursor:pointer;color:inherit;margin-left:6px;max-width:140px;";
+        selModo.onchange = () => {
+            const v = selModo.value;
+            ej.objetivo.modoFallo = v === "minimo" || v === "todas" ? v : null;
+            // Las reps pendientes dejan de seguir el número anterior: se vacían
+            // y pintarEjercicio vuelve a precargar las que toquen según el modo
+            inReps.forEach(i => { if (i) i.value = ""; });
+            pintarEjercicio();
+        };
+        cMeta.appendChild(selModo);
         contEj.appendChild(cMeta);
         if (ej.objetivo.notas) contEj.appendChild(el("div", "font-size:.82em;opacity:.65;font-style:italic;", `💡 ${ej.objetivo.notas}`));
         if (ej.notas) contEj.appendChild(el("div", "font-size:.85em;margin-top:4px;", `📝 ${esc(ej.notas)}`));
@@ -586,8 +631,10 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                 fila.appendChild(cierre);
             } else {
                 const iR = el("input"); iR.type = "number"; iR.inputMode = "numeric"; iR.min = "0";
+                iR.placeholder = ej.objetivo.modoFallo === "minimo" && ej.objetivo.repsObjetivo
+                    ? `mín. ${ej.objetivo.repsObjetivo}` : "reps";
                 const p = prev[i];   // prev conserva lo tecleado en reps/peso
-                iR.value = (p && p.reps !== "") ? p.reps : String(ej.objetivo.repsObjetivo ?? "");
+                iR.value = (p && p.reps !== "") ? p.reps : String(repsObjetivoDe(ej) ?? "");
                 const iP = el("input"); iP.type = "number"; iP.inputMode = "decimal"; iP.min = "0"; iP.step = "0.5";
                 // prev conserva lo tecleado (unidad activa); el objetivo está en kg
                 iP.value = (p && p.peso !== "") ? p.peso : pesoACampo(ej.objetivo.pesoObjetivo);
@@ -829,6 +876,10 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                 // reabrirlo en el formulario se volvería a los 90 s.
                 const desc = Number(d.objetivo?.descansoSeg);
                 if (desc > 0) ej.descansoSeg = Math.round(desc);
+                // El modo de reps viaja también: en la rutina libre no hay plan
+                // del que traerlo al reanudar.
+                const modo = d.objetivo?.modoFallo;
+                if (modo === "todas" || modo === "minimo") ej.modoFallo = modo;
                 if (!ej.series.length && !ej.notas) ej.sinRegistrar = true;
                 return ej;
             }),
@@ -896,6 +947,10 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                 // reabrirlo en el formulario se volvería a los 90 s.
                 const desc = Number(d.objetivo?.descansoSeg);
                 if (desc > 0) ej.descansoSeg = Math.round(desc);
+                // El modo de reps viaja también: en la rutina libre no hay plan
+                // del que traerlo al reanudar.
+                const modo = d.objetivo?.modoFallo;
+                if (modo === "todas" || modo === "minimo") ej.modoFallo = modo;
                 if (!ej.series.length && !ej.notas) ej.sinRegistrar = true;
                 return ej;
             }),

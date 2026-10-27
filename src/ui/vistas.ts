@@ -2,7 +2,7 @@
    Las pantallas del plugin y la navegación ENTRE ELLAS.
 
    Todo ocurre en UNA sola pestaña (igual que Bases): abrir una rutina o
-   editarla nunca abre pestañas nuevas. Main ⇄ ficha de la rutina son dos
+   editarla nunca abre pestañas nuevas. Inicio ⇄ ficha de la rutina son dos
    pantallas de UNA misma vista (ui/vista-app.ts), y crear/editar se hace en
    HOJA superpuesta (ui/hoja.ts), no en una pantalla propia.
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -13,7 +13,7 @@ import { carpetaDatos, rutaIndice, SUFIJO_MD } from "../ajustes";
 import { toast } from "./componentes";
 import { hojaFormulario } from "./hoja";
 
-export const VISTA_APP = "gym-stone-app";   // la pestaña entera: Main ⇄ ficha de rutina
+export const VISTA_APP = "gym-stone-app";   // la pestaña entera: Inicio ⇄ ficha de rutina
 export const VISTA_LISTA = "gym-stone-lista";   // legado: pestaña de versiones previas
 export const VISTA_RUTINA = "gym-stone-rutina"; // legado: idem, ya en la ficha
 export const VISTA_FORM = "gym-stone-form";      // legado: ya no se navega a ella
@@ -28,7 +28,7 @@ interface EstadoVista {
 }
 
 /* Cambia de pantalla DENTRO de la pestaña del plugin (creándola si no existe).
-   El tipo siempre es VISTA_APP: así Main y la ficha de una rutina son la MISMA
+   El tipo siempre es VISTA_APP: así Inicio y la ficha de una rutina son la MISMA
    vista (solo cambia su estado) y no se destruye ni se remonta nada — que era
    el salto visual que se notaba al entrar en una rutina. La navegación no
    toca ningún archivo: los .md siguen siendo solo consulta y guardado.
@@ -94,7 +94,7 @@ export const esMdRecienteDelPlugin = (ruta: string): boolean => {
 };
 
 /* Convierte UNA pestaña (donde se abrió un archivo del plugin) en la vista
-   del plugin de ese archivo: índice → Main; rutina → su dashboard. */
+   del plugin de ese archivo: índice → Inicio; rutina → su dashboard. */
 export const abrirArchivoComoPlugin = async (leaf: WorkspaceLeaf, ruta: string): Promise<boolean> => {
     if (ruta === rutaIndice()) {
         await leaf.setViewState({ type: VISTA_APP, active: true, state: { pantalla: "lista" } });

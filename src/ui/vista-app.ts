@@ -1,11 +1,11 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    La pestaña del plugin: UNA sola vista para las dos pantallas.
 
-   Main y el dashboard de una rutina son dos pantallas de ESTA misma vista
+   Inicio y el dashboard de una rutina son dos pantallas de ESTA misma vista
    (estado { pantalla }), no dos tipos de vista distintos: al navegar,
    Obsidian reutiliza la instancia y solo llama a setState → se repinta en el
    mismo sitio, sin destruir ni remontar la pestaña. Ese recreado era el que
-   producía el salto visual al entrar en una rutina desde Main (paneles,
+   producía el salto visual al entrar en una rutina desde Inicio (paneles,
    cabecera y barra de acciones se volvían a montar, con un frame en blanco
    de medio leer).
 
@@ -31,10 +31,10 @@ import { leerRutina, rutaDatosDe } from "../datos";
 import type { Rutina } from "../tipos";
 import { el } from "./componentes";
 import { pintarDashboard } from "./gestor";
-import { PantallaMain, esRutaDeMain } from "./pantalla-main";
+import { PantallaInicio, esRutaDeInicio } from "./pantalla-inicio";
 import { VISTA_APP, VISTA_LISTA, VISTA_RUTINA, abrirLista } from "./vistas";
 
-/* La pestaña está viendo Main o la ficha de una rutina */
+/* La pestaña está viendo Inicio o la ficha de una rutina */
 type Pantalla = "lista" | "rutina";
 
 interface EstadoApp {
@@ -53,17 +53,17 @@ export class VistaApp extends ItemView {
     private nombre = "";
     private pintadaEn: Pantalla | null = null;   // la pantalla que hay MONTADA ahora
     private pintando = 0;                        // nº de pintado: el que llega tarde se descarta
-    private readonly main: PantallaMain;
+    private readonly inicio: PantallaInicio;
 
     constructor(leaf: WorkspaceLeaf) {
         super(leaf);
-        this.main = new PantallaMain(() => void this.pintar());
+        this.inicio = new PantallaInicio(() => void this.pintar());
     }
 
     getViewType(): string { return VISTA_APP; }
     getDisplayText(): string {
-        if (this.pantalla === "rutina") return this.nombre || (this.rutinaId ? `Rutina · ${this.rutinaId}` : "Rutina");
-        return "Main";
+        if (this.pantalla === "rutina") return this.nombre || (this.rutinaId ? `Gym stone · ${this.rutinaId}` : "Gym stone");
+        return "Gym stone";
     }
     getIcon(): string { return "dumbbell"; }
 
@@ -75,11 +75,11 @@ export class VistaApp extends ItemView {
         const p = state?.pantalla;
         this.pantalla = p === "lista" || p === "rutina" ? p : this.pantallaPorDefecto;
         this.rutinaId = state?.rutinaId ?? null;
-        // Al llegar a Main (desde el plugin, desde una rutina o al restaurar
+        // Al llegar a Inicio (desde el plugin, desde una rutina o al restaurar
         // la pestaña) se vuelve a la sección de por defecto: «📋 Rutinas».
         // Los cambios de vault no pasan por aquí, así que repintar no pierde
         // la sección en la que estabas.
-        if (this.pantalla === "lista") this.main.seccion = "rutinas";
+        if (this.pantalla === "lista") this.inicio.seccion = "rutinas";
         await this.pintar();
     }
 
@@ -90,7 +90,7 @@ export class VistaApp extends ItemView {
         if (!this.rutinaId && typeof st?.rutinaId === "string") this.rutinaId = st.rutinaId;
 
         // Se repinta sola cuando cambia algo relevante en el vault: el índice
-        // y las medidas (Main) o el archivo de LA rutina abierta (dashboard).
+        // y las medidas (Inicio) o el archivo de LA rutina abierta (dashboard).
         this.registerEvent(aplicacion().vault.on("modify", f => this.trasCambio(f.path)));
         this.registerEvent(aplicacion().vault.on("create", f => this.trasCambio(f.path)));
         this.registerEvent(aplicacion().vault.on("delete", f => this.trasCambio(f.path)));
@@ -100,7 +100,7 @@ export class VistaApp extends ItemView {
     private trasCambio(ruta: string): void {
         const toca = this.pantalla === "rutina"
             ? Boolean(this.rutinaId) && ruta === rutaDatosDe(this.rutinaId!)
-            : esRutaDeMain(ruta);
+            : esRutaDeInicio(ruta);
         if (toca) void this.pintar();
     }
 
@@ -119,7 +119,7 @@ export class VistaApp extends ItemView {
     rutaMarkdown(): string | null {
         return this.pantalla === "rutina"
             ? (this.rutinaId ? rutaDatosDe(this.rutinaId) : null)
-            : rutaIndice();   // Main se guarda en su índice
+            : rutaIndice();   // Inicio se guarda en su índice
     }
 
     /* ── El pintado: se construye FUERA y se monta de una sola tacada ──
@@ -157,7 +157,7 @@ export class VistaApp extends ItemView {
                 });
             }
         } else {
-            await this.main.pintar(cont);
+            await this.inicio.pintar(cont);
         }
 
         if (generacion !== this.pintando) return;   // ya hay un pintado más nuevo
@@ -178,7 +178,7 @@ export class VistaApp extends ItemView {
         this.actualizarTitulo();
     }
 
-    /* El rótulo de la pestaña sigue el nombre de la rutina (o vuelve a «Main») */
+    /* El rótulo de la pestaña sigue el nombre de la rutina (o vuelve a «Gym stone») */
     private actualizarTitulo(): void {
         // updateHeader() existe en runtime pero la librería de tipos no lo
         // declara: mismo enganche con cast que «leaf-menu» en main.ts.

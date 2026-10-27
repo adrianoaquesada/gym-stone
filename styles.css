@@ -33,6 +33,11 @@
   border:1px solid var(--background-modifier-border); margin-bottom:6px;
   grid-template-columns:2fr .7fr .7fr .85fr 1.1fr 2fr 34px; align-items:end; }
 .gym-form .gym-ej label { font-size:.66em; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); font-weight:700; }
+/* Reps: el selector de modo (fijas / mínimo al fallo / al fallo) y el número
+   van juntos en la misma celda; si no caben, se apilan (flex-wrap). */
+.gym-form .gym-ej .gym-reps { display:flex; gap:4px; flex-wrap:wrap; }
+.gym-form .gym-ej .gym-reps > select,
+.gym-form .gym-ej .gym-reps > input { flex:1 1 auto; min-width:0; width:auto; }
 .gym-form .gym-ej input { min-height:40px; padding:9px 11px; }   /* misma altura para todos los campos de la fila */
 .gym-form .gym-ej .gym-borrar { align-self:end; width:100%; min-height:40px; }
 .gym-form .gym-ej-cab { display:none; }
@@ -446,7 +451,7 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-btn-purga { width: 100%; min-height: 40px; margin-top: 8px; }
 .gym-btn-guardar-ej { flex: none; min-width: 44px; min-height: 38px; padding: 6px 12px; }
 /* Lista del gestor del catálogo: en el popup va acotada; en la sección
-   «Ejercicios» de Main (pantalla completa) crece hasta donde haga falta */
+   «Ejercicios» de Inicio (pantalla completa) crece hasta donde haga falta */
 .gym-ejercicios-lista {
     max-height: 46vh; overflow: auto; margin-top: 8px;
     border: 1px solid var(--background-modifier-border); border-radius: 8px;
