@@ -20,14 +20,14 @@ import { rutaMedidas } from "../ajustes";
 import { CONFIG } from "../config";
 import {
     conValor, diaPorId, esLibre, escribirMedidas, escribirRutina, esSaltada,
-    esSinRegistrar, nombreDia, serieConDatos, seriesHechas, textoRepsObjetivo,
+    esSinRegistrar, nombreDia, repsObjetivoDe, serieConDatos, seriesHechas, textoRepsObjetivo,
     totalSaltadas, totalSeries, ultimaMedida, ultimosValores, volumenEjercicio, volumenSesion,
 } from "../datos";
 import { aNumero, clonarJSON, decimal, esFechaValida, fechaLegible, hoy, horaAhora, msgError } from "../util";
 import { pesoACampo, pesoActual, pesoAKg, pesoTexto } from "../unidades";
 import type {
     EjercicioDef, EjercicioSesion, LecturaNota, Medida, MedidasDatos,
-    ModoReps, Rutina, SerieSesion, Sesion,
+    Rutina, SerieSesion, Sesion,
 } from "../tipos";
 import { btn, confirmar, el, modal, ponerX, selectorUnidad, toast } from "./componentes";
 import { elegirEjercicio, pedirDescanso, textoDescanso } from "./ejercicios-ui";
@@ -44,8 +44,6 @@ interface EjercicioTrabajo {
     series: SerieSesion[];
     notas?: string;
     descansoSeg?: number | null;
-    modoFallo?: ModoReps | null;   // elegido en la sesión guiada: al reeditar
-                                   // la sesión se conserva (aquí no se elige)
     sinRegistrar?: boolean;
     pista?: string;
 }
@@ -188,11 +186,11 @@ export function formularioSesion(
             // Sesión NUEVA: se precarga el objetivo (es un formulario de registro manual,
             // para que ajustes solo lo que cambió). Sesión en EDICIÓN: NO se precarga —
             // si no estaba guardado es que no se hizo, y rellenarlo con el objetivo haría
-            // que al guardar se inventaran datos que no existían. En «al fallo» tampoco:
+            // que al guardar se inventaran datos que no existían. En «fallo» tampoco:
             // ahí no hay número que precargar, cada serie es la que salga.
             const series: SerieSesion[] = Array.from({ length: n }, () => esEdicion
                 ? { reps: null, peso: null }
-                : { reps: e.modoFallo === "todas" ? null : e.repsObjetivo ?? null, peso: e.pesoObjetivo ?? null });
+                : { reps: repsObjetivoDe(e), peso: e.pesoObjetivo ?? null });
             const nuevo: EjercicioTrabajo = { ejercicioId: e.id, nombre: e.nombre, series, notas: "" };
             if (esEdicion) nuevo.sinRegistrar = true;
             return nuevo;
@@ -404,8 +402,7 @@ export function formularioSesion(
                 const cN = el("div", "gym-serie-num" + (saltada ? " gym-tachado" : ""), `${i + 1}`);
                 f.appendChild(cN);
                 const r = el("input"); r.type = "number"; r.min = "0"; r.step = "1"; r.inputMode = "numeric";
-                // Con mínimo al fallo el hueco recuerda cuánto era lo mínimo
-                r.placeholder = def?.modoFallo === "minimo" && def.repsObjetivo ? `mín. ${def.repsObjetivo}` : "Reps";
+                r.placeholder = "Reps";
                 r.value = String(s.reps ?? "");
                 r.oninput = () => { s.reps = aNumero(r.value); if (conValor(r.value)) marcarHecho(); actualizaVol(); };
                 const p = el("input"); p.type = "number"; p.min = "0"; p.step = "0.5"; p.inputMode = "decimal";
@@ -527,14 +524,15 @@ export function formularioSesion(
                     .filter(s => esSaltada(s) || serieConDatos(s))   // ni saltadas ni vacías
                     .map(s => esSaltada(s)
                         ? { saltada: true }
-                        : { reps: aNumero(s.reps), peso: aNumero(s.peso) });
+                        : {
+                            reps: aNumero(s.reps), peso: aNumero(s.peso),
+                            // La etiqueta puesta al registrar la serie no se pierde al reeditar
+                            ...(s.tipoSerie ? { tipoSerie: s.tipoSerie } : {}),
+                        });
                 const out: EjercicioSesion = { ejercicioId: e.ejercicioId, nombre: e.nombre, notas: e.notas ?? "", series: serie };
                 // El descanso elegido al añadir el ejercicio viaja con la sesión:
                 // así la próxima vez el selector lo trae ya puesto.
                 if (Number(e.descansoSeg) > 0) out.descansoSeg = Math.round(Number(e.descansoSeg));
-                // El modo de reps elegido en la sesión guiada también viaja: al
-                // reeditar la sesión no se pierde (en ESTE formulario no se elige)
-                if (e.modoFallo === "todas" || e.modoFallo === "minimo") out.modoFallo = e.modoFallo;
                 // Se conserva la marca de "no hecho" para que el registro siga cuadrando con el plan
                 if (esSinRegistrar(e) || (!serie.length && !out.notas)) out.sinRegistrar = true;
                 return out;

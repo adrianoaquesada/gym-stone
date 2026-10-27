@@ -29,18 +29,16 @@ export const rutinaVacia = (): Rutina => ({
 });
 
 export const ejercicioVacio = (): EjercicioDef =>
-    ({ id: "", nombre: "", series: 3, repsObjetivo: 8, pesoObjetivo: null, descansoSeg: 90, notas: "", modoFallo: null });
+    ({ id: "", nombre: "", series: 3, repsObjetivo: 8, pesoObjetivo: null, descansoSeg: 90, notas: "", tipoSerie: null });
 
-/* Texto del objetivo de reps de un ejercicio, según su modo (tipos.ts):
-     · fijo   → «10»
-     · mínimo → «mín. 8 (fallo)» (sin número: «al fallo»)
-     · todas  → «al fallo»
+/* Texto del objetivo de reps de un ejercicio, según su tipo de serie:
+     · fallo   → «al fallo» (sin número: no hay objetivo de reps)
+     · el resto → «10»
    Lo usan el dashboard, el chip «objetivo» del registro y la sesión guiada. */
 export const textoRepsObjetivo =
-    (ej: Pick<EjercicioDef, "repsObjetivo" | "modoFallo"> | undefined | null): string => {
+    (ej: Pick<EjercicioDef, "repsObjetivo" | "tipoSerie"> | undefined | null): string => {
         if (!ej) return "–";
-        if (ej.modoFallo === "todas") return "al fallo";
-        if (ej.modoFallo === "minimo") return ej.repsObjetivo ? `mín. ${ej.repsObjetivo} (fallo)` : "al fallo";
+        if (tipoSerieDe(ej) === "fallo") return "al fallo";
         return ej.repsObjetivo != null ? String(ej.repsObjetivo) : "–";
     };
 
@@ -62,6 +60,12 @@ export const tipoSerieDe = (
     plan: Pick<EjercicioDef, "tipoSerie"> | undefined | null,
     serie?: Pick<SerieSesion, "tipoSerie"> | null,
 ): TipoSerie => serie?.tipoSerie ?? plan?.tipoSerie ?? "trabajo";
+
+/* Reps objetivo de un ejercicio: en «fallo» no hay número que fijar (cada
+   serie es la que salga); en el resto, las reps fijas del plan. */
+export const repsObjetivoDe =
+    (ej: Pick<EjercicioDef, "repsObjetivo" | "tipoSerie"> | undefined | null): number | null =>
+        tipoSerieDe(ej) === "fallo" ? null : ej?.repsObjetivo ?? null;
 
 // Fecha de fin a partir del inicio y las semanas
 export const finDesde = (inicio: string, semanas: number): string =>

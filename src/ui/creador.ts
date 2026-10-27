@@ -15,7 +15,7 @@ import { carpetaPlantillas, rutaIndice } from "../ajustes";
 import {
     escribirRutina, ejercicioVacio, finDesde,
     listarPlantillas, leerPlantilla, plantillaDeRutina, plantillaExiste,
-    rutaDatosDe, rutinaVacia, escribirPlantilla,
+    rutaDatosDe, rutinaVacia, escribirPlantilla, tipoSerieDe,
 } from "../datos";
 import { aNumero, clonarJSON, esFechaValida, hoy, limpiarNombre, msgError, slug, tsDe } from "../util";
 import { pesoActual, pesoACampo, pesoAKg } from "../unidades";
@@ -433,31 +433,31 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
 
             const inReps = num(ej.repsObjetivo, 1, 1, "Repeticiones objetivo");
             inReps.oninput = () => { ej.repsObjetivo = Math.max(1, Number(inReps.value) || 1); };
-            // Cómo se leen esas reps: número fijo, mínimo al fallo o al fallo
-            // (en «al fallo» el número se oculta: no hay objetivo que fijar)
-            const selModo = el("select", "gym-mini");
-            for (const [v, t] of [["", "Reps fijas"], ["minimo", "Mínimo al fallo"], ["todas", "Al fallo"]] as const) {
-                const o = el("option", null, t); o.value = v; selModo.appendChild(o);
+            // Tipo de serie de las series del plan: en «fallo» el número se
+            // oculta (no hay objetivo de reps que fijar)
+            const selSerie = el("select", "gym-mini");
+            for (const [v, t] of [["", "Trabajo"], ["calentamiento", "Calentamiento"], ["descenso", "Descenso"], ["fallo", "Fallo"]] as const) {
+                const o = el("option", null, t); o.value = v; selSerie.appendChild(o);
             }
-            selModo.value = ej.modoFallo ?? "";
-            selModo.title = "Cómo se leen esas reps: número exacto, llegar al menos a ese número y seguir hasta el fallo, o tantas repeticiones como puedas.";
+            selSerie.value = ej.tipoSerie ?? "";
+            selSerie.title = "Tipo de serie de este ejercicio: cómo se leen sus reps (en «fallo» son al fallo, sin número objetivo).";
             const cReps = el("div", "gym-reps");
-            cReps.append(selModo, inReps);
-            const pintaModo = () => {
-                const todas = ej.modoFallo === "todas";
-                inReps.style.display = todas ? "none" : "";
-                inReps.placeholder = ej.modoFallo === "minimo" ? "mín." : "reps";
-                inReps.title = ej.modoFallo === "minimo"
-                    ? "Mínimo de repeticiones: después de ese número se sigue hasta el fallo"
+            cReps.append(selSerie, inReps);
+            const pintaSerie = () => {
+                const fallo = tipoSerieDe(ej) === "fallo";
+                inReps.style.display = fallo ? "none" : "";
+                inReps.placeholder = "Reps";
+                inReps.title = fallo
+                    ? "Al fallo no hay reps objetivo: se anota lo hecho en cada serie"
                     : "Repeticiones objetivo";
             };
-            selModo.onchange = () => {
-                const v = selModo.value;
-                ej.modoFallo = v === "minimo" || v === "todas" ? v : null;
-                pintaModo();
+            selSerie.onchange = () => {
+                const v = selSerie.value;
+                ej.tipoSerie = v === "calentamiento" || v === "descenso" || v === "fallo" ? v : null;
+                pintaSerie();
             };
-            pintaModo();
-            celda("Reps", cReps);
+            pintaSerie();
+            celda("Tipo · Reps", cReps);
 
             const inPeso = num(pesoACampo(ej.pesoObjetivo), 0, 0.5, `Peso objetivo (${pesoActual()}, opcional)`);
             celda(`Peso (${pesoActual()})`, inPeso);
@@ -650,11 +650,11 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
                 id: e.id || `${slug(d.nombre || "dia")}-${slug(e.nombre || `ej-${j}`)}`,
                 nombre: limpiarNombre(e.nombre),
                 series: Math.max(1, Number(e.series) || 1),
-                repsObjetivo: e.modoFallo === "todas" ? null : Math.max(1, Number(e.repsObjetivo) || 1),
+                repsObjetivo: tipoSerieDe(e) === "fallo" ? null : Math.max(1, Number(e.repsObjetivo) || 1),
                 pesoObjetivo: e.pesoObjetivo ?? null,
                 descansoSeg: e.descansoSeg ?? null,
                 notas: e.notas ?? "",
-                modoFallo: e.modoFallo ?? null,
+                tipoSerie: e.tipoSerie ?? null,
             })),
         }));
         const union = [...new Set(dias.flatMap(d => d.diasSemana))].sort();
