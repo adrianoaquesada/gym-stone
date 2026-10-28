@@ -80,6 +80,11 @@ export interface EjercicioSesion {
     series: SerieSesion[];
     notas?: string;
     descansoSeg?: number;           // elegido al añadir el ejercicio
+    tipoEjercicio?: TipoEjercicio | null; // el registro se guarda autocontenido
+                                    // (decisión 18): ausente/null = "peso"
+    duracionObjetivo?: number | null; // solo "tiempo": segundos objetivo del hold
+    trabajoSeg?: number | null;     // solo "intervalo": trabajo por ciclo
+    transicionSeg?: number | null;  // solo "intervalo": transición entre ciclos
     sinRegistrar?: boolean;         // planificado pero sin datos (⏳)
     pista?: string;                 // solo en el formulario («última vez: …»)
 }
