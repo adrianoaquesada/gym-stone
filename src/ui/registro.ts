@@ -2,7 +2,7 @@
    3 · Registro: sesión, anotación y medidas.
 
    · formularioSesion    → crear o editar una sesión: día → ejercicios →
-                           series con reps/peso/descanso → guardar
+                           series con reps/peso o segundos según el tipo → guardar
    · abrirRegistro       → si ese día ya tiene sesiones, ofrece editarlas
    · formularioAnotacion → anotación de un día
    · formularioMedidas   → peso y talla (se guardan siempre en kg y cm)
@@ -21,13 +21,14 @@ import { CONFIG } from "../config";
 import {
     conValor, diaPorId, esLibre, escribirMedidas, escribirRutina, esSaltada,
     esSinRegistrar, nombreDia, repsObjetivoDe, serieConDatos, seriesHechas, textoRepsObjetivo,
-    totalSaltadas, totalSeries, ultimaMedida, ultimosValores, volumenEjercicio, volumenSesion,
+    tipoEjercicioDe, tipoEjercicioDeRutina, totalSaltadas, totalSeries, ultimaMedida,
+    ultimosValores, volumenEjercicio, volumenSesion,
 } from "../datos";
 import { aNumero, clonarJSON, decimal, esFechaValida, fechaLegible, hoy, horaAhora, msgError } from "../util";
 import { pesoACampo, pesoActual, pesoAKg, pesoTexto } from "../unidades";
 import type {
     EjercicioDef, EjercicioSesion, LecturaNota, Medida, MedidasDatos,
-    Rutina, SerieSesion, Sesion,
+    Rutina, SerieSesion, Sesion, TipoEjercicio,
 } from "../tipos";
 import { btn, confirmar, el, modal, ponerX, selectorUnidad, toast } from "./componentes";
 import { elegirEjercicio, pedirDescanso, textoDescanso } from "./ejercicios-ui";
@@ -44,6 +45,10 @@ interface EjercicioTrabajo {
     series: SerieSesion[];
     notas?: string;
     descansoSeg?: number | null;
+    tipoEjercicio?: TipoEjercicio | null;
+    duracionObjetivo?: number | null;
+    trabajoSeg?: number | null;
+    transicionSeg?: number | null;
     sinRegistrar?: boolean;
     pista?: string;
 }
@@ -58,6 +63,53 @@ interface SesionTrabajo {
     idx?: number;
     transcurridoMs?: number;
 }
+
+/* ── Registro por tipo de ejercicio ───────────────────────────────────────
+   El formulario manual admite los 3 tipos: «peso» (reps × peso), «tiempo»
+   (segundos mantenidos) e «intervalo» (cada ciclo es una serie y se registra
+   con sus segundos de trabajo — decisión 10). El tipo sale del plan del día;
+   en la rutina libre, que no tiene plan, se elige en la propia fila. */
+const tipoDe = (ej: EjercicioTrabajo): TipoEjercicio => tipoEjercicioDe(ej);
+
+// Serie en blanco del tipo: en «peso» reps y peso; en el resto, solo segundos.
+const serieVacia = (tipo: TipoEjercicio): SerieSesion =>
+    tipo === "peso" ? { reps: null, peso: null } : { duracionSeg: null };
+
+// Segundos objetivo de una serie del plan: el hold de «tiempo» y el trabajo
+// del ciclo en «intervalo».
+const segundosDeObjetivo = (def: EjercicioDef): number | null => {
+    const n = Number(tipoEjercicioDe(def) === "intervalo" ? def.trabajoSeg : def.duracionObjetivo);
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+};
+
+// Segundos registrados de un ejercicio (hold o trabajo de cada ciclo): es lo
+// que enseña su chip de volumen, porque el volumen solo cuenta en «peso»
+// (decisión 6).
+const segundosEjercicio = (ej: { series?: SerieSesion[] } | null | undefined): number =>
+    (ej?.series ?? []).filter(s => !esSaltada(s))
+        .reduce((t, s) => t + (aNumero(s.duracionSeg) ?? 0), 0);
+
+// Chip «objetivo» de un ejercicio del plan, con el texto de cada tipo.
+const textoObjetivo = (def: EjercicioDef): string => {
+    const tipo = tipoEjercicioDe(def);
+    if (tipo === "peso") {
+        return `objetivo ${def.series}×${textoRepsObjetivo(def)}${def.pesoObjetivo ? ` @ ${pesoTexto(def.pesoObjetivo)}` : ""}`;
+    }
+    if (tipo === "tiempo") {
+        const dur = Number(def.duracionObjetivo) > 0 ? ` de ${Math.round(Number(def.duracionObjetivo))} s` : "";
+        return `objetivo ${def.series}×hold${dur}`;
+    }
+    const trab = Number(def.trabajoSeg) > 0 ? ` × ${Math.round(Number(def.trabajoSeg))} s` : "";
+    return `objetivo ${def.series} ciclos${trab}`;
+};
+
+// Valores comunes a todas las series de una fila de la rutina libre.
+type CampoSerie = "reps" | "peso" | "duracionSeg";
+
+// Opciones del selector de tipo de la rutina libre.
+const TIPOS_EJERCICIO: [TipoEjercicio, string][] = [
+    ["peso", "Peso"], ["tiempo", "Tiempo"], ["intervalo", "Intervalo"],
+];
 
 // Contador para el id del <datalist> del campo «Día de la rutina»: cada
 // formulario (crear o editar) monta el suyo, así que el id debe ser único.
@@ -183,15 +235,23 @@ export function formularioSesion(
             const previo = previos.get(e.id);
             if (previo) return previo;                       // ya tenía datos: se conservan
             const n = Math.max(1, Number(e.series) || 1);
+            const tipo = tipoEjercicioDe(e);
             // Sesión NUEVA: se precarga el objetivo (es un formulario de registro manual,
             // para que ajustes solo lo que cambió). Sesión en EDICIÓN: NO se precarga —
             // si no estaba guardado es que no se hizo, y rellenarlo con el objetivo haría
             // que al guardar se inventaran datos que no existían. En «fallo» tampoco:
-            // ahí no hay número que precargar, cada serie es la que salga.
-            const series: SerieSesion[] = Array.from({ length: n }, () => esEdicion
-                ? { reps: null, peso: null }
-                : { reps: repsObjetivoDe(e), peso: e.pesoObjetivo ?? null });
-            const nuevo: EjercicioTrabajo = { ejercicioId: e.id, nombre: e.nombre, series, notas: "" };
+            // ahí no hay número que precargar, cada serie es la que salga. En tiempo e
+            // intervalo el objetivo son segundos (hold o trabajo del ciclo).
+            const objetivo: SerieSesion = tipo === "peso"
+                ? { reps: repsObjetivoDe(e), peso: e.pesoObjetivo ?? null }
+                : { duracionSeg: segundosDeObjetivo(e) };
+            const series: SerieSesion[] = Array.from({ length: n }, () =>
+                esEdicion ? serieVacia(tipo) : { ...objetivo });
+            const nuevo: EjercicioTrabajo = {
+                ejercicioId: e.id, nombre: e.nombre, series, notas: "",
+                tipoEjercicio: tipo, duracionObjetivo: e.duracionObjetivo ?? null,
+                trabajoSeg: e.trabajoSeg ?? null, transicionSeg: e.transicionSeg ?? null,
+            };
             if (esEdicion) nuevo.sinRegistrar = true;
             return nuevo;
         });
@@ -213,13 +273,15 @@ export function formularioSesion(
     // ── Fila compacta de una rutina libre ───────────────────────────────
     // Una rutina libre no tiene plan ni días, así que no hay objetivos que
     // enseñar: cada ejercicio va en la MISMA fila que en «Editar rutina»
-    // (ejercicio · series · reps · peso · descanso · notas · 🗑).
-    // Reps y peso son valores COMUNES a todas las series: si las guardadas no
-    // coinciden (p. ej. 12-10-8), los campos salen vacíos y lo que teclees se
-    // aplica a todas las que no estén saltadas — nunca se pisa un dato sin que
-    // tú escribas, y las series dejas de existir solo si lo pides.
+    // (ejercicio · series · reps · peso · descanso · notas · 🗑), con el tipo
+    // de ejercicio en la celda del nombre y los campos de cada tipo.
+    // Reps, peso y segundos son valores COMUNES a todas las series: si las
+    // guardadas no coinciden (p. ej. 12-10-8), los campos salen vacíos y lo que
+    // teclees se aplica a todas las que no estén saltadas — nunca se pisa un
+    // dato sin que tú escribas, y las series dejas de existir solo si lo pides.
     const filaCompacta = (ej: EjercicioTrabajo): HTMLDivElement => {
         const fila = el("div", "gym-ej-fila");
+        const tipo = tipoDe(ej);
         const celda = (etiqueta: string, control: HTMLElement, ayuda?: string): HTMLDivElement => {
             const c = el("div");
             if (ayuda) c.title = ayuda;
@@ -241,10 +303,32 @@ export function formularioSesion(
         const inEj = el("input"); inEj.type = "text"; inEj.placeholder = "Ejercicio";
         inEj.value = ej.nombre || ej.ejercicioId;
         inEj.oninput = () => { ej.nombre = inEj.value.trim() || ej.ejercicioId; marcarHecho(); };
-        celda("Ejercicio", inEj, `${pista} · cada variante cuenta aparte en el historial`);
+        // El tipo va en la MISMA celda (no se añade columna: el grid —y los
+        // nth-child del móvil— sigue cuadrando). En la libre no hay plan del
+        // que sacarlo, así que se elige aquí; al cambiarlo se vacían los datos
+        // del tipo anterior para no arrastrar residuos (decisión 13).
+        const cEj = el("div");
+        cEj.title = `${pista} · cada variante cuenta aparte en el historial`;
+        cEj.appendChild(el("label", null, "Ejercicio"));
+        cEj.appendChild(inEj);
+        const selTipo = el("select", "margin-top:4px;");
+        for (const [valor, texto] of TIPOS_EJERCICIO) selTipo.appendChild(nuevaOp(valor, texto));
+        selTipo.value = tipo;
+        selTipo.title = "Tipo: reps y peso, tiempo mantenido o ciclos con sus segundos";
+        selTipo.onchange = () => {
+            ej.tipoEjercicio = selTipo.value as TipoEjercicio;
+            // Los datos del tipo anterior dejan de aplicar (decisión 13): ni en
+            // las series ni en los campos de tiempo del ejercicio.
+            delete ej.duracionObjetivo; delete ej.trabajoSeg; delete ej.transicionSeg;
+            for (const s of ej.series) { s.reps = null; s.peso = null; s.duracionSeg = null; }
+            montarEjercicios(); actualizaVol();
+        };
+        cEj.appendChild(selTipo);
+        fila.appendChild(cEj);
 
-        // Series: cuántas has hecho. Si al quitar las últimas tienen datos, se
-        // avisa antes: no se pierden tecleados por casualidad.
+        // Series (o ciclos, en intervalo): cuántas has hecho. Si al quitar las
+        // últimas tienen datos, se avisa antes: no se pierden tecleados por
+        // casualidad.
         const inSeries = el("input"); inSeries.type = "number"; inSeries.min = "1"; inSeries.max = "10";
         inSeries.step = "1"; inSeries.inputMode = "numeric";
         inSeries.value = String(Math.max(1, ej.series.length));
@@ -255,53 +339,76 @@ export function formularioSesion(
             if (obj < actual) {
                 const fuera = ej.series.slice(obj);
                 if (fuera.some(serieConDatos) && !(await confirmar("🗑 Quitar series",
-                    `Las últimas ${fuera.length} series tienen datos escritos (reps o peso) y se perderán. ¿Quitarlas igualmente?`,
+                    `Las últimas ${fuera.length} series tienen datos escritos (reps, peso o segundos) y se perderán. ¿Quitarlas igualmente?`,
                     "Quitarlas", "Cancelar"))) {
                     inSeries.value = String(Math.max(1, actual));
                     return;
                 }
                 ej.series.length = obj;   // se corta por la cola: dejan de existir
             } else {
-                for (let i = actual; i < obj; i++) ej.series.push({ reps: null, peso: null });
+                for (let i = actual; i < obj; i++) ej.series.push(serieVacia(tipo));
             }
             inSeries.value = String(obj);
             marcarHecho(); actualizaVol();
         };
-        celda("Series", inSeries, "Series hechas de este ejercicio");
+        celda(tipo === "intervalo" ? "Ciclos" : "Series", inSeries,
+            tipo === "intervalo" ? "Ciclos hechos: cada ciclo cuenta como una serie"
+                                 : "Series hechas de este ejercicio");
 
         // Valor común a todas las series (null si no coinciden → campo vacío)
-        const comun = (campo: "reps" | "peso"): number | null | undefined => {
+        const comun = (campo: CampoSerie): number | null | undefined => {
             const vals = ej.series.filter(s => !esSaltada(s)).map(s => s?.[campo]);
             return vals.length && vals.every(v => (v ?? "") === (vals[0] ?? "")) ? vals[0] : null;
         };
-        const aplicaComun = (campo: "reps" | "peso", v: number | null): void => {
-            if (!ej.series.length) ej.series.push({ reps: null, peso: null });
+        const aplicaComun = (campo: CampoSerie, v: number | null): void => {
+            if (!ej.series.length) ej.series.push(serieVacia(tipo));
             for (const s of ej.series) if (!esSaltada(s)) s[campo] = v;
             marcarHecho(); actualizaVol();
         };
 
-        const inReps = el("input"); inReps.type = "number"; inReps.min = "0"; inReps.step = "1";
-        inReps.inputMode = "numeric"; inReps.placeholder = "Reps";
-        inReps.value = comun("reps") == null ? "" : String(comun("reps"));
-        inReps.oninput = () => aplicaComun("reps", aNumero(inReps.value));
-        celda("Reps", inReps, "Repeticiones en todas las series (si varían, se vacía y lo que escribas se aplica a todas)");
+        if (tipo === "peso") {
+            const inReps = el("input"); inReps.type = "number"; inReps.min = "0"; inReps.step = "1";
+            inReps.inputMode = "numeric"; inReps.placeholder = "Reps";
+            inReps.value = comun("reps") == null ? "" : String(comun("reps"));
+            inReps.oninput = () => aplicaComun("reps", aNumero(inReps.value));
+            celda("Reps", inReps, "Repeticiones en todas las series (si varían, se vacía y lo que escribas se aplica a todas)");
 
-        const inPeso = el("input"); inPeso.type = "number"; inPeso.min = "0"; inPeso.step = "0.5";
-        inPeso.inputMode = "decimal"; inPeso.placeholder = `peso (${pesoActual()})`;
-        inPeso.value = pesoACampo(comun("peso"));   // se teclea en la unidad activa, se guarda en kg
-        inPeso.oninput = () => aplicaComun("peso", pesoAKg(inPeso.value));
-        celda(`Peso (${pesoActual()})`, inPeso, "Peso en todas las series, en la unidad activa (en el archivo se guarda siempre en kg)");
+            const inPeso = el("input"); inPeso.type = "number"; inPeso.min = "0"; inPeso.step = "0.5";
+            inPeso.inputMode = "decimal"; inPeso.placeholder = `peso (${pesoActual()})`;
+            inPeso.value = pesoACampo(comun("peso"));   // se teclea en la unidad activa, se guarda en kg
+            inPeso.oninput = () => aplicaComun("peso", pesoAKg(inPeso.value));
+            celda(`Peso (${pesoActual()})`, inPeso, "Peso en todas las series, en la unidad activa (en el archivo se guarda siempre en kg)");
+        } else {
+            // Tiempo e intervalo: los segundos de cada serie (el hold o el
+            // trabajo del ciclo). La celda del peso queda vacía para no
+            // descuadrar el grid de la fila.
+            const inSeg = el("input"); inSeg.type = "number"; inSeg.min = "0"; inSeg.step = "1";
+            inSeg.inputMode = "numeric"; inSeg.placeholder = "Seg";
+            inSeg.value = comun("duracionSeg") == null ? "" : String(comun("duracionSeg"));
+            inSeg.oninput = () => aplicaComun("duracionSeg", aNumero(inSeg.value));
+            celda(tipo === "intervalo" ? "Trabajo (s)" : "Duración (s)", inSeg,
+                tipo === "intervalo"
+                    ? "Segundos de trabajo de cada ciclo (si varían, se vacía y lo que escribas se aplica a todos)"
+                    : "Segundos mantenidos en cada serie (si varían, se vacía y lo que escribas se aplica a todas)");
+            fila.appendChild(el("div"));
+        }
 
-        const descSeg = (): number => Number(ej.descansoSeg) > 0 ? Math.round(Number(ej.descansoSeg)) : 0;
+        const descSeg = (): number => Math.max(0, Math.round(Number(ej.descansoSeg) || 0));
         const inDesc = el("input"); inDesc.type = "number"; inDesc.min = "0"; inDesc.step = "15";
         inDesc.inputMode = "numeric"; inDesc.placeholder = "90";
-        inDesc.value = descSeg() ? String(descSeg()) : "";
+        // En intervalo el 0 es un dato y se enseña; en el resto, 0 = campo vacío
+        inDesc.value = ej.descansoSeg != null && (descSeg() > 0 || tipo === "intervalo")
+            ? String(descSeg()) : "";
         inDesc.oninput = () => {
             const v = aNumero(inDesc.value) ?? 0;
-            ej.descansoSeg = v > 0 ? Math.round(v) : null;   // vacío o 0 = sin descanso propio
+            // Vacío o 0 = sin descanso propio; en intervalo el 0 sí es un dato
+            // («sin descanso en el ciclo») y se conserva (decisión 16).
+            ej.descansoSeg = v > 0 || tipo === "intervalo" ? Math.round(v) : null;
             marcarHecho();
         };
-        celda("Descanso (s)", inDesc, "Segundos de descanso entre series (vacío = sin descanso fijado)");
+        celda("Descanso (s)", inDesc, tipo === "intervalo"
+            ? "Segundos de descanso dentro de cada ciclo (vacío = sin descanso fijado)"
+            : "Segundos de descanso entre series (vacío = sin descanso fijado)");
 
         const inNotas = el("input"); inNotas.type = "text"; inNotas.placeholder = "Notas (opcional)";
         inNotas.value = ej.notas ?? "";
@@ -345,6 +452,7 @@ export function formularioSesion(
         // objetivos del día ni series que detallar una a una.
         if (esLibre(rutina)) return filaCompacta(ej);
         const def = definidos.find(e => e.id === ej.ejercicioId);
+        const tipo = tipoDe(ej);
         const box = el("div", "gym-ej-reg");
         const cabE = el("div", "gym-ej-reg-cab");
         // El chip solo dice «objetivo» cuando lo hay de verdad (el del día). Si el
@@ -355,7 +463,7 @@ export function formularioSesion(
         const enRutina = (rutina.dias ?? []).some(d =>
             (d.ejercicios ?? []).some(e => e.id === ej.ejercicioId));
         const chipObj = el("span", "gym-chip", def
-            ? `objetivo ${def.series}×${textoRepsObjetivo(def)}${def.pesoObjetivo ? ` @ ${pesoTexto(def.pesoObjetivo)}` : ""}`
+            ? textoObjetivo(def)
             : ej.pista
                 ? ej.pista
                 : enRutina
@@ -363,10 +471,14 @@ export function formularioSesion(
                     : "sin objetivo fijo");
         // Descanso: el elegido al añadir el ejercicio; si no, el del plan del día.
         // El chip es tocable: así se corrige sin tener que quitar y reañadir.
-        const descSeg = (): number => Number(ej.descansoSeg) > 0 ? Number(ej.descansoSeg)
-            : Number(def?.descansoSeg) > 0 ? Number(def?.descansoSeg) : 0;
+        // En intervalo el 0 es un dato («sin descanso en el ciclo»), no un hueco.
+        const descSeg = (): number => tipo === "intervalo"
+            ? Math.max(0, Math.round(Number(ej.descansoSeg ?? def?.descansoSeg) || 0))
+            : Number(ej.descansoSeg) > 0 ? Number(ej.descansoSeg)
+                : Number(def?.descansoSeg) > 0 ? Number(def?.descansoSeg) : 0;
         const chipDesc = el("span", "gym-chip gym-puntero", textoDescanso(descSeg()) + " ");
-        chipDesc.title = "Tocar para cambiar el descanso";
+        chipDesc.title = tipo === "intervalo" ? "Tocar para cambiar el descanso de cada ciclo"
+                                              : "Tocar para cambiar el descanso";
         const chipVol = el("span", "gym-chip", "–");
         const chipNoReg = el("span", "gym-chip gym-sinreg", "⏳ sin registrar");
         chipNoReg.hidden = true;
@@ -380,9 +492,9 @@ export function formularioSesion(
             const v = await pedirDescanso(descSeg());
             if (v == null) return;
             // Vacío o 0 = sin descanso propio: el chip vuelve a mirar el del plan
-            ej.descansoSeg = v > 0 ? Math.round(v) : null;
-            const n = ej.descansoSeg ?? (Number(def?.descansoSeg) > 0 ? Number(def?.descansoSeg) : 0);
-            chipDesc.textContent = textoDescanso(n) + " ";
+            // (en intervalo el 0 es un dato y se conserva — decisión 16)
+            ej.descansoSeg = v > 0 || tipo === "intervalo" ? Math.round(v) : null;
+            chipDesc.textContent = textoDescanso(descSeg()) + " ";
             marcarHecho();   // cambiar el descanso cuenta como tocar la sesión
         };
         box.appendChild(cabE);
@@ -401,17 +513,30 @@ export function formularioSesion(
                 const f = el("div", "gym-serie" + (saltada ? " saltada" : ""));
                 const cN = el("div", "gym-serie-num" + (saltada ? " gym-tachado" : ""), `${i + 1}`);
                 f.appendChild(cN);
-                const r = el("input"); r.type = "number"; r.min = "0"; r.step = "1"; r.inputMode = "numeric";
-                r.placeholder = "Reps";
-                r.value = String(s.reps ?? "");
-                r.oninput = () => { s.reps = aNumero(r.value); if (conValor(r.value)) marcarHecho(); actualizaVol(); };
-                const p = el("input"); p.type = "number"; p.min = "0"; p.step = "0.5"; p.inputMode = "decimal";
-                // Se teclea en la unidad activa; s.peso sigue guardándose en kg
-                p.placeholder = `peso (${pesoActual()})`; p.value = pesoACampo(s.peso);
-                p.oninput = () => { s.peso = pesoAKg(p.value); if (conValor(p.value)) marcarHecho(); actualizaVol(); };
-                if (saltada) {   // serie saltada: sus campos no se editan, solo se puede rehacer
-                    r.disabled = p.disabled = true;
-                    r.placeholder = p.placeholder = "Saltada";
+                if (tipo === "peso") {
+                    const r = el("input"); r.type = "number"; r.min = "0"; r.step = "1"; r.inputMode = "numeric";
+                    r.placeholder = "Reps";
+                    r.value = String(s.reps ?? "");
+                    r.oninput = () => { s.reps = aNumero(r.value); if (conValor(r.value)) marcarHecho(); actualizaVol(); };
+                    const p = el("input"); p.type = "number"; p.min = "0"; p.step = "0.5"; p.inputMode = "decimal";
+                    // Se teclea en la unidad activa; s.peso sigue guardándose en kg
+                    p.placeholder = `peso (${pesoActual()})`; p.value = pesoACampo(s.peso);
+                    p.oninput = () => { s.peso = pesoAKg(p.value); if (conValor(p.value)) marcarHecho(); actualizaVol(); };
+                    if (saltada) {   // serie saltada: sus campos no se editan, solo se puede rehacer
+                        r.disabled = p.disabled = true;
+                        r.placeholder = p.placeholder = "Saltada";
+                    }
+                    f.appendChild(r); f.appendChild(p);
+                } else {
+                    // Tiempo e intervalo: solo los segundos de la serie (el hold
+                    // o el trabajo del ciclo). La 2.ª celda queda libre para que
+                    // el grid de 4 columnas no se descuadre.
+                    const g = el("input"); g.type = "number"; g.min = "0"; g.step = "1"; g.inputMode = "numeric";
+                    g.placeholder = "Seg";
+                    g.value = String(s.duracionSeg ?? "");
+                    g.oninput = () => { s.duracionSeg = aNumero(g.value); if (conValor(g.value)) marcarHecho(); actualizaVol(); };
+                    if (saltada) { g.disabled = true; g.placeholder = "Saltada"; }
+                    f.appendChild(g); f.appendChild(el("div"));
                 }
                 const b = el("button", "gym-mini", saltada ? "↩" : "×");
                 b.type = "button";
@@ -422,12 +547,12 @@ export function formularioSesion(
                     else { s.saltada = true; }           // saltar: ocupa su hueco, no se borra
                     pintarSeries(); actualizaVol();
                 };
-                f.appendChild(r); f.appendChild(p); f.appendChild(b);
+                f.appendChild(b);
                 lista.appendChild(f);
             });
             const mas = el("button", "gym-mini", "＋ serie");
             mas.type = "button";
-            mas.onclick = () => { ej.series.push({ reps: null, peso: null }); pintarSeries(); };
+            mas.onclick = () => { ej.series.push(serieVacia(tipo)); pintarSeries(); };
             lista.appendChild(mas);
         };
         pintarSeries();
@@ -452,21 +577,29 @@ export function formularioSesion(
         b.onclick = async () => {
             const r = await elegirEjercicio(rutina, { excluir: (datos.ejercicios ?? []).map(e => e.ejercicioId) });
             if (!r) return;
+            // El tipo sale del plan de cualquier día de la rutina; si nunca ha
+            // constado, «peso» (y en la libre se cambia en la propia fila).
+            const tipo = tipoEjercicioDeRutina(rutina, r.id);
             const u = ultimosValores(rutina, r.id);
             const n = Math.max(1, Math.min(10, Number(u?.series) || 1));
             // Series VACÍAS a propósito: en ESTE formulario lo que se teclea se
             // guarda tal cual, así que precargar el peso de la última vez podría
             // dejar registrado como hecho algo que no se hizo. La referencia de la
-            // última vez va en la cabecera, donde solo se lee.
+            // última vez va en la cabecera, donde solo se lee (en tiempo e
+            // intervalo no hay reps que enseñar: solo cuántas series fueron).
+            const pista = tipo === "peso"
+                ? u ? `última vez: ${u.reps ?? "–"} × ${pesoTexto(u.peso)} · ${fechaLegible(u.fecha)}`
+                    : "ejercicio nuevo · sin registros"
+                : u ? `última vez: ${u.series} series · ${fechaLegible(u.fecha)}`
+                    : "ejercicio nuevo · sin registros";
             const nuevo: EjercicioTrabajo = {
-                ejercicioId: r.id, nombre: r.nombre, notas: "",
-                pista: u ? `última vez: ${u.reps ?? "–"} × ${pesoTexto(u.peso)} · ${fechaLegible(u.fecha)}`
-                        : "ejercicio nuevo · sin registros",
-                series: Array.from({ length: n }, () => ({ reps: null, peso: null })),
+                ejercicioId: r.id, nombre: r.nombre, notas: "", pista, tipoEjercicio: tipo,
+                series: Array.from({ length: n }, () => serieVacia(tipo)),
             };
             // Descanso elegido en el selector: se guarda con la sesión (sin 0:
-            // no apetece un campo «descanso: 0» que luego se ignora igual).
-            if (r.descansoSeg > 0) nuevo.descansoSeg = r.descansoSeg;
+            // no apetece un campo «descanso: 0» que luego se ignora igual salvo
+            // en intervalo, donde el 0 sí significa «sin descanso en el ciclo»).
+            if (r.descansoSeg > 0 || tipo === "intervalo") nuevo.descansoSeg = r.descansoSeg;
             datos.ejercicios.push(nuevo);
             montarEjercicios();
             actualizaVol();
@@ -477,7 +610,13 @@ export function formularioSesion(
     const actualizaVol = (): void => {
         for (const ej of datos.ejercicios ?? []) {
             const chip = volEls.get(ej);
-            if (chip) chip.textContent = pesoTexto(volumenEjercicio(ej));
+            if (!chip) continue;
+            // El volumen solo cuenta en «peso» (decisión 6); en tiempo e
+            // intervalo el chip enseña los segundos registrados.
+            const seg = segundosEjercicio(ej);
+            chip.textContent = tipoDe(ej) === "peso"
+                ? pesoTexto(volumenEjercicio(ej))
+                : seg > 0 ? `⏱ ${Math.round(seg)} s` : "–";
         }
     };
 
@@ -508,7 +647,7 @@ export function formularioSesion(
         if (!esFechaValida(f)) return toast("⚠️ La fecha no es válida.", false);
         const completos = (datos.ejercicios ?? []).filter(e => seriesHechas(e).some(serieConDatos));
         if (!completos.length && !(await confirmar("📭 Sesión vacía",
-            "No has metido ni una repetición ni un peso. ¿Guardar la sesión vacía?",
+            "No has metido ni una repetición, ni un peso, ni segundos. ¿Guardar la sesión vacía?",
             "Sí, guardar", "No, cancelar"))) return;
 
         const nueva: Sesion = {
@@ -520,19 +659,43 @@ export function formularioSesion(
             duracionMin: aNumero(inMin.value) ?? "",
             anotaciones: inAnot.value.trim(),
             ejercicios: (datos.ejercicios ?? []).map(e => {
+                const tipo = tipoDe(e);
                 const serie = (e.series ?? [])
                     .filter(s => esSaltada(s) || serieConDatos(s))   // ni saltadas ni vacías
-                    .map(s => esSaltada(s)
-                        ? { saltada: true }
-                        : {
-                            reps: aNumero(s.reps), peso: aNumero(s.peso),
-                            // La etiqueta puesta al registrar la serie no se pierde al reeditar
-                            ...(s.tipoSerie ? { tipoSerie: s.tipoSerie } : {}),
-                        });
+                    .map(s => {
+                        if (esSaltada(s)) return { saltada: true };
+                        // Cada tipo guarda sus campos: reps/peso o los segundos
+                        const sOut: SerieSesion = tipo === "peso"
+                            ? { reps: aNumero(s.reps), peso: aNumero(s.peso) }
+                            : { duracionSeg: aNumero(s.duracionSeg) };
+                        // La etiqueta puesta al registrar la serie no se pierde al reeditar
+                        if (s.tipoSerie) sOut.tipoSerie = s.tipoSerie;
+                        // Los tiempos de la sesión guiada viajan con la serie
+                        if (s.t != null) sOut.t = s.t;
+                        if (s.descansoMs != null) sOut.descansoMs = s.descansoMs;
+                        if (s.ejecMs != null) sOut.ejecMs = s.ejecMs;
+                        return sOut;
+                    });
                 const out: EjercicioSesion = { ejercicioId: e.ejercicioId, nombre: e.nombre, notas: e.notas ?? "", series: serie };
+                // El registro viaja autocontenido (decisión 18): el tipo y sus
+                // campos de tiempo se guardan con la sesión para que reanudarla
+                // no dependa del plan. Ausentes = «peso», como en los datos viejos.
+                if (tipo === "tiempo") {
+                    out.tipoEjercicio = tipo;
+                    const dur = aNumero(e.duracionObjetivo);
+                    if (dur != null && dur > 0) out.duracionObjetivo = Math.round(dur);
+                } else if (tipo === "intervalo") {
+                    out.tipoEjercicio = tipo;
+                    const trab = aNumero(e.trabajoSeg);
+                    if (trab != null && trab > 0) out.trabajoSeg = Math.round(trab);
+                    const trans = aNumero(e.transicionSeg);
+                    if (trans != null && trans > 0) out.transicionSeg = Math.round(trans);
+                }
                 // El descanso elegido al añadir el ejercicio viaja con la sesión:
-                // así la próxima vez el selector lo trae ya puesto.
-                if (Number(e.descansoSeg) > 0) out.descansoSeg = Math.round(Number(e.descansoSeg));
+                // así la próxima vez el selector lo trae ya puesto. En intervalo
+                // el 0 es un dato («sin descanso en el ciclo») y se conserva.
+                const desc = aNumero(e.descansoSeg);
+                if (desc != null && (desc > 0 || tipo === "intervalo")) out.descansoSeg = Math.round(desc);
                 // Se conserva la marca de "no hecho" para que el registro siga cuadrando con el plan
                 if (esSinRegistrar(e) || (!serie.length && !out.notas)) out.sinRegistrar = true;
                 return out;
@@ -596,9 +759,14 @@ export function abrirRegistro(
         const nSer = totalSeries(s);
         const nSal = totalSaltadas(s);
         const nSin = (s.ejercicios ?? []).filter(esSinRegistrar).length;
+        // Volumen en kg y segundos por separado: el volumen solo cuenta con
+        // peso (decisión 6), así que con reps sin peso no se enseña un «0 kg».
+        const vol = volumenSesion(s);
+        const seg = (s.ejercicios ?? []).reduce((t, e) => t + segundosEjercicio(e), 0);
         const detalle = [
             `${nSer} series`,
-            pesoTexto(volumenSesion(s)),
+            vol > 0 ? pesoTexto(vol) : "",
+            seg > 0 ? `⏱ ${Math.round(seg)} s` : "",
             nSal ? `⏭ ${nSal} saltada${nSal > 1 ? "s" : ""}` : "",
             nSin ? `⏳ ${nSin} sin registrar` : "",
         ].filter(Boolean).join(" · ");

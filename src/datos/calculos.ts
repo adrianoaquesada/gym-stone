@@ -75,9 +75,10 @@ export const totalSaltadas = (sesion: Sesion): number =>
 // distinto de null que sería "sin rellenar") y NaN tampoco. El 0 sí: es un dato.
 export const conValor = (v: unknown): boolean =>
     v !== null && v !== undefined && v !== "" && !Number.isNaN(Number(v));
-// Una serie "con datos" es la que aporta al registro: ni saltada ni vacía
+// Una serie "con datos" es la que aporta al registro: ni saltada ni vacía.
+// Cuenta reps/peso («peso») y también duracionSeg («tiempo»/«intervalo»).
 export const serieConDatos = (s: SerieSesion): boolean =>
-    !esSaltada(s) && (conValor(s?.reps) || conValor(s?.peso));
+    !esSaltada(s) && (conValor(s?.reps) || conValor(s?.peso) || conValor(s?.duracionSeg));
 // Ejercicio del día planificado pero no hecho. Se GUARDA igualmente (marcado),
 // no se descarta: si no, el registro dejaría de cuadrar con la rutina base.
 export const esSinRegistrar = (ej: { sinRegistrar?: boolean } | undefined | null): boolean =>
