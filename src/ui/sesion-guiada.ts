@@ -16,7 +16,7 @@ import {
     escribirRutina, repsObjetivoDe, seriesHechas, textoRepsObjetivo,
     tipoEjercicioDe, tipoSerieDe, tipoSerieDeRutina, ultimosValores,
 } from "../datos";
-import type { EjercicioDef, EjercicioSesion, Rutina, SerieSesion, Sesion } from "../tipos";
+import type { EjercicioDef, EjercicioSesion, Rutina, SerieSesion, Sesion, TipoSerie } from "../tipos";
 import { pesoACampo, pesoAKg, pesoTexto } from "../unidades";
 import { aNumero, dos, esc, fechaLegible, hoy, msgError } from "../util";
 import { btn, confirmar, el, modal, pedirTexto, toast } from "./componentes";
@@ -53,8 +53,41 @@ interface DefSesion {
     plan: number;
     planOrigen: number;   // las filas ≥ planOrigen son series extra («＋1 serie»)
     series: SerieSesion[];   // completadas: [{ reps, peso }] o [{ saltada: true }]
+    tipoSiguiente?: TipoSerie | null;   // etiqueta elegida para la serie que toca; ausente = la del plan
     notas: string;
 }
+
+/* ── Tipo de serie de cada serie ───────────────────────────────────────────
+   El plan fija el tipo por defecto (EjercicioDef.tipoSerie; ausente =
+   «trabajo») y cada serie puede cambiarlo al registrarse. La etiqueta se
+   guarda en la propia serie (SerieSesion.tipoSerie) para que el historial no
+   dependa de cambios posteriores del plan. */
+const TIPOS_SERIE: [TipoSerie, string][] = [
+    ["calentamiento", "Calentamiento"], ["trabajo", "Trabajo"],
+    ["descenso", "Descenso"], ["fallo", "Fallo"],
+];
+
+const etiquetaTipoSerie = (t: TipoSerie): string =>
+    TIPOS_SERIE.find(([v]) => v === t)?.[1] ?? "Trabajo";
+
+// Selector compacto del tipo de serie (mismo patrón que el de la cabecera).
+const selectorTipoSerie = (valor: TipoSerie, alCambiar: (v: TipoSerie) => void): HTMLSelectElement => {
+    const sel = el("select", "font-size:.9em;font-family:inherit;background:var(--background-secondary);" +
+        "border:1px solid var(--background-modifier-border);border-radius:8px;padding:4px 8px;" +
+        "color:inherit;min-height:38px;");
+    for (const [v, t] of TIPOS_SERIE) {
+        const o = el("option", null, t);
+        o.value = v;
+        sel.appendChild(o);
+    }
+    sel.value = valor;
+    sel.onchange = () => alCambiar(sel.value as TipoSerie);
+    return sel;
+};
+
+// Etiqueta de la serie que toca: la elegida a mano o, si no hay, la del plan.
+const tipoSerieSiguiente = (d: DefSesion): TipoSerie =>
+    d.tipoSiguiente ?? tipoSerieDe(d.objetivo);
 
 interface AjustePlan { d: DefSesion; maxHoy: number }
 
@@ -451,7 +484,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         const c = ciclo;
         const ej = defs[c.ej];
         const t0 = transcurridoMs();
-        const serie: SerieSesion = { duracionSeg: c.trabajoSeg, t: t0 };
+        const serie: SerieSesion = { duracionSeg: c.trabajoSeg, t: t0, tipoSerie: tipoSerieSiguiente(ej) };
         const previa = ej.series.length ? ej.series[ej.series.length - 1] : null;
         if (previa?.t != null && ejecDesde != null && ejecDesdeEj === c.ej
             && ejecDesde > previa.t && ejecDesde <= t0) {
@@ -459,6 +492,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             serie.ejecMs = t0 - ejecDesde;
         }
         ej.series.push(serie);
+        ej.tipoSiguiente = null;   // el siguiente ciclo vuelve al tipo del plan
         ejecDesde = null;
         sonarTemporizador();   // fin de la fase (mismo aviso del ⏱ libre)
         vibrar();
@@ -507,17 +541,19 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         if (iSet !== ej.series.length) return;   // solo la serie que toca, en orden: evita huecos que rompen la lista
         const tipo = tipoEjercicioDe(ej.objetivo);
         if (tipo === "intervalo") return;   // sin registro manual: cada ciclo se registra solo
+        const etiqueta = tipoSerieSiguiente(ej);   // etiqueta de ESTA serie (default: la del plan)
         const t0 = transcurridoMs();   // «t» = cuándo pasó (tiempo activo, sin pausas)
         let serie: SerieSesion;
         if (tipo === "peso") {
-            const reps = aNumero(inReps[iSet]?.value) ?? repsObjetivoDe(ej.objetivo) ?? null;
-            if (reps == null && tipoSerieDe(ej.objetivo) === "fallo") {
+            const escritas = aNumero(inReps[iSet]?.value);
+            if (escritas == null && etiqueta === "fallo") {
                 // En «al fallo» no hay número de reserva que poner en su sitio: sin
                 // las reps escritas no se registra la serie (volumen y gráficas
                 // saldrían a cero). Escribe lo que has hecho y vuelve a pulsar ✔.
                 toast("✏️ Escribe las repeticiones que has hecho en esta serie.", false);
                 return;
             }
+            const reps = escritas ?? repsObjetivoDe(ej.objetivo) ?? null;
             const peso = pesoAKg(inPeso[iSet]?.value) ?? ej.objetivo.pesoObjetivo ?? null;
             serie = { reps, peso, t: t0 };
         } else {
@@ -532,6 +568,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             }
             serie = { duracionSeg: Math.round(dur), t: t0 };
         }
+        serie.tipoSerie = etiqueta;   // la etiqueta viaja con la serie (historial estable)
         // Si el descanso ya cumplió («¡Listo!» o salto: ejecDesde), sabemos
         // cuándo empezaste la serie → se desglosa descanso real + ejecución
         const previa = iSet > 0 ? ej.series[iSet - 1] : null;
@@ -541,6 +578,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             serie.ejecMs = t0 - ejecDesde;
         }
         ej.series[iSet] = serie;
+        ej.tipoSiguiente = null;   // la siguiente vuelve al tipo del plan
         ejecDesde = null;   // consumido por esta serie
         if (hold?.ej === idx) hold = null;   // Terminar del hold: su tiempo ya está en la serie
         arrancarDescanso(Number(ej.objetivo.descansoSeg) || 90);   // descanso tras cada serie
@@ -558,6 +596,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         const ej = defs[idx];
         if (iSet !== ej.series.length) return;   // solo la serie que toca
         ej.series[iSet] = { saltada: true, t: transcurridoMs() };   // también la saltada deja constancia de cuándo
+        ej.tipoSiguiente = null;   // la etiqueta elegida no pasa a la siguiente
         ejecDesde = null;   // no hay ejecución que medir (y el descanso propio se cancela abajo)
         descanso = null;
         if (hold?.ej === idx) hold = null;   // al saltar la serie del hold, se cancela su cronómetro
@@ -569,7 +608,12 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         // Con un hold o un ciclo PROPIO en marcha, la serie que registren al
         // terminar se apilaría sobre la deshecha: primero cancela (o espera).
         if (hold?.ej === idx || ciclo?.ej === idx) return;
+        const eraUltima = iSet === ej.series.length - 1;
+        const etiqueta = ej.series[iSet]?.tipoSerie ?? null;
         ej.series.splice(iSet, 1);
+        // Si la deshecha era la que tocaba, vuelve a serlo y recupera su
+        // etiqueta; si era intermedia, la etiqueta de la próxima no cambia.
+        if (eraUltima) ej.tipoSiguiente = etiqueta;
         // Si era una serie extra, además se retira la fila (sin borrar otras series extra añadidas)
         if (iSet >= ej.planOrigen) ej.plan = Math.max(ej.planOrigen, ej.plan - 1, ej.series.length);
         if (descanso && descanso.ej === idx) descanso = null;   // solo el descanso propio: no se cancela un descanso ajeno
@@ -923,10 +967,11 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                 fila.appendChild(cierreS);
             } else if (registrada) {
                 // En tiempo/intervalo lo registrado son segundos (duracionSeg);
-                // en peso, el de siempre reps × peso
-                const txt = el("div", "font-size:.95em;",
-                    s.duracionSeg != null ? `${s.duracionSeg} s`
-                        : `${s.reps ?? "–"} reps × ${s.peso != null ? pesoTexto(s.peso) : "sin peso"}`);
+                // en peso, el de siempre reps × peso. Delante, su tipo de serie.
+                const txt = el("div", "font-size:.95em;");
+                txt.appendChild(el("span", "gym-chip gym-chip-mini", etiquetaTipoSerie(tipoSerieDe(ej.objetivo, s))));
+                txt.append(" " + (s.duracionSeg != null ? `${s.duracionSeg} s`
+                    : `${s.reps ?? "–"} reps × ${s.peso != null ? pesoTexto(s.peso) : "sin peso"}`));
                 fila.appendChild(txt);
                 fila.appendChild(el("div"));
                 const cierre = el("div", "cierre");
@@ -936,6 +981,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                 fila.appendChild(cierre);
             } else {
                 const tipoF = tipoEjercicioDe(ej.objetivo);
+                const etFila = tipoSerieSiguiente(ej);   // etiqueta de la serie que toca
                 const enDescansoPend = (descanso?.restanteMs ?? 0) > 0;
                 const descansoAjeno = enDescansoPend && descanso!.ej !== idx;
                 const cicloActivo = ciclo != null;
@@ -966,7 +1012,9 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                         iR.value = (p && p.reps !== "") ? p.reps : (objT > 0 ? String(objT) : "");
                     } else {
                         iR.placeholder = "Reps";
-                        iR.value = (p && p.reps !== "") ? p.reps : String(repsObjetivoDe(ej.objetivo) ?? "");
+                        // En «fallo» no hay reps objetivo: se escriben las que salgan
+                        iR.value = (p && p.reps !== "") ? p.reps
+                            : etFila === "fallo" ? "" : String(repsObjetivoDe(ej.objetivo) ?? "");
                     }
                     inReps[i] = iR;
                     let iP: HTMLInputElement | undefined;
@@ -1007,6 +1055,26 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                     cierreF.appendChild(bSaltar);
                 }
                 fila.appendChild(cierreF);
+                // La serie que toca se puede etiquetar aquí: es la única fila
+                // pendiente accionable. Las demás heredan el tipo del plan.
+                if (esActual) {
+                    const filaTipo = el("div", "grid-column:1 / -1;display:flex;align-items:center;gap:6px;margin-top:2px;");
+                    filaTipo.appendChild(el("span", "font-size:.72em;text-transform:uppercase;letter-spacing:.04em;" +
+                        "color:var(--text-muted);font-weight:700;", "Tipo de serie"));
+                    filaTipo.appendChild(selectorTipoSerie(etFila, v => {
+                        ej.tipoSiguiente = v;
+                        // En «fallo» no hay reps objetivo: se vacía la reps
+                        // precargada del plan (si no se había tocado). En
+                        // «tiempo» el input son segundos y no se toca.
+                        const inp = tipoF === "peso" ? inReps[ej.series.length] : undefined;
+                        const objetivo = repsObjetivoDe(ej.objetivo);
+                        if (v === "fallo" && inp && objetivo != null && inp.value === String(objetivo)) {
+                            inp.value = "";
+                        }
+                        pintarEjercicio();
+                    }));
+                    fila.appendChild(filaTipo);
+                }
             }
             contEj.appendChild(fila);
         }
@@ -1090,6 +1158,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         if (hold?.ej === idx) hold = null;   // idem: el hold de ESTE ejercicio se cancela
         if (ciclo?.ej === idx) ciclo = null;   // idem: el ciclo de ESTE ejercicio se cancela
         if (ejecDesdeEj === idx) ejecDesde = null;   // no se va a ejecutar nada de ese «¡Listo!»
+        ej.tipoSiguiente = null;   // el ejercicio queda atrás: sin etiqueta pendiente
         // Marca lo que quede pendiente como saltado, para que el registro cuadre con el plan
         while (ej.series.length < ej.plan) ej.series.push({ saltada: true, t: transcurridoMs() });
         toast(`⏭ ${ej.nombre}: sin registrar`);

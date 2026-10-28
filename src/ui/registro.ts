@@ -21,14 +21,14 @@ import { CONFIG } from "../config";
 import {
     conValor, diaPorId, esLibre, escribirMedidas, escribirRutina, esSaltada,
     esSinRegistrar, nombreDia, repsObjetivoDe, serieConDatos, seriesHechas, textoRepsObjetivo,
-    tipoEjercicioDe, tipoEjercicioDeRutina, totalSaltadas, totalSeries, ultimaMedida,
-    ultimosValores, volumenEjercicio, volumenSesion,
+    tipoEjercicioDe, tipoEjercicioDeRutina, tipoSerieDe, tipoSerieDeRutina, totalSaltadas,
+    totalSeries, ultimaMedida, ultimosValores, volumenEjercicio, volumenSesion,
 } from "../datos";
 import { aNumero, clonarJSON, decimal, esFechaValida, fechaLegible, hoy, horaAhora, msgError } from "../util";
 import { pesoACampo, pesoActual, pesoAKg, pesoTexto } from "../unidades";
 import type {
     EjercicioDef, EjercicioSesion, LecturaNota, Medida, MedidasDatos,
-    Rutina, SerieSesion, Sesion, TipoEjercicio,
+    Rutina, SerieSesion, Sesion, TipoEjercicio, TipoSerie,
 } from "../tipos";
 import { btn, confirmar, el, modal, ponerX, selectorUnidad, toast } from "./componentes";
 import { elegirEjercicio, pedirDescanso, textoDescanso } from "./ejercicios-ui";
@@ -72,8 +72,11 @@ interface SesionTrabajo {
 const tipoDe = (ej: EjercicioTrabajo): TipoEjercicio => tipoEjercicioDe(ej);
 
 // Serie en blanco del tipo: en «peso» reps y peso; en el resto, solo segundos.
-const serieVacia = (tipo: TipoEjercicio): SerieSesion =>
-    tipo === "peso" ? { reps: null, peso: null } : { duracionSeg: null };
+// Si el plan trae tipo de serie, la serie nace ya etiquetada con él.
+const serieVacia = (tipo: TipoEjercicio, tipoSerie?: TipoSerie | null): SerieSesion => ({
+    ...(tipo === "peso" ? { reps: null, peso: null } : { duracionSeg: null }),
+    ...(tipoSerie ? { tipoSerie } : {}),
+});
 
 // Segundos objetivo de una serie del plan: el hold de «tiempo» y el trabajo
 // del ciclo en «intervalo».
@@ -110,6 +113,38 @@ type CampoSerie = "reps" | "peso" | "duracionSeg";
 const TIPOS_EJERCICIO: [TipoEjercicio, string][] = [
     ["peso", "Peso"], ["tiempo", "Tiempo"], ["intervalo", "Intervalo"],
 ];
+
+// Tipos de serie y su etiqueta visible (mismo orden que en el creador).
+const TIPOS_SERIE: [TipoSerie, string][] = [
+    ["calentamiento", "Calentamiento"], ["trabajo", "Trabajo"],
+    ["descenso", "Descenso"], ["fallo", "Fallo"],
+];
+
+// Selector compacto del tipo de serie de una fila. En el modal hereda el
+// tamaño base de `.gym-modal select`; aquí solo se acota para que no ocupe
+// todo el ancho.
+const selectorTipoSerie = (valor: TipoSerie, alCambiar: (v: TipoSerie) => void): HTMLSelectElement => {
+    const sel = el("select", "width:auto;min-height:34px;padding:4px 8px;font-size:.85em;");
+    for (const [v, t] of TIPOS_SERIE) {
+        const o = el("option", null, t);
+        o.value = v;
+        sel.appendChild(o);
+    }
+    sel.value = valor;
+    sel.onchange = () => alCambiar(sel.value as TipoSerie);
+    return sel;
+};
+
+// Línea de tipo de serie de una fila del formulario (ocupa el ancho entero:
+// es una fila más del grid, no una columna nueva). Admite varios selectores
+// porque en la rutina libre cada serie lleva el suyo, numerados.
+const lineaTipoSerie = (...controles: HTMLElement[]): HTMLDivElement => {
+    const linea = el("div", "grid-column:1 / -1;display:flex;align-items:center;flex-wrap:wrap;gap:6px;");
+    linea.appendChild(el("span", "font-size:.72em;text-transform:uppercase;letter-spacing:.04em;" +
+        "color:var(--text-muted);font-weight:700;", "Tipo de serie"));
+    for (const c of controles) linea.appendChild(c);
+    return linea;
+};
 
 // Contador para el id del <datalist> del campo «Día de la rutina»: cada
 // formulario (crear o editar) monta el suyo, así que el id debe ser único.
@@ -243,10 +278,10 @@ export function formularioSesion(
             // ahí no hay número que precargar, cada serie es la que salga. En tiempo e
             // intervalo el objetivo son segundos (hold o trabajo del ciclo).
             const objetivo: SerieSesion = tipo === "peso"
-                ? { reps: repsObjetivoDe(e), peso: e.pesoObjetivo ?? null }
-                : { duracionSeg: segundosDeObjetivo(e) };
+                ? { reps: repsObjetivoDe(e), peso: e.pesoObjetivo ?? null, tipoSerie: e.tipoSerie ?? null }
+                : { duracionSeg: segundosDeObjetivo(e), tipoSerie: e.tipoSerie ?? null };
             const series: SerieSesion[] = Array.from({ length: n }, () =>
-                esEdicion ? serieVacia(tipo) : { ...objetivo });
+                esEdicion ? serieVacia(tipo, e.tipoSerie) : { ...objetivo });
             const nuevo: EjercicioTrabajo = {
                 ejercicioId: e.id, nombre: e.nombre, series, notas: "",
                 tipoEjercicio: tipo, duracionObjetivo: e.duracionObjetivo ?? null,
@@ -298,6 +333,27 @@ export function formularioSesion(
         const pintarSinRegistrar = (): void => { sinReg.hidden = !esSinRegistrar(ej); };
         const marcarHecho = (): void => { delete ej.sinRegistrar; pintarSinRegistrar(); };
 
+        // Tipo de serie de CADA serie de la libre: no hay una fila por serie,
+        // así que van numeradas en una línea aparte (ancho completo). El
+        // default es el del plan de cualquier día, si consta; si no, «trabajo».
+        const filaTipos = el("div", "grid-column:1 / -1;display:flex;align-items:center;flex-wrap:wrap;gap:6px;");
+        const tipoPlan = tipoSerieDeRutina(rutina, ej.ejercicioId);
+        const pintarTipos = (): void => {
+            filaTipos.empty();
+            if (!ej.series.length) return;
+            filaTipos.appendChild(el("span", "font-size:.72em;text-transform:uppercase;letter-spacing:.04em;" +
+                "color:var(--text-muted);font-weight:700;", "Tipo de serie"));
+            ej.series.forEach((s, i) => {
+                filaTipos.appendChild(el("span", "font-size:.72em;opacity:.7;", `${i + 1}`));
+                const sel = selectorTipoSerie(s.tipoSerie ?? tipoPlan ?? "trabajo", v => {
+                    s.tipoSerie = v;
+                    marcarHecho();
+                });
+                sel.disabled = esSaltada(s);
+                filaTipos.appendChild(sel);
+            });
+        };
+
         // Ejercicio: el nombre se corrige aquí mismo. El id NO cambia, así que
         // el historial, la progresión y los récords siguen unidos al mismo.
         const inEj = el("input"); inEj.type = "text"; inEj.placeholder = "Ejercicio";
@@ -346,10 +402,10 @@ export function formularioSesion(
                 }
                 ej.series.length = obj;   // se corta por la cola: dejan de existir
             } else {
-                for (let i = actual; i < obj; i++) ej.series.push(serieVacia(tipo));
+                for (let i = actual; i < obj; i++) ej.series.push(serieVacia(tipo, tipoPlan));
             }
             inSeries.value = String(obj);
-            marcarHecho(); actualizaVol();
+            marcarHecho(); actualizaVol(); pintarTipos();
         };
         celda(tipo === "intervalo" ? "Ciclos" : "Series", inSeries,
             tipo === "intervalo" ? "Ciclos hechos: cada ciclo cuenta como una serie"
@@ -361,9 +417,11 @@ export function formularioSesion(
             return vals.length && vals.every(v => (v ?? "") === (vals[0] ?? "")) ? vals[0] : null;
         };
         const aplicaComun = (campo: CampoSerie, v: number | null): void => {
-            if (!ej.series.length) ej.series.push(serieVacia(tipo));
+            const nueva = !ej.series.length;
+            if (nueva) ej.series.push(serieVacia(tipo, tipoPlan));
             for (const s of ej.series) if (!esSaltada(s)) s[campo] = v;
             marcarHecho(); actualizaVol();
+            if (nueva) pintarTipos();   // la línea de tipos sigue el número de series
         };
 
         if (tipo === "peso") {
@@ -434,6 +492,8 @@ export function formularioSesion(
         // Debajo, en una línea: el volumen en vivo, la referencia de la última
         // vez y el aviso de «sin registrar» (la misma info de antes, en tarjeta).
         // Ocupa el ancho entero: es una fila más del grid, no una columna.
+        fila.appendChild(filaTipos);
+        pintarTipos();
         const nota = el("div", "grid-column:1 / -1;display:flex;gap:8px;flex-wrap:wrap;align-items:center;" +
             "font-size:.75em;opacity:.7;margin:2px 2px 0;");
         const spanVol = el("span", null, "–");
@@ -513,11 +573,13 @@ export function formularioSesion(
                 const f = el("div", "gym-serie" + (saltada ? " saltada" : ""));
                 const cN = el("div", "gym-serie-num" + (saltada ? " gym-tachado" : ""), `${i + 1}`);
                 f.appendChild(cN);
+                let inputReps: HTMLInputElement | undefined;   // solo en «peso»: para vaciar la reps al pasar a fallo
                 if (tipo === "peso") {
                     const r = el("input"); r.type = "number"; r.min = "0"; r.step = "1"; r.inputMode = "numeric";
                     r.placeholder = "Reps";
                     r.value = String(s.reps ?? "");
                     r.oninput = () => { s.reps = aNumero(r.value); if (conValor(r.value)) marcarHecho(); actualizaVol(); };
+                    inputReps = r;
                     const p = el("input"); p.type = "number"; p.min = "0"; p.step = "0.5"; p.inputMode = "decimal";
                     // Se teclea en la unidad activa; s.peso sigue guardándose en kg
                     p.placeholder = `peso (${pesoActual()})`; p.value = pesoACampo(s.peso);
@@ -548,11 +610,34 @@ export function formularioSesion(
                     pintarSeries(); actualizaVol();
                 };
                 f.appendChild(b);
+                // Tipo de serie de ESTA serie: el del plan por defecto, editable.
+                // En un ejercicio que no está en el día, el default es el de
+                // cualquier día de la rutina (el mismo que usa el guardado).
+                const valorTipo = def
+                    ? tipoSerieDe(def, s)
+                    : (s.tipoSerie ?? tipoSerieDeRutina(rutina, ej.ejercicioId) ?? "trabajo");
+                const selTipo = selectorTipoSerie(valorTipo, v => {
+                    s.tipoSerie = v;
+                    // Al pasar a «fallo» se vacía la reps precargada del plan (si
+                    // no se había tocado): en fallo se escriben las que salgan.
+                    // Solo en sesión nueva (en edición no hay prefill del plan) y
+                    // sincronizando el estado, no solo el input.
+                    const objetivo = def ? repsObjetivoDe(def) : null;
+                    if (!esEdicion && v === "fallo" && inputReps && objetivo != null
+                        && inputReps.value === String(objetivo)) {
+                        inputReps.value = "";
+                        s.reps = null;
+                        actualizaVol();
+                    }
+                    marcarHecho();
+                });
+                selTipo.disabled = saltada;   // una serie saltada no se edita
+                f.appendChild(lineaTipoSerie(selTipo));
                 lista.appendChild(f);
             });
             const mas = el("button", "gym-mini", "＋ serie");
             mas.type = "button";
-            mas.onclick = () => { ej.series.push(serieVacia(tipo)); pintarSeries(); };
+            mas.onclick = () => { ej.series.push(serieVacia(tipo, def?.tipoSerie)); pintarSeries(); };
             lista.appendChild(mas);
         };
         pintarSeries();
@@ -594,7 +679,7 @@ export function formularioSesion(
                     : "ejercicio nuevo · sin registros";
             const nuevo: EjercicioTrabajo = {
                 ejercicioId: r.id, nombre: r.nombre, notas: "", pista, tipoEjercicio: tipo,
-                series: Array.from({ length: n }, () => serieVacia(tipo)),
+                series: Array.from({ length: n }, () => serieVacia(tipo, tipoSerieDeRutina(rutina, r.id))),
             };
             // Descanso elegido en el selector: se guarda con la sesión (sin 0:
             // no apetece un campo «descanso: 0» que luego se ignora igual salvo
@@ -650,6 +735,10 @@ export function formularioSesion(
             "No has metido ni una repetición, ni un peso, ni segundos. ¿Guardar la sesión vacía?",
             "Sí, guardar", "No, cancelar"))) return;
 
+        // Plan del día que se está guardando: de ahí sale el tipo de serie por
+        // defecto de las series que no lleven etiqueta propia (en la libre, de
+        // cualquier día de la rutina, si el ejercicio consta).
+        const diaGuardado = diaPorId(rutina, valorDia());
         const nueva: Sesion = {
             fecha: f,
             // `valorDia()` normaliza lo tecleado en la libre; `|| ""` es deliberado:
@@ -668,8 +757,15 @@ export function formularioSesion(
                         const sOut: SerieSesion = tipo === "peso"
                             ? { reps: aNumero(s.reps), peso: aNumero(s.peso) }
                             : { duracionSeg: aNumero(s.duracionSeg) };
-                        // La etiqueta puesta al registrar la serie no se pierde al reeditar
-                        if (s.tipoSerie) sOut.tipoSerie = s.tipoSerie;
+                        // La etiqueta de la serie viaja con ella; si no se tocó,
+                        // se resuelve la del plan del día (en la libre, la de
+                        // cualquier día de la rutina).
+                        const defDia = diaGuardado?.ejercicios?.find(x => x.id === e.ejercicioId);
+                        const et = s.tipoSerie
+                            ?? (defDia ? defDia.tipoSerie : tipoSerieDeRutina(rutina, e.ejercicioId));
+                        // Siempre explícita (decisión 22): así la etiqueta no
+                        // cambia si más adelante se toca el plan.
+                        sOut.tipoSerie = et ?? "trabajo";
                         // Los tiempos de la sesión guiada viajan con la serie
                         if (s.t != null) sOut.t = s.t;
                         if (s.descansoMs != null) sOut.descansoMs = s.descansoMs;
