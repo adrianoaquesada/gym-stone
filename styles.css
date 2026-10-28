@@ -29,15 +29,20 @@
 .gym-form .gym-dia-cab { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
 .gym-form .gym-dias-semana { display:flex; gap:5px; flex-wrap:wrap; }
 .gym-form .gym-dias-semana .gym-chip { padding:6px 9px; min-width:34px; text-align:center; }
+/* La fila son 9 celdas: ejercicio, tipo, series (ciclos en intervalo),
+   tipo · reps, tiempo (duración o trabajo · transición), peso, descanso,
+   notas y borrar. */
 .gym-form .gym-ej { display:grid; gap:6px; padding:8px; border-radius:8px; background:var(--background-primary);
   border:1px solid var(--background-modifier-border); margin-bottom:6px;
-  grid-template-columns:2fr .7fr .7fr .85fr 1.1fr 2fr 34px; align-items:end; }
+  grid-template-columns:2fr .85fr .7fr .7fr 1fr .85fr 1.1fr 2fr 34px; align-items:end; }
 .gym-form .gym-ej label { font-size:.66em; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); font-weight:700; }
-/* Reps: el selector de modo (fijas / mínimo al fallo / al fallo) y el número
-   van juntos en la misma celda; si no caben, se apilan (flex-wrap). */
-.gym-form .gym-ej .gym-reps { display:flex; gap:4px; flex-wrap:wrap; }
+/* Controles que comparten celda (tipo · reps, o trabajo y transición en el
+   intervalo): si no caben, se apilan (flex-wrap). */
+.gym-form .gym-ej .gym-reps,
+.gym-form .gym-ej .gym-par { display:flex; gap:4px; flex-wrap:wrap; }
 .gym-form .gym-ej .gym-reps > select,
-.gym-form .gym-ej .gym-reps > input { flex:1 1 auto; min-width:0; width:auto; }
+.gym-form .gym-ej .gym-reps > input,
+.gym-form .gym-ej .gym-par > input { flex:1 1 auto; min-width:0; width:auto; }
 .gym-form .gym-ej input { min-height:40px; padding:9px 11px; }   /* misma altura para todos los campos de la fila */
 .gym-form .gym-ej .gym-borrar { align-self:end; width:100%; min-height:40px; }
 .gym-form .gym-ej-cab { display:none; }
@@ -60,9 +65,9 @@
 @media (max-width: 640px) {
   .gym-form .gym-ej { grid-template-columns:1fr 1fr; }
   .gym-form .gym-ej > div:nth-child(1) { grid-column:1 / -1; }
-  .gym-form .gym-ej > div:nth-child(6) { grid-column:1 / -1; }
-  .gym-form .gym-ej > div:nth-child(7) { grid-column:1 / -1; }
-  .gym-form .gym-ej > div:nth-child(7) button { width:100%; }
+  .gym-form .gym-ej > div:nth-child(8) { grid-column:1 / -1; }
+  .gym-form .gym-ej > div:nth-child(9) { grid-column:1 / -1; }
+  .gym-form .gym-ej > div:nth-child(9) button { width:100%; }
 }
 
 /* ── Gestor: dashboard, calendario, registro, estadísticas, historial ────── */

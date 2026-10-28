@@ -28,8 +28,13 @@ export const rutinaVacia = (): Rutina => ({
     creado: "", modificado: "",
 });
 
+// Ejercicio del plan por defecto: tipo «peso» (null = el que se lee siempre
+// como «peso»); duración, trabajo y transición quedan vacías hasta que el
+// creador pida otro tipo de ejercicio.
 export const ejercicioVacio = (): EjercicioDef =>
-    ({ id: "", nombre: "", series: 3, repsObjetivo: 8, pesoObjetivo: null, descansoSeg: 90, notas: "", tipoSerie: null });
+    ({ id: "", nombre: "", tipoEjercicio: null, series: 3, repsObjetivo: 8, pesoObjetivo: null,
+       duracionObjetivo: null, descansoSeg: 90, trabajoSeg: null, transicionSeg: null,
+       notas: "", tipoSerie: null });
 
 /* Texto del objetivo de reps de un ejercicio, según su tipo de serie:
      · fallo   → «al fallo» (sin número: no hay objetivo de reps)

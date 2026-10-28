@@ -55,11 +55,16 @@ export const plantillaDeRutina = (rutina: Rutina): PlantillaRutina => ({
         ejercicios: (d.ejercicios ?? []).map(e => ({
             id: e.id,
             nombre: e.nombre,
+            tipoEjercicio: e.tipoEjercicio ?? null,
             series: e.series,
             repsObjetivo: e.repsObjetivo,
             pesoObjetivo: e.pesoObjetivo ?? null,
+            duracionObjetivo: e.duracionObjetivo ?? null,
             descansoSeg: e.descansoSeg ?? null,
+            trabajoSeg: e.trabajoSeg ?? null,
+            transicionSeg: e.transicionSeg ?? null,
             notas: e.notas ?? "",
+            tipoSerie: e.tipoSerie ?? null,
         })),
     })),
 });

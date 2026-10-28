@@ -15,7 +15,7 @@ import { carpetaPlantillas, rutaIndice } from "../ajustes";
 import {
     escribirRutina, ejercicioVacio, finDesde,
     listarPlantillas, leerPlantilla, plantillaDeRutina, plantillaExiste,
-    rutaDatosDe, rutinaVacia, escribirPlantilla, tipoSerieDe,
+    rutaDatosDe, rutinaVacia, escribirPlantilla, tipoEjercicioDe, tipoSerieDe,
 } from "../datos";
 import { aNumero, clonarJSON, esFechaValida, hoy, limpiarNombre, msgError, slug, tsDe } from "../util";
 import { pesoActual, pesoACampo, pesoAKg } from "../unidades";
@@ -409,18 +409,30 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
 
         const filaEjercicio = (ej: EjercicioDef): HTMLDivElement => {
             const fila = el("div", "gym-ej");
+            // Devuelve también la etiqueta: la fila la renombra u oculta según
+            // el tipo de ejercicio elegido (pintaCampos)
             const celda = (etiqueta: string, control: HTMLElement) => {
                 const c = el("div");
-                c.appendChild(el("label", null, etiqueta));
-                c.appendChild(control);
+                const l = el("label", null, etiqueta);
+                c.append(l, control);
                 fila.appendChild(c);
-                return c;
+                return { c, l };
             };
             const inEj = el("input"); inEj.type = "text"; inEj.placeholder = "Ejercicio"; inEj.value = ej.nombre;
             inEj.oninput = () => { ej.nombre = inEj.value; limpiarError(); };
             celda("Ejercicio", inEj);
 
-            const num = (valor: string | number | null, min: number, paso: number, titulo: string) => {
+            // Tipo de ejercicio: decide qué objetivos se planifican en esta fila
+            // (reps y peso, duración de un hold, o ciclos de trabajo y transición)
+            const selTipo = el("select", "gym-mini");
+            for (const [v, t] of [["peso", "Peso"], ["tiempo", "Tiempo"], ["intervalo", "Intervalo"]] as const) {
+                const o = el("option", null, t); o.value = v; selTipo.appendChild(o);
+            }
+            selTipo.value = tipoEjercicioDe(ej);
+            selTipo.title = "Tipo de ejercicio: peso (reps y peso objetivo), tiempo (hold de duración fija) o intervalo (ciclos de trabajo y transición).";
+            celda("Tipo", selTipo);
+
+            const num = (valor: string | number | null | undefined, min: number, paso: number, titulo: string) => {
                 const n = el("input", "gym-mini");
                 n.type = "number"; n.min = String(min); n.step = String(paso);
                 n.value = valor === null || valor === undefined ? "" : String(valor);
@@ -429,7 +441,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             };
             const inSeries = num(ej.series, 1, 1, "Series objetivo");
             inSeries.oninput = () => { ej.series = Math.max(1, Number(inSeries.value) || 1); };
-            celda("Series", inSeries);
+            const etqSeries = celda("Series", inSeries).l;
 
             const inReps = num(ej.repsObjetivo, 1, 1, "Repeticiones objetivo");
             inReps.oninput = () => { ej.repsObjetivo = Math.max(1, Number(inReps.value) || 1); };
@@ -443,24 +455,22 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             selSerie.title = "Tipo de serie de este ejercicio: cómo se leen sus reps (en «fallo» son al fallo, sin número objetivo).";
             const cReps = el("div", "gym-reps");
             cReps.append(selSerie, inReps);
-            const pintaSerie = () => {
-                const fallo = tipoSerieDe(ej) === "fallo";
-                inReps.style.display = fallo ? "none" : "";
-                inReps.placeholder = "Reps";
-                inReps.title = fallo
-                    ? "Al fallo no hay reps objetivo: se anota lo hecho en cada serie"
-                    : "Repeticiones objetivo";
-            };
-            selSerie.onchange = () => {
-                const v = selSerie.value;
-                ej.tipoSerie = v === "calentamiento" || v === "descenso" || v === "fallo" ? v : null;
-                pintaSerie();
-            };
-            pintaSerie();
-            celda("Tipo · Reps", cReps);
+            const etqReps = celda("Tipo · Reps", cReps).l;
+
+            // Tiempo del ejercicio: la duración del hold («tiempo») o el trabajo
+            // y la transición de cada ciclo («intervalo»); en «peso» no se usa
+            const inDur = num(ej.duracionObjetivo, 1, 1, "Duración del hold (segundos)");
+            inDur.oninput = () => { ej.duracionObjetivo = aNumero(inDur.value); };
+            const inTrabajo = num(ej.trabajoSeg, 1, 1, "Trabajo de cada ciclo (segundos)");
+            inTrabajo.oninput = () => { ej.trabajoSeg = aNumero(inTrabajo.value); };
+            const inTrans = num(ej.transicionSeg, 0, 1, "Transición de cada ciclo (segundos)");
+            inTrans.oninput = () => { ej.transicionSeg = aNumero(inTrans.value); };
+            const cTiempo = el("div", "gym-par");
+            cTiempo.append(inDur, inTrabajo, inTrans);
+            const etqTiempo = celda("Duración (s)", cTiempo).l;
 
             const inPeso = num(pesoACampo(ej.pesoObjetivo), 0, 0.5, `Peso objetivo (${pesoActual()}, opcional)`);
-            celda(`Peso (${pesoActual()})`, inPeso);
+            const etqPeso = celda(`Peso (${pesoActual()})`, inPeso).l;
             // El valor se teclea en la unidad activa y se guarda SIEMPRE en kg
             inPeso.oninput = () => { ej.pesoObjetivo = pesoAKg(inPeso.value); };
 
@@ -472,6 +482,43 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             inNotas.placeholder = "Notas (opcional)"; inNotas.value = ej.notas ?? "";
             inNotas.oninput = () => { ej.notas = inNotas.value; };
             celda("Notas", inNotas);
+
+            // Lo que se ve en la fila lo decide el tipo de ejercicio elegido
+            const pintaCampos = () => {
+                const t = tipoEjercicioDe(ej);
+                // En «intervalo» el plan fija ciclos, no series
+                etqSeries.textContent = t === "intervalo" ? "Ciclos" : "Series";
+                inSeries.title = t === "intervalo" ? "Ciclos objetivo (cada ciclo es una serie)" : "Series objetivo";
+                // Sin reps que fijar en «tiempo», ni en «intervalo», ni en «fallo»
+                etqReps.style.display = selSerie.style.display = t === "tiempo" ? "none" : "";
+                inReps.style.display = t !== "peso" || tipoSerieDe(ej) === "fallo" ? "none" : "";
+                inReps.placeholder = "Reps";
+                inReps.title = tipoSerieDe(ej) === "fallo"
+                    ? "Al fallo no hay reps objetivo: se anota lo hecho en cada serie"
+                    : "Repeticiones objetivo";
+                // El peso solo aplica a los ejercicios de tipo «peso»
+                etqPeso.style.display = inPeso.style.display = t === "peso" ? "" : "none";
+                // En «intervalo» el descanso es el de dentro del ciclo
+                inDesc.title = t === "intervalo"
+                    ? "Descanso dentro de cada ciclo (segundos)"
+                    : "Descanso entre series (segundos)";
+                // Tiempo: duración del hold («tiempo») o trabajo y transición («intervalo»)
+                etqTiempo.textContent = t === "intervalo" ? "Trabajo · transición (s)" : "Duración (s)";
+                etqTiempo.style.display = t === "peso" ? "none" : "";
+                inDur.style.display = t === "tiempo" ? "" : "none";
+                inTrabajo.style.display = inTrans.style.display = t === "intervalo" ? "" : "none";
+            };
+            selTipo.onchange = () => {
+                const v = selTipo.value;
+                ej.tipoEjercicio = v === "tiempo" || v === "intervalo" ? v : null;
+                pintaCampos();
+            };
+            selSerie.onchange = () => {
+                const v = selSerie.value;
+                ej.tipoSerie = v === "calentamiento" || v === "descenso" || v === "fallo" ? v : null;
+                pintaCampos();
+            };
+            pintaCampos();
 
             const cBorrar = el("div");
             const bBorrar = el("button", "gym-borrar", "🗑");
@@ -646,16 +693,26 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             id: d.id || `dia-${slug(d.nombre || String.fromCharCode(65 + i))}`,
             nombre: limpiarNombre(d.nombre) || `Día ${String.fromCharCode(65 + i)}`,
             diasSemana: [...(d.diasSemana ?? [])],
-            ejercicios: d.ejercicios.map((e, j) => ({
-                id: e.id || `${slug(d.nombre || "dia")}-${slug(e.nombre || `ej-${j}`)}`,
-                nombre: limpiarNombre(e.nombre),
-                series: Math.max(1, Number(e.series) || 1),
-                repsObjetivo: tipoSerieDe(e) === "fallo" ? null : Math.max(1, Number(e.repsObjetivo) || 1),
-                pesoObjetivo: e.pesoObjetivo ?? null,
-                descansoSeg: e.descansoSeg ?? null,
-                notas: e.notas ?? "",
-                tipoSerie: e.tipoSerie ?? null,
-            })),
+            ejercicios: d.ejercicios.map((e, j) => {
+                // Solo se guardan los objetivos del tipo elegido: los campos de
+                // los demás tipos quedan a null (no se arrastran residuos)
+                const t = tipoEjercicioDe(e);
+                return {
+                    id: e.id || `${slug(d.nombre || "dia")}-${slug(e.nombre || `ej-${j}`)}`,
+                    nombre: limpiarNombre(e.nombre),
+                    tipoEjercicio: e.tipoEjercicio ?? null,
+                    series: Math.max(1, Number(e.series) || 1),
+                    repsObjetivo: t !== "peso" || tipoSerieDe(e) === "fallo"
+                        ? null : Math.max(1, Number(e.repsObjetivo) || 1),
+                    pesoObjetivo: t === "peso" ? e.pesoObjetivo ?? null : null,
+                    duracionObjetivo: t === "tiempo" ? Math.max(1, Number(e.duracionObjetivo) || 1) : null,
+                    descansoSeg: e.descansoSeg ?? null,
+                    trabajoSeg: t === "intervalo" ? Math.max(1, Number(e.trabajoSeg) || 1) : null,
+                    transicionSeg: t === "intervalo" ? Math.max(0, Number(e.transicionSeg) || 0) : null,
+                    notas: e.notas ?? "",
+                    tipoSerie: e.tipoSerie ?? null,
+                };
+            }),
         }));
         const union = [...new Set(dias.flatMap(d => d.diasSemana))].sort();
         const fin = finDesde(estado.inicio, estado.semanas);
