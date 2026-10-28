@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    4 · Estadísticas de la rutina (popup 📈 de la fila de navegación): KPIs,
-   volumen por sesión/semana/mes, progresión por ejercicio, peso corporal e
-   IMC y récords personales.
+   volumen y tiempo de trabajo por sesión/semana/mes, progresión por ejercicio,
+   peso corporal e IMC y récords personales.
 
    Puerto fiel de la sección 4 del motor original (_gym-gestor.js). Las
    sub-secciones 4b-4d (progresión, medidas y récords) se pintan desde aquí:
@@ -14,14 +14,22 @@
 import { CONFIG } from "../config";
 import {
     adherencia, ejerciciosConDatos, esLibre, historialEjercicio, nombreDia,
-    resumenLibre, semanaActual, semanasTotales, totalSeries, ultimaMedida,
-    volumenSesion,
+    resumenLibre, semanaActual, semanasTotales, segundosSesion, totalSeries,
+    ultimaMedida, volumenSesion,
 } from "../datos";
 import { decimal, dos, esFechaValida, fechaLegible, nombreMes, tsDe } from "../util";
 import { pesoActual, pesoMostrar, pesoTexto, tallaTexto } from "../unidades";
 import type { LecturaNota, MedidasDatos, Rutina, Sesion } from "../tipos";
 import { el, KPI, limitaAlto, tablaEn } from "./componentes";
 import { grafica } from "./grafica";
+
+/* Segundos en texto corto: «45 s», «3 min 20 s». */
+const tiempoTexto = (seg: number): string => {
+    const s = Math.max(0, Math.round(seg));
+    if (s < 60) return `${s} s`;
+    const m = Math.floor(s / 60), r = s % 60;
+    return r ? `${m} min ${r} s` : `${m} min`;
+};
 
 /* ══════════════════ 4 · Estadísticas ══════════════════ */
 
@@ -37,6 +45,8 @@ export function seccionEstadisticas(
     const fila = el("div", "display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;");
     c2.appendChild(fila);
     const volumenTotal = sesiones.reduce((t, s) => t + volumenSesion(s), 0);
+    const segundosTotal = sesiones.reduce((t, s) => t + segundosSesion(s), 0);
+    const hayTiempo = segundosTotal > 0;
     const minutos = sesiones.map(s => Number(s.duracionMin)).filter(n => Number.isFinite(n) && n > 0);
     const mediaMin = minutos.length ? minutos.reduce((a, b) => a + b, 0) / minutos.length : NaN;
 
@@ -63,32 +73,55 @@ export function seccionEstadisticas(
             "días programados con sesión registrada"));
         fila.appendChild(KPI("Racha", String(adher.racha || 0), CONFIG.NARANJA, `mejor: ${adher.mejorRacha || 0} seguidas`));
     }
-    fila.appendChild(KPI("Volumen total", pesoTexto(volumenTotal), CONFIG.AZUL, "Σ series × reps × peso"));
+    // El volumen solo existe en «peso»; el trabajo de tiempo/intervalo va aparte
+    if (volumenTotal > 0 || !hayTiempo) {
+        fila.appendChild(KPI("Volumen total", pesoTexto(volumenTotal), CONFIG.AZUL, "Σ series × reps × peso (solo ejercicios de peso)"));
+    }
+    if (hayTiempo) {
+        fila.appendChild(KPI("Tiempo de trabajo", tiempoTexto(segundosTotal), CONFIG.NARANJA, "series de tiempo e intervalo"));
+    }
     fila.appendChild(KPI("Duración media", Number.isFinite(mediaMin) ? `${Math.round(mediaMin)} min` : "–", "var(--text-muted)",
         `${minutos.length} sesiones con duración`));
 
-    // Volumen por sesión (gráfica)
-    const titSes = el("div", "gym-tit");
-    titSes.append(el("span", null, "Volumen por sesión"),
-        ` — cada punto es una sesión (${pesoActual()} × reps)`);
-    c2.appendChild(titSes);
-    grafica(c2, [{
-        nombre: "Volumen", color: CONFIG.NARANJA,
-        puntos: sesiones.map(s => ({
-            // el eje Y se pinta en la unidad activa, igual que el tooltip
-            ts: tsDe(s.fecha), v: pesoMostrar(volumenSesion(s)) ?? 0,
-            titulo: `${pesoTexto(volumenSesion(s))} · ${nombreDia(rutina, s.diaId)}`,
-        })),
-    }]);
+    // Volumen por sesión (gráfica): solo si hay kilos que enseñar
+    if (volumenTotal > 0 || !hayTiempo) {
+        const titSes = el("div", "gym-tit");
+        titSes.append(el("span", null, "Volumen por sesión"),
+            ` — cada punto es una sesión (${pesoActual()} × reps · solo peso)`);
+        c2.appendChild(titSes);
+        grafica(c2, [{
+            nombre: "Volumen", color: CONFIG.NARANJA,
+            puntos: sesiones.map(s => ({
+                // el eje Y se pinta en la unidad activa, igual que el tooltip
+                ts: tsDe(s.fecha), v: pesoMostrar(volumenSesion(s)) ?? 0,
+                titulo: `${pesoTexto(volumenSesion(s))} · ${nombreDia(rutina, s.diaId)}`,
+            })),
+        }]);
+    }
 
-    // Tabla de volumen por semana y mes
-    const porClave = (extraer: (f: string) => string): { clave: string; sesiones: number; vol: number; min: number }[] => {
-        const mapa = new Map<string, { clave: string; sesiones: number; vol: number; min: number }>();
+    // Tiempo de trabajo por sesión (gráfica): tiempo e intervalo, sin 1RM
+    if (hayTiempo) {
+        const titTiempo = el("div", "gym-tit");
+        titTiempo.append(el("span", null, "Tiempo por sesión"),
+            " — cada punto es una sesión (segundos de trabajo)");
+        c2.appendChild(titTiempo);
+        grafica(c2, [{
+            nombre: "Tiempo (s)", color: CONFIG.AZUL,
+            puntos: sesiones.map(s => ({
+                ts: tsDe(s.fecha), v: segundosSesion(s),
+                titulo: `${tiempoTexto(segundosSesion(s))} · ${nombreDia(rutina, s.diaId)}`,
+            })),
+        }], { fmt: v => `${Math.round(v)} s` });
+    }
+
+    // Tabla de volumen y tiempo por semana y mes
+    const porClave = (extraer: (f: string) => string): { clave: string; sesiones: number; vol: number; seg: number; min: number }[] => {
+        const mapa = new Map<string, { clave: string; sesiones: number; vol: number; seg: number; min: number }>();
         for (const s of sesiones) {
             const k = extraer(s.fecha);
-            if (!mapa.has(k)) mapa.set(k, { clave: k, sesiones: 0, vol: 0, min: 0 });
+            if (!mapa.has(k)) mapa.set(k, { clave: k, sesiones: 0, vol: 0, seg: 0, min: 0 });
             const w = mapa.get(k)!;
-            w.sesiones++; w.vol += volumenSesion(s);
+            w.sesiones++; w.vol += volumenSesion(s); w.seg += segundosSesion(s);
             w.min += Number(s.duracionMin) || 0;
         }
         return [...mapa.values()].sort((a, b) => (a.clave < b.clave ? -1 : 1));
@@ -101,13 +134,24 @@ export function seccionEstadisticas(
     const meses = porClave(f => f.slice(0, 7));
 
     const titVolumen = el("div", "gym-tit");
-    titVolumen.append(el("span", null, "Volumen por semana y por mes"));
+    titVolumen.append(el("span", null, "Volumen y tiempo por semana y por mes"));
     c2.appendChild(titVolumen);
-    tablaEn(c2, ["Periodo", "Sesiones", "Volumen", "Minutos"], [
+    const cabecera = hayTiempo
+        ? ["Periodo", "Sesiones", "Volumen", "Tiempo", "Minutos"]
+        : ["Periodo", "Sesiones", "Volumen", "Minutos"];
+    const filaPeriodo = (etiqueta: string, w: { sesiones: number; vol: number; seg: number; min: number }): string[] => {
+        // Sin kilos pero con tiempo: la columna «Volumen» queda vacía («–»)
+        const vol = w.vol > 0 ? pesoTexto(w.vol) : w.seg > 0 ? "–" : pesoTexto(0);
+        const celdas = [etiqueta, String(w.sesiones), vol];
+        if (hayTiempo) celdas.push(w.seg > 0 ? tiempoTexto(w.seg) : "–");
+        celdas.push(String(w.min || "–"));
+        return celdas;
+    };
+    tablaEn(c2, cabecera, [
         ...[...semanas].reverse().slice(0, 8).map(w =>
-            [`Sem. ${w.clave.slice(8)}/${w.clave.slice(5, 7)}`, String(w.sesiones), pesoTexto(w.vol), String(w.min || "–")]),
+            filaPeriodo(`Sem. ${w.clave.slice(8)}/${w.clave.slice(5, 7)}`, w)),
         ...[...meses].reverse().slice(0, 6).map(m =>
-            [`${nombreMes(Number(m.clave.slice(5, 7)) - 1)} ${m.clave.slice(0, 4)}`, String(m.sesiones), pesoTexto(m.vol), String(m.min || "–")]),
+            filaPeriodo(`${nombreMes(Number(m.clave.slice(5, 7)) - 1)} ${m.clave.slice(0, 4)}`, m)),
     ]);
 
     seccionProgresion(c2, rutina);
@@ -121,7 +165,7 @@ function seccionProgresion(c: HTMLElement, rutina: Rutina): void {
     const conHistorial = ejercicios.filter(e => historialEjercicio(rutina, e.id).length);
     const tit = el("div", "gym-tit");
     tit.append(el("span", null, "Progresión por ejercicio"),
-        " — mejor peso, mejor serie, 1RM estimado (Epley) y gráfica en el tiempo");
+        " — peso y series (1RM solo en peso) o tiempo en tiempo/intervalo");
     c.appendChild(tit);
 
     if (!conHistorial.length) {
@@ -146,34 +190,60 @@ function seccionProgresion(c: HTMLElement, rutina: Rutina): void {
         cont.empty();
         const info = ejercicios.find(e => e.id === sel.value) ?? conHistorial[0];
         const hist = historialEjercicio(rutina, info.id);
-
-        // KPI del ejercicio
-        const mejorPeso = Math.max(0, ...hist.flatMap(h => h.series.map(s => Number(s.peso) || 0)));
-        const mejorSerie = [...hist.flatMap(h => h.series.map(s => ({ ...s, fecha: h.fecha })))]
-            .sort((a, b) => (Number(b.peso) || 0) - (Number(a.peso) || 0) || (Number(b.reps) || 0) - (Number(a.reps) || 0))[0];
-        const mejorRM = Math.max(0, ...hist.map(h => h.oneRM));
-        const vol = hist.reduce((t, h) => t + h.volumen, 0);
+        // El tipo de la última sesión es el actual del ejercicio. Si el
+        // ejercicio cambió de tipo, las sesiones antiguas se pintan en su
+        // propia unidad (mixto) y los KPIs usan las del tipo actual.
+        const tipo = hist[hist.length - 1]?.tipoEjercicio ?? "peso";
+        const esPeso = tipo === "peso";
+        const histTipo = hist.filter(h => h.tipoEjercicio === tipo);
+        const mixto = histTipo.length !== hist.length;
 
         const kpis = el("div", "display:flex;flex-wrap:wrap;gap:10px;margin:8px 0 12px;");
-        kpis.appendChild(KPI("Mejor peso", pesoTexto(mejorPeso > 0 ? mejorPeso : null), CONFIG.NARANJA, `${hist.length} sesiones`));
-        kpis.appendChild(KPI("Mejor serie", mejorSerie ? `${mejorSerie.reps ?? "–"} × ${pesoTexto(mejorSerie.peso)}` : "–", CONFIG.VERDE,
-            mejorSerie ? fechaLegible(mejorSerie.fecha) : ""));
-        kpis.appendChild(KPI("1RM estimado", mejorRM > 0 ? pesoTexto(mejorRM) : "–", CONFIG.AZUL, "Epley: peso × (1 + reps/30)"));
-        kpis.appendChild(KPI("Volumen acumulado", pesoTexto(vol), "var(--text-muted)", "en este ejercicio"));
+        if (esPeso) {
+            const mejorPeso = Math.max(0, ...histTipo.flatMap(h => h.series.map(s => Number(s.peso) || 0)));
+            const mejorSerie = [...histTipo.flatMap(h => h.series.map(s => ({ ...s, fecha: h.fecha })))]
+                .sort((a, b) => (Number(b.peso) || 0) - (Number(a.peso) || 0) || (Number(b.reps) || 0) - (Number(a.reps) || 0))[0];
+            const mejorRM = Math.max(0, ...histTipo.map(h => h.oneRM));
+            const vol = histTipo.reduce((t, h) => t + h.volumen, 0);
+            kpis.appendChild(KPI("Mejor peso", pesoTexto(mejorPeso > 0 ? mejorPeso : null), CONFIG.NARANJA, `${histTipo.length} sesiones`));
+            kpis.appendChild(KPI("Mejor serie", mejorSerie ? `${mejorSerie.reps ?? "–"} × ${pesoTexto(mejorSerie.peso)}` : "–", CONFIG.VERDE,
+                mejorSerie ? fechaLegible(mejorSerie.fecha) : ""));
+            kpis.appendChild(KPI("1RM estimado", mejorRM > 0 ? pesoTexto(mejorRM) : "–", CONFIG.AZUL, "Epley: peso × (1 + reps/30)"));
+            kpis.appendChild(KPI("Volumen acumulado", pesoTexto(vol), "var(--text-muted)", "en este ejercicio"));
+        } else {
+            const mejorSeg = Math.max(0, ...histTipo.map(h => h.mejorSeg));
+            const totalSeg = histTipo.reduce((t, h) => t + h.series.reduce((a, s) => a + (Number(s.duracionSeg) || 0), 0), 0);
+            const nSeries = histTipo.reduce((t, h) => t + h.series.length, 0);
+            kpis.appendChild(KPI("Mejor tiempo", mejorSeg > 0 ? tiempoTexto(mejorSeg) : "–", CONFIG.NARANJA, `${histTipo.length} sesiones`));
+            kpis.appendChild(KPI("Tiempo acumulado", totalSeg > 0 ? tiempoTexto(totalSeg) : "–", CONFIG.AZUL, "en este ejercicio"));
+            kpis.appendChild(KPI("Series", String(nSeries), CONFIG.VERDE, "tiempo registrado, sin 1RM ni volumen"));
+        }
         cont.appendChild(kpis);
 
-        // Gráfica: 1RM estimado y mejor peso por sesión
-        grafica(cont, [
-            { nombre: `1RM estimado (${pesoActual()})`, color: CONFIG.AZUL, puntos: hist.map(h => ({ ts: tsDe(h.fecha), v: pesoMostrar(h.oneRM) ?? 0, titulo: `${pesoTexto(h.oneRM)} (1RM)` })) },
-            { nombre: `Mejor peso (${pesoActual()})`, color: CONFIG.NARANJA, puntos: hist.map(h => ({ ts: tsDe(h.fecha), v: pesoMostrar(h.mejorPeso) ?? 0, titulo: pesoTexto(h.mejorPeso) })) },
-        ]);
+        // Gráfica: en peso, 1RM estimado y mejor peso por sesión; en el resto, mejor tiempo
+        if (esPeso) {
+            grafica(cont, [
+                { nombre: `1RM estimado (${pesoActual()})`, color: CONFIG.AZUL, puntos: histTipo.map(h => ({ ts: tsDe(h.fecha), v: pesoMostrar(h.oneRM) ?? 0, titulo: `${pesoTexto(h.oneRM)} (1RM)` })) },
+                { nombre: `Mejor peso (${pesoActual()})`, color: CONFIG.NARANJA, puntos: histTipo.map(h => ({ ts: tsDe(h.fecha), v: pesoMostrar(h.mejorPeso) ?? 0, titulo: pesoTexto(h.mejorPeso) })) },
+            ]);
+        } else {
+            grafica(cont, [{
+                nombre: "Mejor tiempo (s)", color: CONFIG.NARANJA,
+                puntos: histTipo.map(h => ({ ts: tsDe(h.fecha), v: h.mejorSeg, titulo: tiempoTexto(h.mejorSeg) })),
+            }], { fmt: v => `${Math.round(v)} s` });
+        }
 
         // Historial completo del ejercicio
         const tabla = createEl("table");
         tabla.className = "gym-tabla";
         const thead = createEl("thead");
         const trH = thead.createEl("tr");
-        for (const t of ["Fecha", "Día", "Series", "Mejor", "1RM", "Volumen"]) trH.createEl("th", { text: t });
+        const columnas = mixto
+            ? ["Fecha", "Día", "Series", "Mejor", "1RM", "Volumen / tiempo"]
+            : esPeso
+                ? ["Fecha", "Día", "Series", "Mejor", "1RM", "Volumen"]
+                : ["Fecha", "Día", "Series", "Mejor", "Tiempo"];
+        for (const t of columnas) trH.createEl("th", { text: t });
         tabla.appendChild(thead);
         const tb = createEl("tbody");
         for (const h of [...hist].reverse()) {
@@ -184,14 +254,42 @@ function seccionProgresion(c: HTMLElement, rutina: Rutina): void {
                 td.textContent = txt;
                 return td;
             };
-            tr.append(
+            const comunes = [
                 celda("gym-nowrap", fechaLegible(h.fecha)),
                 celda("gym-tenue", nombreDia(rutina, h.diaId)),
-                celda("", h.series.map(s => `${s.reps ?? "–"}×${pesoTexto(s.peso)}`).join(" · ")),
-                celda("", `${h.mejor.reps ?? "–"} × ${pesoTexto(h.mejor.peso)}`),
-                celda("", pesoTexto(h.oneRM || null)),
-                celda("", pesoTexto(h.volumen)),
-            );
+            ];
+            const hPeso = h.tipoEjercicio === "peso";
+            const seriesTxt = hPeso
+                ? h.series.map(s => `${s.reps ?? "–"}×${pesoTexto(s.peso)}`).join(" · ")
+                : h.series.map(s => `${s.duracionSeg ?? "–"} s`).join(" · ");
+            const mejorTxt = hPeso
+                ? `${h.mejor.reps ?? "–"} × ${pesoTexto(h.mejor.peso)}`
+                : h.mejorSeg > 0 ? tiempoTexto(h.mejorSeg) : "–";
+            const tiempoTxt = tiempoTexto(h.series.reduce((a, s) => a + (Number(s.duracionSeg) || 0), 0));
+            if (mixto) {
+                tr.append(
+                    ...comunes,
+                    celda("", seriesTxt),
+                    celda("", mejorTxt),
+                    celda("", hPeso ? pesoTexto(h.oneRM || null) : "–"),
+                    celda("", hPeso ? pesoTexto(h.volumen) : tiempoTxt),
+                );
+            } else if (hPeso) {
+                tr.append(
+                    ...comunes,
+                    celda("", seriesTxt),
+                    celda("", mejorTxt),
+                    celda("", pesoTexto(h.oneRM || null)),
+                    celda("", pesoTexto(h.volumen)),
+                );
+            } else {
+                tr.append(
+                    ...comunes,
+                    celda("", seriesTxt),
+                    celda("", mejorTxt),
+                    celda("", tiempoTxt),
+                );
+            }
             tb.appendChild(tr);
         }
         tabla.appendChild(tb);
@@ -249,9 +347,16 @@ function seccionRecords(c: HTMLElement, rutina: Rutina, sesiones: Sesion[]): voi
 
     if (sesiones.length) {
         const mejorSesion = [...sesiones].sort((a, b) => volumenSesion(b) - volumenSesion(a))[0];
-        filas.push(["Sesión con más volumen", `${pesoTexto(volumenSesion(mejorSesion))} — ${fechaLegible(mejorSesion.fecha)} (${nombreDia(rutina, mejorSesion.diaId)})`]);
+        if (volumenSesion(mejorSesion) > 0) {
+            filas.push(["Sesión con más volumen", `${pesoTexto(volumenSesion(mejorSesion))} — ${fechaLegible(mejorSesion.fecha)} (${nombreDia(rutina, mejorSesion.diaId)})`]);
+        }
         const masSeries = [...sesiones].sort((a, b) => totalSeries(b) - totalSeries(a))[0];
         filas.push(["Sesión con más series", `${totalSeries(masSeries)} series — ${fechaLegible(masSeries.fecha)}`]);
+        const masTiempo = [...sesiones].sort((a, b) => segundosSesion(b) - segundosSesion(a))[0];
+        const segTiempo = segundosSesion(masTiempo);
+        if (segTiempo > 0) {
+            filas.push(["Sesión con más tiempo de trabajo", `${tiempoTexto(segTiempo)} — ${fechaLegible(masTiempo.fecha)}`]);
+        }
         const conMin = sesiones.map(s => ({ s, m: Number(s.duracionMin) })).filter(x => Number.isFinite(x.m) && x.m > 0);
         if (conMin.length) {
             const larga = [...conMin].sort((a, b) => b.m - a.m)[0];
@@ -261,10 +366,15 @@ function seccionRecords(c: HTMLElement, rutina: Rutina, sesiones: Sesion[]): voi
     for (const e of ejerciciosConDatos(rutina)) {
         const hist = historialEjercicio(rutina, e.id);
         if (!hist.length) continue;
+        // Cada récord mira lo suyo: kilos y 1RM en series de peso, tiempo en
+        // las de tiempo/intervalo. Así un ejercicio que cambió de tipo conserva
+        // los récords de ambas etapas.
         const mejorPeso = Math.max(0, ...hist.flatMap(h => h.series.map(s => Number(s.peso) || 0)));
         const mejorRM = Math.max(0, ...hist.map(h => h.oneRM));
+        const mejorSeg = Math.max(0, ...hist.map(h => h.mejorSeg));
         if (mejorPeso > 0) filas.push([`${e.nombre} — mejor peso`, `${pesoTexto(mejorPeso)}`]);
         if (mejorRM > 0) filas.push([`${e.nombre} — 1RM estimado`, `${pesoTexto(mejorRM)}`]);
+        if (mejorSeg > 0) filas.push([`${e.nombre} — mejor tiempo`, tiempoTexto(mejorSeg)]);
     }
     if (!filas.length) {
         c.appendChild(el("div", "opacity:.7;font-size:.86em;", "Registra tu primera sesión para ver los récords."));

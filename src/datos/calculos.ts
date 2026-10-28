@@ -53,13 +53,28 @@ export const programados = (rutina: Rutina, desde: string, hasta: string): { fec
 
 // Volumen de una serie: reps × peso (sin peso cuenta 0, pero las reps sí se
 // ven). Una serie SALTADA (planificada pero no hecha) no aporta volumen.
+// En «tiempo»/«intervalo» el trabajo se mide en segundos (segundosSerie).
 export const esSaltada = (s: SerieSesion | undefined | null): boolean => Boolean(s?.saltada);
 export const volumenSerie = (s: SerieSesion | undefined | null): number =>
     esSaltada(s) ? 0 : (Number(s?.reps) || 0) * (Number(s?.peso) || 0);
-export const volumenEjercicio = (ej: { series?: SerieSesion[] } | undefined | null): number =>
-    (ej?.series ?? []).reduce((t, s) => t + volumenSerie(s), 0);
+// El volumen (reps × peso) solo cuenta en ejercicios de «peso» (decisión 6):
+// los de tiempo/intervalo se leen por segundos, no por kilos.
+export const volumenEjercicio =
+    (ej: { series?: SerieSesion[]; tipoEjercicio?: TipoEjercicio | null } | undefined | null): number =>
+        tipoEjercicioDe(ej) === "peso"
+            ? (ej?.series ?? []).reduce((t, s) => t + volumenSerie(s), 0)
+            : 0;
 export const volumenSesion = (sesion: Sesion | undefined | null): number =>
     (sesion?.ejercicios ?? []).reduce((t, e) => t + volumenEjercicio(e), 0);
+
+// Tiempo registrado (segundos), para «tiempo» e «intervalo». Las series
+// saltadas no cuentan, igual que en el volumen.
+export const segundosSerie = (s: SerieSesion | undefined | null): number =>
+    esSaltada(s) ? 0 : Number(s?.duracionSeg) || 0;
+export const segundosEjercicio = (ej: { series?: SerieSesion[] } | undefined | null): number =>
+    (ej?.series ?? []).reduce((t, s) => t + segundosSerie(s), 0);
+export const segundosSesion = (sesion: Sesion | undefined | null): number =>
+    (sesion?.ejercicios ?? []).reduce((t, e) => t + segundosEjercicio(e), 0);
 
 // Series hechas (sin contar las saltadas) y totales de una sesión.
 // Tolera que "series" no sea array (en la DEFINICIÓN de la rutina es un número).
@@ -134,38 +149,48 @@ export const transcurrida = (rutina: Rutina): boolean =>
 export interface EntradaHistorial {
     fecha: string;
     diaId: string;
+    tipoEjercicio: TipoEjercicio;
     series: SerieSesion[];
     sesion: Sesion;
     mejorPeso: number;
     mejorReps: number;
     mejor: SerieSesion;
+    mejorSeg: number;
     oneRM: number;
     volumen: number;
     notas: string;
 }
 
-// Registros de un ejercicio a lo largo del tiempo, con su mejor serie
+// Registros de un ejercicio a lo largo del tiempo, con su mejor serie.
+// En «peso» manda reps × peso (1RM incluido); en «tiempo»/«intervalo» la
+// mejor serie y el acumulado van en segundos, sin 1RM ni volumen.
 export const historialEjercicio = (rutina: Rutina, ejercicioId: string): EntradaHistorial[] => {
     const out: EntradaHistorial[] = [];
     for (const s of rutina.sesiones ?? []) {
         const ej = (s.ejercicios ?? []).find(e => e.ejercicioId === ejercicioId);
         if (!ej) continue;
-        const series = seriesHechas(ej)
-            .filter(x => Number.isFinite(Number(x.peso)) || Number.isFinite(Number(x.reps)));
+        // El tipo va en la propia sesión (2b/2c); si no consta, «peso»:
+        // es el de los datos previos al cambio (decisión 18).
+        const tipoEjercicio = tipoEjercicioDe(ej);
+        const esPeso = tipoEjercicio === "peso";
+        const series = seriesHechas(ej).filter(serieConDatos);
         if (!series.length) continue;
-        const mejorPeso = Math.max(0, ...series.map(x => Number(x.peso) || 0));
-        const mejor = [...series].sort((a, b) =>
-            (Number(b.peso) || 0) - (Number(a.peso) || 0) || (Number(b.reps) || 0) - (Number(a.reps) || 0))[0];
+        const mejorPeso = esPeso ? Math.max(0, ...series.map(x => Number(x.peso) || 0)) : 0;
+        const mejor = [...series].sort((a, b) => esPeso
+            ? (Number(b.peso) || 0) - (Number(a.peso) || 0) || (Number(b.reps) || 0) - (Number(a.reps) || 0)
+            : (Number(b.duracionSeg) || 0) - (Number(a.duracionSeg) || 0))[0];
         out.push({
             fecha: s.fecha,
             diaId: s.diaId,
+            tipoEjercicio,
             series,
             sesion: s,
             mejorPeso,
-            mejorReps: Math.max(0, ...series.map(x => Number(x.reps) || 0)),
+            mejorReps: esPeso ? Math.max(0, ...series.map(x => Number(x.reps) || 0)) : 0,
             mejor,
-            oneRM: Math.max(0, ...series.map(x => estim1RM(x.peso, x.reps) ?? 0)),
-            volumen: volumenEjercicio(ej),
+            mejorSeg: esPeso ? 0 : Math.max(0, ...series.map(x => Number(x.duracionSeg) || 0)),
+            oneRM: esPeso ? Math.max(0, ...series.map(x => estim1RM(x.peso, x.reps) ?? 0)) : 0,
+            volumen: esPeso ? volumenEjercicio(ej) : 0,
             notas: ej.notas ?? "",
         });
     }
@@ -251,9 +276,11 @@ export const catalogoEjerciciosTodas = async (rutinaActual?: Rutina | null): Pro
 };
 
 // Últimos valores registrados de un ejercicio (para precargar una sesión con
-// el peso y las reps de la última vez que lo hiciste).
+// el peso y las reps de la última vez que lo hiciste, o al menos con cuántas
+// series fueron). En «tiempo»/«intervalo» peso y reps llegan a null: ahí lo
+// útil es el número de series y la fecha.
 export const ultimosValores = (rutina: Rutina, ejercicioId: string): {
-    peso: number | null; reps: number | null; series: number; fecha: string;
+    peso: number | null; reps: number | null; series: number; fecha: string; tipoEjercicio: TipoEjercicio;
 } | null => {
     const h = historialEjercicio(rutina, ejercicioId);
     const ult = h[h.length - 1];
@@ -263,6 +290,7 @@ export const ultimosValores = (rutina: Rutina, ejercicioId: string): {
         reps: ult.mejor?.reps ?? null,
         series: ult.series.length,
         fecha: ult.fecha,
+        tipoEjercicio: ult.tipoEjercicio,
     };
 };
 

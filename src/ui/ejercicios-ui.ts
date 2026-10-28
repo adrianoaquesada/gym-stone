@@ -257,9 +257,12 @@ export const elegirEjercicio = (
                 g || "sin grupo");
             nomFila.appendChild(chipGrupo);
             const subFila = el("div", "gym-ej-sub",
-                u ? `última vez: ${u.reps ?? "–"} × ${pesoTexto(u.peso)} · ${fechaLegible(u.fecha)}`
-                  : x.rutina ? `solo en «${x.rutina}» · sin registros en esta rutina`
-                             : "sin registros todavía");
+                u
+                    ? u.tipoEjercicio === "peso"
+                        ? `última vez: ${u.reps ?? "–"} × ${pesoTexto(u.peso)} · ${fechaLegible(u.fecha)}`
+                        : `última vez: ${u.series} serie${u.series === 1 ? "" : "s"} · ${fechaLegible(u.fecha)}`
+                    : x.rutina ? `solo en «${x.rutina}» · sin registros en esta rutina`
+                               : "sin registros todavía");
             txt.append(nomFila, subFila);
             fila.appendChild(txt);
             // 🏷: clasificar el ejercicio por grupo muscular (para filtrar y buscar)

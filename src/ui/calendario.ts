@@ -14,7 +14,8 @@
 import { CONFIG, DIAS, DIAS_LARGO } from "../config";
 import {
     diaProgramado, escribirRutina, esLibre, esSaltada, esSinRegistrar, nombreDia,
-    programados, seriesHechas, sesionesEn, totalSaltadas, totalSeries,
+    programados, segundosEjercicio, segundosSesion, seriesHechas, sesionesEn,
+    tipoEjercicioDe, totalSaltadas, totalSeries,
     volumenEjercicio, volumenSesion,
 } from "../datos";
 import { decimal, diaSemana, dos, esFechaValida, fechaLegible, hoy, msgError,
@@ -27,6 +28,15 @@ import { abrirRegistro, formularioAnotacion, formularioSesion } from "./registro
 
 /* El mes abierto sobrevive a los re-renders del dashboard (por rutina) */
 const almacenMeses = new Map<string, number>();
+
+/* Carga de un día o una sesión: kilos en «peso» y segundos en «tiempo»/
+   «intervalo». Si no hay ninguno de los dos, «0 kg» como antes. */
+const cargaTexto = (kg: number, seg: number): string => {
+    const partes: string[] = [];
+    if (kg > 0) partes.push(pesoTexto(kg));
+    if (seg > 0) partes.push(`${Math.round(seg)} s`);
+    return partes.length ? partes.join(" · ") : pesoTexto(0);
+};
 
 /* ══════════════════ 2 · Calendario mensual ══════════════════ */
 
@@ -98,6 +108,7 @@ export function seccionCalendario(c: HTMLElement, rutina: Rutina, pintar: Pintar
         const progPorFecha = new Map(progMes.map(p => [p.fecha, p.dia] as [string, DiaRutina]));
         const sesionesMes = [...porDia.entries()].filter(([d]) => d.startsWith(desdeMes(indiceMes))).flatMap(([, a]) => a);
         const volumenMes = sesionesMes.reduce((t, s) => t + volumenSesion(s), 0);
+        const segundosMes = sesionesMes.reduce((t, s) => t + segundosSesion(s), 0);
         const hechas = progMes.filter(p => porDia.has(p.fecha)).length;
         const pctMes = progMes.length ? (hechas / progMes.length) * 100 : NaN;
         // En la libre no hay días programados: lo que se cuenta son los días
@@ -113,7 +124,7 @@ export function seccionCalendario(c: HTMLElement, rutina: Rutina, pintar: Pintar
             const det = el("span", "gym-res-det");
             det.append("· ", el("span", "gym-verde", String(diasMes)),
                 ` ${diasMes === 1 ? "día entrenado" : "días entrenados"} · `,
-                el("b", null, pesoTexto(volumenMes)), " de volumen");
+                el("b", null, cargaTexto(volumenMes, segundosMes)), " de volumen / tiempo");
             resumen.appendChild(det);
         } else {
             const barra = el("span", "gym-barra-mes");
@@ -124,7 +135,7 @@ export function seccionCalendario(c: HTMLElement, rutina: Rutina, pintar: Pintar
             const det = el("span", "gym-res-det");
             det.append(el("span", "gym-verde", String(hechas)), `/${progMes.length} programadas`);
             if (Number.isFinite(pctMes)) det.append(` · ${decimal(pctMes)} %`);
-            det.append(" · ", el("b", null, pesoTexto(volumenMes)), " de volumen");
+            det.append(" · ", el("b", null, cargaTexto(volumenMes, segundosMes)), " de volumen / tiempo");
             resumen.appendChild(det);
         }
         cajaMes.appendChild(resumen);
@@ -216,6 +227,7 @@ const celdaCalendario = ({ clave, numero, fuera, progPorFecha, porDia, rutina, p
     const pasado = tsDe(clave) < tsAhora();
     const anotaciones = (rutina.notasDia ?? []).filter(n => n.fecha === clave);
     const volumen = sesiones.reduce((t, s) => t + volumenSesion(s), 0);
+    const segundos = sesiones.reduce((t, s) => t + segundosSesion(s), 0);
 
     // El relleno es SOLO de hoy: los demás días no se colorean (su estado se
     // distingue por el BORDE: verde = con sesión, rojo = programado pasado,
@@ -245,7 +257,7 @@ const celdaCalendario = ({ clave, numero, fuera, progPorFecha, porDia, rutina, p
         d.style.color = sesiones.length ? CONFIG.VERDE : (pasado && borde === CONFIG.ROJO ? CONFIG.ROJO : CONFIG.NARANJA);
         cel.appendChild(d);
     }
-    if (sesiones.length) cel.appendChild(el("div", "v", `${sesiones.length > 1 ? sesiones.length + "× " : ""}${pesoTexto(volumen)}`));
+    if (sesiones.length) cel.appendChild(el("div", "v", `${sesiones.length > 1 ? sesiones.length + "× " : ""}${cargaTexto(volumen, segundos)}`));
     else if (diaProg && pasado) cel.appendChild(el("div", "v", "omitido"));
     // La anotación del día se ve SIEMPRE: vive fija en la esquina inferior
     // derecha del cuadrado, fuera del flujo — así no compite con el .v de
@@ -268,6 +280,7 @@ interface SemanaResumen {
     prog: number;
     hechas: number;
     vol: number;
+    seg: number;
     min: number;
     dias: Set<string>;
 }
@@ -284,10 +297,10 @@ const tablaSemanas = (
         const d = new Date(tsDe(f));
         const lunes = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
         const clave = `${lunes.getFullYear()}-${dos(lunes.getMonth() + 1)}-${dos(lunes.getDate())}`;
-        if (!semanas.has(clave)) semanas.set(clave, { desde: clave, hasta: sumarDias(clave, 6), prog: 0, hechas: 0, vol: 0, min: 0, dias: new Set<string>() });
+        if (!semanas.has(clave)) semanas.set(clave, { desde: clave, hasta: sumarDias(clave, 6), prog: 0, hechas: 0, vol: 0, seg: 0, min: 0, dias: new Set<string>() });
         const w = semanas.get(clave)!;
         if (progPorFecha.has(f)) w.prog++;
-        for (const s of porDia.get(f) ?? []) { w.hechas++; w.vol += volumenSesion(s); w.min += Number(s.duracionMin) || 0; }
+        for (const s of porDia.get(f) ?? []) { w.hechas++; w.vol += volumenSesion(s); w.seg += segundosSesion(s); w.min += Number(s.duracionMin) || 0; }
         // En la libre no hay «programado»: lo que interesa es cuántos días distintos
         // de esa semana has entrenado.
         if (porDia.has(f)) w.dias.add(f);
@@ -300,8 +313,8 @@ const tablaSemanas = (
     const thead = createEl("thead");
     const trH = createEl("tr");
     for (const h of libre
-        ? ["Semana", "Sesiones", "Días", "Volumen", "Minutos"]
-        : ["Semana", "Hechas", "Volumen", "Minutos", "Adherencia"]) {
+        ? ["Semana", "Sesiones", "Días", "Volumen / tiempo", "Minutos"]
+        : ["Semana", "Hechas", "Volumen / tiempo", "Minutos", "Adherencia"]) {
         trH.appendChild(el("th", null, h));
     }
     thead.appendChild(trH);
@@ -318,9 +331,9 @@ const tablaSemanas = (
         tr.appendChild(celda(`${w.desde.slice(8)}/${w.desde.slice(5, 7)} → ${w.hasta.slice(8)}/${w.hasta.slice(5, 7)}`));
         // En la libre solo hay sesiones contadas; en la planificada, hechas/programadas
         tr.appendChild(celda(libre ? String(w.hechas) : `${w.hechas}/${w.prog || "–"}`));
-        // La tercera columna es «Días» en la libre y «Volumen» en la planificada
+        // La tercera columna es «Días» en la libre y «Volumen / tiempo» en la planificada
         if (libre) tr.appendChild(celda(String(w.dias.size || "–")));
-        tr.append(celda(pesoTexto(w.vol)), celda(String(w.min || "–")));
+        tr.append(celda(cargaTexto(w.vol, w.seg)), celda(String(w.min || "–")));
         if (!libre) {
             const pctSem = w.prog ? (w.hechas / w.prog) * 100 : NaN;
             const tdAdh = celda(Number.isFinite(pctSem) ? decimal(pctSem) + " %" : "–", "gym-pct");
@@ -360,13 +373,13 @@ const barraH = (max: number, etiqueta: string, valor: number, texto: string, col
     return f;
 };
 
-/* Resumen del día: KPIs (duración, volumen, series, reps, ritmo y descanso
-   previsto) + gráficos CSS: volumen por ejercicio, histograma de series por
-   carga y —cuando las series traen su «t» (sesión guiada)— histograma del
-   tiempo entre registros con media y mediana. */
+/* Resumen del día: KPIs (duración, volumen, tiempo de trabajo, series, reps,
+   ritmo y descanso previsto) + gráficos CSS: volumen y tiempo por ejercicio,
+   histograma de series por carga y —cuando las series traen su «t» (sesión
+   guiada)— histograma del tiempo entre registros con media y mediana. */
 const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
-    let min = 0, vol = 0, reps = 0, hechas = 0, saltadas = 0;
-    const porEj = new Map<string, { nombre: string; vol: number; reps: number; series: number }>();
+    let min = 0, vol = 0, seg = 0, reps = 0, hechas = 0, saltadas = 0;
+    const porEj = new Map<string, { nombre: string; vol: number; seg: number; reps: number; series: number }>();
     const cargas = new Map<string, { peso: number | null; n: number; reps: number }>();
     const deltas: number[] = [];   // ms entre registros consecutivos (descanso + ejecución de la siguiente serie)
     const descs: number[] = [];    // descansos previstos (s) de los ejercicios del día
@@ -382,9 +395,13 @@ const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
         for (const e of s.ejercicios ?? []) {
             const d = Number(e.descansoSeg) || 0;
             if (d > 0) descs.push(d);
+            // El tipo viaja en la sesión (2b/2c); ausente = «peso» (datos previos)
+            const tipo = tipoEjercicioDe(e);
             const k = e.ejercicioId || e.nombre || "?";
-            const actual = porEj.get(k) ?? { nombre: e.nombre || e.ejercicioId || "?", vol: 0, reps: 0, series: 0 };
+            const actual = porEj.get(k) ?? { nombre: e.nombre || e.ejercicioId || "?", vol: 0, seg: 0, reps: 0, series: 0 };
             actual.vol += volumenEjercicio(e);
+            actual.seg += segundosEjercicio(e);
+            seg += segundosEjercicio(e);
             porEj.set(k, actual);
             const sinReg = esSinRegistrar(e);
             for (const x of e.series ?? []) {
@@ -396,9 +413,13 @@ const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
                     actual.series++;
                     if (x.descansoMs != null) descReal.push(x.descansoMs);
                     if (x.ejecMs != null) ejecs.push(x.ejecMs);
-                    const et = pesoTexto(x.peso);
-                    const c = cargas.get(et) ?? { peso: x.peso ?? null, n: 0, reps: 0 };
-                    c.n++; c.reps += Number(x.reps) || 0; cargas.set(et, c);
+                    // El histograma de cargas es solo de «peso»: las series de
+                    // tiempo/intervalo no tienen kilos que agrupar.
+                    if (tipo === "peso") {
+                        const et = pesoTexto(x.peso);
+                        const c = cargas.get(et) ?? { peso: x.peso ?? null, n: 0, reps: 0 };
+                        c.n++; c.reps += Number(x.reps) || 0; cargas.set(et, c);
+                    }
                 }
                 if (x.t != null) {
                     if (ultimoT != null) deltas.push(x.t - ultimoT);
@@ -415,20 +436,29 @@ const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
         kpis.appendChild(c);
     };
     chip(`⏱ ${min} min`, "Duración total de las sesiones del día");
-    chip(`💾 ${pesoTexto(vol)}`, "Volumen: suma de reps × peso");
+    if (vol > 0) chip(`💾 ${pesoTexto(vol)}`, "Volumen: suma de reps × peso (solo ejercicios de peso)");
+    if (seg > 0) chip(`⏱ ${Math.round(seg)} s de trabajo`, "Tiempo registrado en ejercicios de tiempo e intervalo");
     chip(`📊 ${hechas} series${saltadas ? ` +${saltadas} ⏭` : ""}`, "Series hechas y saltadas");
-    chip(`🔁 ${reps} reps`);
+    if (reps > 0) chip(`🔁 ${reps} reps`);
     if (min > 0 && reps > 0) chip(`⚡ ${(reps / min).toFixed(1)} reps/min`, "Ritmo del día: repeticiones por minuto");
     if (descs.length) chip(`⏳ ~${Math.round(descs.reduce((a, b) => a + b, 0) / descs.length)} s de descanso`, "Media del descanso elegido para los ejercicios del día");
     if (pausasMs.length) chip(`⏸ ${relojMs(pausasMs.reduce((a, b) => a + b, 0))} en pausa`, "La pausa no cuenta en los tiempos: el reloj del día mide sesión activa");
     padre.appendChild(kpis);
 
-    if (porEj.size) {
+    const pesos = [...porEj.values()].filter(e => e.vol > 0).sort((a, b) => b.vol - a.vol);
+    if (pesos.length) {
         padre.appendChild(el("div", "gym-et", "📈 Volumen por ejercicio"));
-        const orden = [...porEj.values()].sort((a, b) => b.vol - a.vol);
-        const max = Math.max(...orden.map(x => x.vol), 1);
-        for (const e of orden) padre.appendChild(barraH(max, e.nombre, e.vol, pesoTexto(e.vol), CONFIG.NARANJA,
+        const max = Math.max(...pesos.map(x => x.vol), 1);
+        for (const e of pesos) padre.appendChild(barraH(max, e.nombre, e.vol, pesoTexto(e.vol), CONFIG.NARANJA,
             `${e.nombre} — ${pesoTexto(e.vol)} en ${e.reps} reps · ${e.series} serie${e.series === 1 ? "" : "s"} hecha${e.series === 1 ? "" : "s"}`));
+    }
+
+    const tiempos = [...porEj.values()].filter(e => e.seg > 0).sort((a, b) => b.seg - a.seg);
+    if (tiempos.length) {
+        padre.appendChild(el("div", "gym-et", "⏱ Tiempo por ejercicio"));
+        const max = Math.max(...tiempos.map(x => x.seg), 1);
+        for (const e of tiempos) padre.appendChild(barraH(max, e.nombre, e.seg, `${Math.round(e.seg)} s`, CONFIG.AZUL,
+            `${e.nombre} — ${Math.round(e.seg)} s en ${e.series} serie${e.series === 1 ? "" : "s"} hecha${e.series === 1 ? "" : "s"}`));
     }
 
     if (cargas.size) {
@@ -476,7 +506,7 @@ const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
    Cada tick responde al cursor/tap con el dato completo de su serie.
    Solo tiene sentido donde hay «t» (sesión guiada): sin tiempos no se pinta. */
 const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
-    type Ev = { t: number; hecha: boolean; reps: number | null; peso: number | null; descansoMs?: number; ejecMs?: number };
+    type Ev = { t: number; hecha: boolean; reps: number | null; peso: number | null; dur: number | null; descansoMs?: number; ejecMs?: number };
     const filas: { nombre: string; evs: Ev[] }[] = [];
     let lejos = 0;
     for (const e of s.ejercicios ?? []) {
@@ -487,6 +517,7 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
             evs.push({
                 t: x.t, hecha: !saltada,
                 reps: saltada ? null : (Number(x.reps) || 0), peso: saltada ? null : (x.peso ?? null),
+                dur: saltada ? null : (x.duracionSeg ?? null),
                 ...(x.descansoMs != null ? { descansoMs: x.descansoMs } : {}),
                 ...(x.ejecMs != null ? { ejecMs: x.ejecMs } : {}),
             });
@@ -538,7 +569,9 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
             const tick = el("div", `position:absolute;top:2px;bottom:2px;width:4px;border-radius:2px;background:${ev.hecha ? color : "var(--text-faint)"};`);
             tick.style.left = `calc(${pct(ev.t)}% - 2px)`;
             conAyuda(tick, () => `${f.nombre} · serie ${iS + 1}${ev.hecha
-                ? ` — ${ev.reps} reps${ev.peso != null ? ` × ${pesoTexto(ev.peso)}` : ""}`
+                ? ev.dur != null
+                    ? ` — ${Math.round(ev.dur)} s`
+                    : ` — ${ev.reps} reps${ev.peso != null ? ` × ${pesoTexto(ev.peso)}` : ""}`
                 : " — ⏭ saltada"} · ${relojMs(ev.t)}` +
                 (iS > 0 ? ` · ${relojMs(ev.t - f.evs[iS - 1].t)} después de la anterior` : " · primera del ejercicio") +
                 (ev.descansoMs != null && ev.ejecMs != null
@@ -588,7 +621,7 @@ export function detalleDia(rutina: Rutina, fecha: string, pintar: Pintar): void 
             const tit = el("div", "gym-ej-nombre");
             tit.append(`🏋️ ${nombreDia(rutina, s.diaId)} `,
                 el("span", "gym-chip", `${Number(s.duracionMin) || 0} min`),
-                el("span", "gym-chip", pesoTexto(volumenSesion(s))),
+                el("span", "gym-chip", cargaTexto(volumenSesion(s), segundosSesion(s))),
                 el("span", "gym-chip", `${totalSeries(s)} series`));
             if (nSaltadas) {
                 const chipSal = el("span", "gym-chip",
@@ -625,14 +658,19 @@ export function detalleDia(rutina: Rutina, fecha: string, pintar: Pintar): void 
             tabla.className = "gym-tabla";
             const thead = createEl("thead");
             const trH = thead.createEl("tr");
-            for (const t of ["Ejercicio", "Series (reps × peso)", "Vol.", "Notas"]) trH.createEl("th", { text: t });
+            for (const t of ["Ejercicio", "Series", "Vol. / tiempo", "Notas"]) trH.createEl("th", { text: t });
             tabla.appendChild(thead);
             const tb = createEl("tbody");
             for (const e of s.ejercicios ?? []) {
                 const sinReg = esSinRegistrar(e);
+                // Tipo de la propia sesión; ausente = «peso» (datos previos)
+                const tipo = tipoEjercicioDe(e);
+                const esPeso = tipo === "peso";
                 const celdas = (e.series ?? []).map(x => esSaltada(x)
                     ? el("span", "gym-saltada", "⏭ saltada")
-                    : `${x.reps ?? "–"}×${pesoTexto(x.peso)}`);
+                    : esPeso
+                        ? `${x.reps ?? "–"}×${pesoTexto(x.peso)}`
+                        : `${x.duracionSeg ?? "–"} s`);
                 const nHechas = seriesHechas(e).length;
                 const nSaltadas = (e.series ?? []).length - nHechas;
                 // ⏱ Tiempos (sesión guiada): a qué hora pasó cada serie y el
@@ -643,7 +681,7 @@ export function detalleDia(rutina: Rutina, fecha: string, pintar: Pintar): void 
                     const tramos = conT.slice(1).map((t, i) => t - conT[i]);
                     const dur = conT[conT.length - 1] - conT[0];
                     const repsEj = seriesHechas(e).reduce((a, x) => a + (Number(x.reps) || 0), 0);
-                    const rpmEj = dur > 0 && repsEj > 0
+                    const rpmEj = esPeso && dur > 0 && repsEj > 0
                         ? repsEj / (dur / 60000)
                         : null;
                     lineaT = el("div", "gym-td-tiempos");
@@ -664,7 +702,9 @@ export function detalleDia(rutina: Rutina, fecha: string, pintar: Pintar): void 
                     celdas.forEach((c, i) => { if (i) tdSeries.append(" · "); tdSeries.append(c); });
                 } else tdSeries.append("–");
                 if (lineaT) tdSeries.appendChild(lineaT);
-                const tdVol = el("td", "gym-nowrap", pesoTexto(volumenEjercicio(e)));
+                const tdVol = el("td", "gym-nowrap", esPeso
+                    ? pesoTexto(volumenEjercicio(e))
+                    : segundosEjercicio(e) > 0 ? `${Math.round(segundosEjercicio(e))} s` : "–");
                 const tdNotas = el("td", "gym-td-notas", e.notas ?? "");
                 tr.append(tdNom, tdSeries, tdVol, tdNotas);
                 tb.appendChild(tr);

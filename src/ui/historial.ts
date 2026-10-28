@@ -9,7 +9,8 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 import {
-    diaPorId, ejerciciosConDatos, esSaltada, nombreDia, volumenEjercicio,
+    diaPorId, ejerciciosConDatos, esSaltada, nombreDia, segundosEjercicio,
+    tipoEjercicioDe, volumenEjercicio,
 } from "../datos";
 import { esFechaValida, fechaLegible, hoy } from "../util";
 import { pesoTexto } from "../unidades";
@@ -25,13 +26,14 @@ let filtroDesde = "";
 let filtroHasta = "";
 
 // Una fila ya calculada: la columna «Series» llega en texto plano porque al
-// pintarse pasa por esc() (el motor mete ese texto dentro de <td>).
+// pintarse pasa por esc() (el motor mete ese texto dentro de <td>). «Volumen»
+// ya viene formateado: kg en «peso» y segundos en «tiempo»/«intervalo».
 interface FilaHistorial {
     fecha: string;
     dia: string;
     ejercicio: string;
     series: string;
-    volumen: number;
+    volumen: string;
     notas: string;
 }
 
@@ -101,6 +103,9 @@ export function seccionHistorial(c: HTMLElement, rutina: Rutina): void {
             for (const e of s.ejercicios ?? []) {
                 if (selEj.value && e.ejercicioId !== selEj.value) continue;
                 const def = diaPorId(rutina, s.diaId)?.ejercicios?.find(x => x.id === e.ejercicioId);
+                // Tipo de la propia sesión; ausente = «peso» (datos previos)
+                const tipo = tipoEjercicioDe(e);
+                const seg = segundosEjercicio(e);
                 filas.push({
                     fecha: s.fecha,
                     dia: nombreDia(rutina, s.diaId),
@@ -108,8 +113,10 @@ export function seccionHistorial(c: HTMLElement, rutina: Rutina): void {
                     // La tabla pinta las celdas como texto plano, así que aquí solo texto
                     series: (e.series ?? []).map(x => esSaltada(x)
                         ? "⏭ saltada"
-                        : `${x.reps ?? "–"}×${pesoTexto(x.peso)}`).join(" · ") || "–",
-                    volumen: volumenEjercicio(e),
+                        : tipo === "peso"
+                            ? `${x.reps ?? "–"}×${pesoTexto(x.peso)}`
+                            : `${x.duracionSeg ?? "–"} s`).join(" · ") || "–",
+                    volumen: tipo === "peso" ? pesoTexto(volumenEjercicio(e)) : seg > 0 ? `${seg} s` : "–",
                     notas: e.notas ?? "",
                 });
             }
@@ -123,9 +130,9 @@ export function seccionHistorial(c: HTMLElement, rutina: Rutina): void {
         // El alto está limitado a 10 filas con scroll propio, así que ya no
         // importa que la tabla tenga muchas filas: no alarga el dashboard.
         const total = filas.length;
-        tablaEn(contTabla, ["Fecha", "Día", "Ejercicio", "Series (reps × peso)", "Volumen", "Notas"],
+        tablaEn(contTabla, ["Fecha", "Día", "Ejercicio", "Series", "Volumen / tiempo", "Notas"],
             filas.slice(0, 200).map(f => [
-                fechaLegible(f.fecha), f.dia, el("b", null, f.ejercicio), f.series, pesoTexto(f.volumen), f.notas,
+                fechaLegible(f.fecha), f.dia, el("b", null, f.ejercicio), f.series, f.volumen, f.notas,
             ]), { filasVisibles: 10 });
         if (total > 200) contTabla.appendChild(el("div", "opacity:.7;font-size:.8em;margin-top:6px;",
             `Se muestran las 200 más recientes de ${total}: afina los filtros para ver el resto.`));
