@@ -189,9 +189,11 @@ const seccionDetalles = (c: HTMLElement, rutina: Rutina, pintar: Pintar): void =
             for (const e of d.ejercicios ?? []) {
                 const li = el("li");
                 // El plan se imprime por tipo (decisión 24): reps+peso, hold o
-                // ciclos; en intervalo el descanso 0 es «sin descanso» y se ve
+                // ciclos; en intervalo el descanso ausente o 0 es «sin
+                // descanso», como en la sesión guiada (allí el ciclo necesita
+                // un número y con ausente usa 0)
                 const descSeg = Number(e.descansoSeg);
-                const desc = tipoEjercicioDe(e) === "intervalo" && e.descansoSeg != null
+                const desc = tipoEjercicioDe(e) === "intervalo"
                     ? (descSeg > 0 ? ` · desc. ${Math.round(descSeg)}s` : " · sin descanso")
                     : (e.descansoSeg ? ` · desc. ${e.descansoSeg}s` : "");
                 li.append(e.nombre, " ",
