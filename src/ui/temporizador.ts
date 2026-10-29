@@ -24,8 +24,9 @@
 
 import { dos } from "../util";
 import { ReclamoDespierta } from "../despierta";
+import { conf } from "../estado";
 import { el, modal, ponerX, toast } from "./componentes";
-import { sonarTemporizador, vibrar } from "./sonido";
+import { reiniciarCuentaAtras, sonarCuentaAtras, sonarTemporizador, vibrar } from "./sonido";
 
 /* ── Estado (del módulo: sobrevive al cierre del modal) ─────────────────── */
 let totalMs = 5 * 60000;        // la duración elegida (5:00 al empezar)
@@ -59,7 +60,11 @@ const avisar = (): void => {
 
 /* ── Reloj: cada 250 ms se mira el reloj del sistema, no se cuentan tics ── */
 const tic = (): void => {
-    if (finEn != null && restante() <= 0) { terminar(); return; }
+    if (finEn != null) {
+        const ms = restante();
+        if (ms <= 0) { terminar(); return; }
+        sonarCuentaAtras("temporizador-libre", "temporizador", ms);
+    }
     notificar();
 };
 const arrancarReloj = (): void => { if (idReloj == null) idReloj = window.setInterval(tic, 250); };
@@ -76,6 +81,7 @@ const arrancar = (ms: number): void => {
     finEn = Date.now() + totalMs;
     guardado = totalMs;
     pausado = false;
+    reiniciarCuentaAtras("temporizador-libre");
     arrancarReloj();
     pantalla.poner();   // la cuenta atrás corre: la pantalla no se apaga
     notificar();
@@ -86,6 +92,7 @@ const terminar = (): void => {
     pausado = false;
     guardado = 0;
     pararReloj();
+    reiniciarCuentaAtras("temporizador-libre");
     pantalla.quitar();   // ya sonó: la pantalla puede dormirse
     avisar();
     notificar();
@@ -96,6 +103,7 @@ const parar = (): void => {
     pausado = false;
     guardado = totalMs;
     pararReloj();
+    reiniciarCuentaAtras("temporizador-libre");
     pantalla.quitar();
     notificar();
 };
@@ -123,6 +131,7 @@ const ajustar = (deltaMs: number): void => {
 /* Detiene el intervalo al descargar el plugin (lo llama main.onunload) */
 export const pararTemporizador = (): void => {
     pararReloj();
+    reiniciarCuentaAtras("temporizador-libre");
     pantalla.quitar();   // ningún candado de pantalla debe sobrevivir al plugin
     alPintar = null;
 };
@@ -145,13 +154,6 @@ const svgEl = (tag: string, attrs: Record<string, string>): SVGElement => {
     for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
     return n;
 };
-
-/* Presets de un toque: solo FIJAN la duración (los campos «Ajustar» y el
-   anillo se ponen a la vez), pero NO arrancan la cuenta atrás */
-const PRESETS: [string, number][] = [
-    ["1:00", 60_000], ["3:00", 180_000], ["5:00", 300_000],
-    ["10:00", 600_000], ["15:00", 900_000], ["30:00", 1_800_000],
-];
 
 /* ═══════════════════════════════════════════════════════════════════════════
    El modal. Se puede cerrar (✕, Escape o clic fuera) sin parar la cuenta
@@ -218,7 +220,8 @@ export function abrirTemporizador(): void {
     secRapidos.appendChild(el("div", "gym-et gym-temp-tit", "Rápidos"));
     const filaPres = el("div", "gym-temp-presets");
     const chips: HTMLButtonElement[] = [];
-    for (const [txt, ms] of PRESETS) {
+    const presets = conf().opcionesRapidasTemporizador.map(ms => [fmt(ms), ms] as const);
+    for (const [txt, ms] of presets) {
         const c = el("button", "gym-chip gym-temp-chip", txt);
         c.type = "button";
         c.title = `Elegir una cuenta atrás de ${txt} (no arranca hasta que pulses Empezar)`;
@@ -295,7 +298,7 @@ export function abrirTemporizador(): void {
         secRapidos.classList.toggle("gym-oculto", ocultar);
         // El preset elegido se resalta mientras esté vigente esa duración
         // (aunque aún no haya arrancado: elegirlo ya fija el tiempo)
-        chips.forEach((c, i) => c.classList.toggle("on", totalMs === PRESETS[i][1]));
+        chips.forEach((c, i) => c.classList.toggle("on", totalMs === presets[i][1]));
     };
 
     const fijarEntradas = (ms: number): void => {

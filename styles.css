@@ -407,6 +407,26 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-toast { transition: opacity .45s; }
 .gym-toast.gym-saliendo { opacity: 0; }
 
+/* ── Ajustes: grupos y opciones del temporizador ────────────────────────── */
+.gym-ajustes-sonido {
+    margin: 22px 0;
+    padding: 8px 14px 14px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 10px;
+    background: var(--background-secondary);
+}
+.gym-ajustes-sonido .setting-item-heading { margin-top: 0; }
+.gym-ajustes-sonido .setting-item:not(.setting-item-heading) { border-top: 0; }
+.gym-ajustes-frecuencias { align-items: flex-start; flex-direction: column; min-width: min(100%, 320px); }
+.gym-ajustes-frecuencia { display: flex; align-items: center; justify-content: space-between; gap: var(--size-4-2); width: 100%; }
+.gym-ajustes-frecuencia input { width: 120px; }
+.gym-ajustes-controles { align-items: stretch; flex-direction: column; min-width: min(100%, 320px); }
+.gym-ajustes-opciones-rapidas { display: flex; flex-direction: column; gap: var(--size-4-2); width: 100%; }
+.gym-ajuste-opcion { display: flex; align-items: center; gap: var(--size-4-2); }
+.gym-ajuste-opcion-etiqueta { flex: 0 0 120px; }
+.gym-ajuste-opcion-duracion { flex: 1 1 auto; min-width: 0; }
+.gym-ajustes-opciones-acciones { display: flex; flex-wrap: wrap; gap: var(--size-4-2); width: 100%; }
+
 /* ── Gestor: dashboard ───────────────────────────────────────────────────── */
 .gym-g { line-height: 1.45; }
 .gym-progreso {

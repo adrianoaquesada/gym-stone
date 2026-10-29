@@ -29,6 +29,11 @@ export interface AjustesGym {
     sonidoTemporizador: boolean;  // pitido al terminar la cuenta atrás del ⏱
     sonidoDescanso: boolean;      // pitido al terminar el descanso de la sesión guiada
     volumenSonido: number;        // intensidad del pitido, en % (0–100): COMÚN a ambos
+    formaOndaSonido: OscillatorType;
+    patronSonido: "clasico" | "unico" | "ascendente" | "doble";
+    frecuenciasSonido: [number, number, number];
+    avisosCuentaAtras: 0 | 3 | 5;
+    opcionesRapidasTemporizador: number[]; // duraciones del carrusel del temporizador, en ms
 }
 
 export const AJUSTES_POR_DEFECTO: AjustesGym = {
@@ -40,6 +45,11 @@ export const AJUSTES_POR_DEFECTO: AjustesGym = {
     sonidoDescanso: true,
     // 30 % ≈ la ganancia 0.28 fija que tenía el pitido antes de parametrizarlo
     volumenSonido: 30,
+    formaOndaSonido: "sine",
+    patronSonido: "ascendente",
+    frecuenciasSonido: [660, 880, 1175],
+    avisosCuentaAtras: 0,
+    opcionesRapidasTemporizador: [60_000, 180_000, 300_000, 600_000, 900_000, 1_800_000],
 };
 
 /* La raíz siempre en minúsculas y sin barras sueltas en los extremos: los
@@ -77,6 +87,29 @@ export function normalizarAjustes(
         out.volumenSonido = Number.isFinite(vol)
             ? Math.min(100, Math.max(0, Math.round(vol)))
             : AJUSTES_POR_DEFECTO.volumenSonido;
+        if (d.formaOndaSonido === "sine" || d.formaOndaSonido === "triangle"
+            || d.formaOndaSonido === "square" || d.formaOndaSonido === "sawtooth") {
+            out.formaOndaSonido = d.formaOndaSonido;
+        }
+        if (d.patronSonido === "clasico" || d.patronSonido === "unico"
+            || d.patronSonido === "ascendente" || d.patronSonido === "doble") {
+            out.patronSonido = d.patronSonido;
+        }
+        if (Array.isArray(d.frecuenciasSonido) && d.frecuenciasSonido.length === 3) {
+            const frecuencias = d.frecuenciasSonido.map(Number);
+            if (frecuencias.every(hz => Number.isInteger(hz) && hz >= 100 && hz <= 2000)) {
+                out.frecuenciasSonido = [frecuencias[0], frecuencias[1], frecuencias[2]];
+            }
+        }
+        if (d.avisosCuentaAtras === 0 || d.avisosCuentaAtras === 3 || d.avisosCuentaAtras === 5) {
+            out.avisosCuentaAtras = d.avisosCuentaAtras;
+        }
+        if (Array.isArray(d.opcionesRapidasTemporizador)) {
+            out.opcionesRapidasTemporizador = [...new Set(
+                d.opcionesRapidasTemporizador.filter((ms): ms is number =>
+                    typeof ms === "number" && Number.isInteger(ms) && ms >= 1000 && ms <= 99 * 3600000),
+            )];
+        }
     }
     return out;
 }

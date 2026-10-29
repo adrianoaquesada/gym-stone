@@ -21,7 +21,7 @@ import { pesoACampo, pesoAKg, pesoTexto } from "../unidades";
 import { aNumero, dos, esc, fechaLegible, hoy, msgError } from "../util";
 import { btn, confirmar, el, modal, pedirTexto, ponerX, toast } from "./componentes";
 import { controlDescanso, elegirEjercicio, pedirDescanso } from "./ejercicios-ui";
-import { sonarDescanso, sonarTemporizador, vibrar } from "./sonido";
+import { reiniciarCuentaAtras, sonarCuentaAtras, sonarDescanso, sonarTemporizador, vibrar } from "./sonido";
 import type { Pintar } from "./pintar";
 
 /* ── Cierre de emergencia (main.onunload) ──────────────────────────────────
@@ -1375,6 +1375,9 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
 
     const cerrar = () => {
         window.clearInterval(idReloj);
+        reiniciarCuentaAtras("sesion-descanso");
+        reiniciarCuentaAtras("sesion-ciclo-trabajo");
+        reiniciarCuentaAtras("sesion-ciclo-descanso");
         document.removeEventListener("keydown", onKey);
         pantalla.quitar();   // nada de pantalla despierta tras salir de la sesión
         sesionesAbiertas.delete(cerrar);
@@ -1534,6 +1537,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         if (pausado) return;   // la pausa sí congela la cuenta atrás del descanso, de los ciclos y del hold
         if (descanso && descanso.restanteMs > 0) {
             descanso.restanteMs -= dt;
+            sonarCuentaAtras("sesion-descanso", "descanso", descanso.restanteMs);
             if (descanso.restanteMs > 0) {
                 pintarDescanso();
             } else {
@@ -1542,6 +1546,8 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         }
         if (ciclo) {
             ciclo.restanteMs -= dt;
+            const claveAviso = ciclo.fase === "trabajo" ? "sesion-ciclo-trabajo" : "sesion-ciclo-descanso";
+            sonarCuentaAtras(claveAviso, "temporizador", ciclo.restanteMs);
             if (ciclo.restanteMs > 0) {
                 pintarCiclo();
             } else if (ciclo.fase === "trabajo") {
