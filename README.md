@@ -60,18 +60,26 @@ pantalla. La navegación no toca archivos: los `.md` son solo consulta y guardad
   Temporizador**. En el **modo sesión guiada** (pensado para el móvil) entrenas un ejercicio a la vez:
   descansos con **−15 s** / **＋30 s**, **tiempo activo real** (las pausas no cuentan ni en el
   cronómetro ni en los tiempos de las series) y «entre series» desglosado en descanso y
-  ejecución. En la cabecera de cada ejercicio se cambian también el descanso y el **modo de
-  reps** (fijas · mínimo al fallo · al fallo), igual que en el formulario de edición; en las
-  rutinas libres es donde se configura, porque ahí no hay plan.
+  ejecución. En la cabecera de cada ejercicio se cambia el descanso y su **tipo de serie** del
+  plan (calentamiento · trabajo · descenso · fallo; en las rutinas libres es ahí donde se
+  configura, porque no hay plan), y en la serie que toca se anota la suya; las series hechas
+  muestran su etiqueta.
+  Cada tipo de ejercicio se registra a su manera: **peso** con reps y kilos como siempre,
+  **tiempo** con un *hold* (cuenta arriba que corre con el reloj y se detiene a mano con ✔) e
+  **intervalo** con ciclos semiautomáticos de trabajo → descanso (cada ciclo es una serie, y la
+  transición sustituye al descanso en los ciclos impares si la definiste).
   Al pulsar un día del calendario se abre su detalle: KPIs del día, gráficos de
-  volumen, tiempos por serie y la **🕒 línea de tiempo** de toda la sesión; los días con
+  volumen, tiempo de trabajo y la **🕒 línea de tiempo** de toda la sesión; los días con
   anotación muestran su 📝 siempre a la vista.
 - **✏️ Nueva/Editar**: el formulario se abre en una **hoja superpuesta** sobre lo que estés
   mirando (✕ o Esc la cierran y vuelves exactamente a donde estabas), con estado de la
   rutina (🟢 Activa · ⏸ Pausada · 🏁 Finalizada), selector **kg | lb** y búsqueda de
-  ejercicios por nombre o **grupo muscular** con chips. En cada ejercicio se elige cómo se
-  leen las reps: **fijas** (ese número), **mínimo al fallo** (llegar al menos a ese número
-  y seguir hasta el fallo) o **al fallo** (tantas repeticiones como puedas).
+  ejercicios por nombre o **grupo muscular** con chips. En cada ejercicio se elige su **tipo**:
+  **peso** (reps y kilos objetivo, como siempre), **tiempo** (segundos del hold, sin reps,
+  peso ni tipo de serie) o **intervalo** (trabajo · transición en segundos, descanso dentro
+  del ciclo y los ciclos planificados en la columna «Ciclos»); en «peso» e «intervalo» se
+  elige además su **tipo de serie** por defecto: **calentamiento**, **trabajo**, **descenso**
+  (drop set) o **fallo** (las reps se leen al fallo, sin objetivo).
 
 La **cabecera naranja** muestra el título («🏋️ Inicio» en la lista; el nombre y las fechas de
 la rutina en su ficha), y el menú **⋮** de arriba a la derecha lleva **«Alternar pesos
