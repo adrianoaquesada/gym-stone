@@ -92,19 +92,24 @@ const segundosEjercicio = (ej: { series?: SerieSesion[] } | null | undefined): n
     (ej?.series ?? []).filter(s => !esSaltada(s))
         .reduce((t, s) => t + (aNumero(s.duracionSeg) ?? 0), 0);
 
-// Chip «objetivo» de un ejercicio del plan, con el texto de cada tipo.
-const textoObjetivo = (def: EjercicioDef): string => {
+/* Texto del objetivo de un ejercicio del plan, según su tipo: reps+peso, hold
+   o ciclos. Exportado: el gestor imprime la estructura de la rutina con el
+   mismo texto (decisión 24). */
+export const textoObjetivoDe = (def: EjercicioDef): string => {
     const tipo = tipoEjercicioDe(def);
     if (tipo === "peso") {
-        return `objetivo ${def.series}×${textoRepsObjetivo(def)}${def.pesoObjetivo ? ` @ ${pesoTexto(def.pesoObjetivo)}` : ""}`;
+        return `${def.series}×${textoRepsObjetivo(def)}${def.pesoObjetivo ? ` @ ${pesoTexto(def.pesoObjetivo)}` : ""}`;
     }
     if (tipo === "tiempo") {
         const dur = Number(def.duracionObjetivo) > 0 ? ` de ${Math.round(Number(def.duracionObjetivo))} s` : "";
-        return `objetivo ${def.series}×hold${dur}`;
+        return `${def.series}×hold${dur}`;
     }
     const trab = Number(def.trabajoSeg) > 0 ? ` × ${Math.round(Number(def.trabajoSeg))} s` : "";
-    return `objetivo ${def.series} ciclos${trab}`;
+    return `${def.series} ciclos${trab}`;
 };
+
+// Chip «objetivo» de un ejercicio del plan: el texto de cada tipo, rotulado.
+const textoObjetivo = (def: EjercicioDef): string => `objetivo ${textoObjetivoDe(def)}`;
 
 // Valores comunes a todas las series de una fila de la rutina libre.
 type CampoSerie = "reps" | "peso" | "duracionSeg";
@@ -662,8 +667,11 @@ export function formularioSesion(
         b.onclick = async () => {
             const r = await elegirEjercicio(rutina, { excluir: (datos.ejercicios ?? []).map(e => e.ejercicioId) });
             if (!r) return;
-            // El tipo sale del plan de cualquier día de la rutina; si nunca ha
-            // constado, «peso» (y en la libre se cambia en la propia fila).
+            // El tipo de las series sale del plan de cualquier día de la rutina;
+            // si nunca ha constado, «peso» (y en la libre se cambia en la propia
+            // fila). La PISTA, en cambio, usa el tipo del ÚLTIMO REGISTRO
+            // (decisión 23): convertir un ejercicio en el plan no debe
+            // reinterpretar su historial.
             const tipo = tipoEjercicioDeRutina(rutina, r.id);
             const u = ultimosValores(rutina, r.id);
             const n = Math.max(1, Math.min(10, Number(u?.series) || 1));
@@ -672,10 +680,11 @@ export function formularioSesion(
             // dejar registrado como hecho algo que no se hizo. La referencia de la
             // última vez va en la cabecera, donde solo se lee (en tiempo e
             // intervalo no hay reps que enseñar: solo cuántas series fueron).
-            const pista = tipo === "peso"
+            const tipoU = u?.tipoEjercicio ?? "peso";
+            const pista = tipoU === "peso"
                 ? u ? `última vez: ${u.reps ?? "–"} × ${pesoTexto(u.peso)} · ${fechaLegible(u.fecha)}`
                     : "ejercicio nuevo · sin registros"
-                : u ? `última vez: ${u.series} series · ${fechaLegible(u.fecha)}`
+                : u ? `última vez: ${u.series} serie${u.series === 1 ? "" : "s"} · ${fechaLegible(u.fecha)}`
                     : "ejercicio nuevo · sin registros";
             const nuevo: EjercicioTrabajo = {
                 ejercicioId: r.id, nombre: r.nombre, notas: "", pista, tipoEjercicio: tipo,
@@ -749,23 +758,32 @@ export function formularioSesion(
             anotaciones: inAnot.value.trim(),
             ejercicios: (datos.ejercicios ?? []).map(e => {
                 const tipo = tipoDe(e);
+                // La etiqueta se resuelve igual para series hechas y saltadas:
+                // la puesta a mano o, si no, la del plan del día (en la libre,
+                // la de cualquier día de la rutina).
+                const defDia = diaGuardado?.ejercicios?.find(x => x.id === e.ejercicioId);
+                const etDe = (s: SerieSesion): TipoSerie => s.tipoSerie
+                    ?? (defDia ? defDia.tipoSerie : tipoSerieDeRutina(rutina, e.ejercicioId))
+                    ?? "trabajo";
                 const serie = (e.series ?? [])
                     .filter(s => esSaltada(s) || serieConDatos(s))   // ni saltadas ni vacías
                     .map(s => {
-                        if (esSaltada(s)) return { saltada: true };
+                        if (esSaltada(s)) {
+                            // La saltada conserva su etiqueta y sus tiempos
+                            // (decisión 24), como las hechas.
+                            const sSalt: SerieSesion = { saltada: true, tipoSerie: etDe(s) };
+                            if (s.t != null) sSalt.t = s.t;
+                            if (s.descansoMs != null) sSalt.descansoMs = s.descansoMs;
+                            if (s.ejecMs != null) sSalt.ejecMs = s.ejecMs;
+                            return sSalt;
+                        }
                         // Cada tipo guarda sus campos: reps/peso o los segundos
                         const sOut: SerieSesion = tipo === "peso"
                             ? { reps: aNumero(s.reps), peso: aNumero(s.peso) }
                             : { duracionSeg: aNumero(s.duracionSeg) };
-                        // La etiqueta de la serie viaja con ella; si no se tocó,
-                        // se resuelve la del plan del día (en la libre, la de
-                        // cualquier día de la rutina).
-                        const defDia = diaGuardado?.ejercicios?.find(x => x.id === e.ejercicioId);
-                        const et = s.tipoSerie
-                            ?? (defDia ? defDia.tipoSerie : tipoSerieDeRutina(rutina, e.ejercicioId));
                         // Siempre explícita (decisión 22): así la etiqueta no
                         // cambia si más adelante se toca el plan.
-                        sOut.tipoSerie = et ?? "trabajo";
+                        sOut.tipoSerie = etDe(s);
                         // Los tiempos de la sesión guiada viajan con la serie
                         if (s.t != null) sOut.t = s.t;
                         if (s.descansoMs != null) sOut.descansoMs = s.descansoMs;

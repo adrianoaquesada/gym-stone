@@ -19,8 +19,8 @@ import {
 import type { EjercicioDef, EjercicioSesion, Rutina, SerieSesion, Sesion, TipoSerie } from "../tipos";
 import { pesoACampo, pesoAKg, pesoTexto } from "../unidades";
 import { aNumero, dos, esc, fechaLegible, hoy, msgError } from "../util";
-import { btn, confirmar, el, modal, pedirTexto, toast } from "./componentes";
-import { elegirEjercicio, pedirDescanso } from "./ejercicios-ui";
+import { btn, confirmar, el, modal, pedirTexto, ponerX, toast } from "./componentes";
+import { controlDescanso, elegirEjercicio, pedirDescanso } from "./ejercicios-ui";
 import { sonarDescanso, sonarTemporizador, vibrar } from "./sonido";
 import type { Pintar } from "./pintar";
 
@@ -88,6 +88,45 @@ const selectorTipoSerie = (valor: TipoSerie, alCambiar: (v: TipoSerie) => void):
 // Etiqueta de la serie que toca: la elegida a mano o, si no hay, la del plan.
 const tipoSerieSiguiente = (d: DefSesion): TipoSerie =>
     d.tipoSiguiente ?? tipoSerieDe(d.objetivo);
+
+// Ejercicio del plan de ESTA rutina (en cualquier día), o null si no consta
+// (huérfano o de otra rutina): su tipo de ejercicio respeta el plan y no se
+// puede cambiar desde la sesión.
+const enPlanDe = (rutina: Rutina, id: string): EjercicioDef | null =>
+    (rutina.dias ?? []).flatMap(d => d.ejercicios ?? []).find(e => e.id === id) ?? null;
+
+/* Fijar trabajo y transición de los ciclos de un «intervalo» SIN plan: los del
+   plan traen sus campos del creador, pero un huérfano o de otra rutina no tiene
+   de dónde cogerlos y la sesión no puede arrancar su ciclo (decisión 26). Mismo
+   control compartido que el descanso. Devuelve null si se cierra sin guardar. */
+const pedirCiclo = (trabajo: number | null, transicion: number | null):
+    Promise<{ trabajo: number; transicion: number } | null> => new Promise(resolve => {
+    const m = modal("⏱ Ciclo de intervalo", "segundos de trabajo y de transición de cada ciclo", true);
+    let resuelto = false;
+    const listo = (v: { trabajo: number; transicion: number } | null) => {
+        if (resuelto) return;
+        resuelto = true;
+        document.removeEventListener("keydown", onKey);
+        m.cerrar();
+        resolve(v);
+    };
+    const onKey = (e: KeyboardEvent) => {
+        if (e.key !== "Escape") return;
+        if (document.getElementById("gym-confirm-activo")) return;
+        listo(null);
+    };
+    m.overlay.onclick = e => { if (e.target === m.overlay) listo(null); };
+    document.addEventListener("keydown", onKey);
+    ponerX(m, "Cerrar sin cambiar").onclick = () => listo(null);
+    const cTrab = controlDescanso(trabajo, { etiqueta: "Trabajo de cada ciclo (segundos)" });
+    const cTrans = controlDescanso(transicion, { etiqueta: "Transición entre lados (segundos, 0 = ninguna)" });
+    m.caja.appendChild(cTrab.raiz);
+    m.caja.appendChild(cTrans.raiz);
+    const ok = el("button", "gym-btn primario gym-btn-ancho gym-mt12", "✔ Guardar ciclo");
+    ok.type = "button";
+    ok.onclick = () => listo({ trabajo: cTrab.seg(), transicion: cTrans.seg() });
+    m.caja.appendChild(ok);
+});
 
 interface AjustePlan { d: DefSesion; maxHoy: number }
 
@@ -174,9 +213,12 @@ const aEjercicioGuardado = (d: DefSesion): EjercicioSesion => {
         series: d.series.map(aSerieGuardada),
     };
     // El descanso viaja con el registro: si no, al reanudar o al
-    // reabrirlo en el formulario se volvería a los 90 s.
-    const desc = Number(d.objetivo?.descansoSeg);
-    if (desc > 0) ej.descansoSeg = Math.round(desc);
+    // reabrirlo en el formulario se volvería a los 90 s. En intervalo el
+    // 0 es un dato («sin descanso en el ciclo») y también viaja.
+    const descSeg = d.objetivo?.descansoSeg;
+    const desc = Number(descSeg);
+    if (descSeg != null && (desc > 0 || tipoEjercicioDe(d.objetivo) === "intervalo"))
+        ej.descansoSeg = Math.round(desc);
     ej.tipoEjercicio = tipoEjercicioDe(d.objetivo);
     const num = (v: number | null | undefined): number | null => {
         const n = Number(v);
@@ -272,9 +314,13 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             if (esLibre(rutina) && !defs.length) {
                 for (const g of parcialGuard.ejercicios ?? []) {
                     const hechas = Math.max(1, (g.series ?? []).length);
-                    // El descanso se eligió al añadir el ejercicio: se recupera del
-                    // guardado, y si no consta, del último registro conocido.
-                    const desc = Number(g.descansoSeg) > 0 ? Math.round(Number(g.descansoSeg))
+                    // El descanso se eligió al añadir el ejercicio: se recupera
+                    // del guardado (el 0 de intervalo es «sin descanso» y no cae
+                    // al fallback) y, si no consta, del último registro conocido.
+                    const descG = Number(g.descansoSeg);
+                    const desc = g.descansoSeg != null
+                        && (descG > 0 || tipoEjercicioDe(g) === "intervalo")
+                        ? Math.round(descG)
                         : (descansoDe(rutina, g.ejercicioId) ?? 90);
                     defs.push({
                         id: g.ejercicioId,
@@ -462,7 +508,11 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         const ej = defs[idx];
         const trabajo = Math.round(Number(ej.objetivo.trabajoSeg) || 0);
         if (trabajo <= 0) {
-            toast("⚠️ Este ejercicio no tiene tiempo de trabajo definido: pónlo en el creador.", false);
+            // Con plan, donde se fija es el creador; sin él, la cabecera trae
+            // el control «· ciclo …» (decisión 26)
+            toast(enPlanDe(rutina, ej.id)
+                ? "⚠️ Este ejercicio no tiene tiempo de trabajo definido: pónlo en el creador."
+                : "⚠️ Sin tiempo de trabajo: tócalo en «· ciclo …» de la cabecera.", false);
             return;
         }
         ejecDesde = transcurridoMs();   // la ejecución del ciclo empieza AHÍ
@@ -595,7 +645,9 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         if (hold && hold.ej !== idx) return;   // hold de OTRO ejercicio: aquí solo miras
         const ej = defs[idx];
         if (iSet !== ej.series.length) return;   // solo la serie que toca
-        ej.series[iSet] = { saltada: true, t: transcurridoMs() };   // también la saltada deja constancia de cuándo
+        // También la saltada deja constancia de cuándo y de la etiqueta que
+        // tocaba (decisión 24): al reabrir o reeditar no se pierde
+        ej.series[iSet] = { saltada: true, t: transcurridoMs(), tipoSerie: tipoSerieSiguiente(ej) };
         ej.tipoSiguiente = null;   // la etiqueta elegida no pasa a la siguiente
         ejecDesde = null;   // no hay ejecución que medir (y el descanso propio se cancela abajo)
         descanso = null;
@@ -658,22 +710,31 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             const actual = defs[idx];
             const sinTerminar = actual ? actual.series.length < actual.plan : false;
             // Tipo y campos de tiempo: del plan de ESTA rutina si el ejercicio
-            // está en él; si no (huérfano o de otra rutina), ausentes → «peso»
-            // (misma defensiva que al reanudar; decisión 18).
-            const enPlan = (rutina.dias ?? []).flatMap(d => d.ejercicios ?? []).find(e => e.id === r.id) ?? null;
+            // está en él; si no (huérfano o de otra rutina), el del ÚLTIMO
+            // REGISTRO y, en su defecto, «peso» (decisión 18; en la cabecera
+            // el tipo se puede cambiar luego, decisión 26).
+            const enPlan = enPlanDe(rutina, r.id);
+            // En el plan manda su tipo (ausente = «peso» del contrato); fuera
+            // de él, el del último registro y, en su defecto, «peso» (26)
+            const tipoIni = enPlan ? enPlan.tipoEjercicio ?? null : u?.tipoEjercicio ?? null;
             defs.push({
                 id: r.id, nombre: r.nombre,
                 // Aquí SÍ se precarga lo último, porque en la guiada nada se guarda
                 // hasta que el usuario pulsa ✔ en cada serie: no puede haber datos
-                // inventados, solo el valor inicial del campo.
+                // inventados, solo el valor inicial del campo. En tiempo e
+                // intervalo no hay reps ni peso que traer.
                 objetivo: {
-                    series: plan0, repsObjetivo: u?.reps ?? null, pesoObjetivo: u?.peso ?? null,
+                    series: plan0,
+                    repsObjetivo: tipoIni == null || tipoIni === "peso" ? u?.reps ?? null : null,
+                    pesoObjetivo: tipoIni == null || tipoIni === "peso" ? u?.peso ?? null : null,
                     // El descanso viene del selector (con el del último registro ya
-                    // precargado); si no se puso ninguno, los 90 s de siempre.
+                    // precargado); si no se puso ninguno, los 90 s de siempre (en
+                    // intervalo el 0 es «sin descanso en el ciclo» y se respeta).
                     // El tipo de serie, del plan del ejercicio (si lo hay).
                     tipoSerie: tipoSerieDeRutina(rutina, r.id),
-                    descansoSeg: r.descansoSeg || 90, notas: "",
-                    tipoEjercicio: enPlan?.tipoEjercicio ?? null,
+                    descansoSeg: r.descansoSeg > 0 || tipoIni === "intervalo" ? Math.round(r.descansoSeg) : 90,
+                    notas: "",
+                    tipoEjercicio: tipoIni,
                     duracionObjetivo: enPlan?.duracionObjetivo ?? null,
                     trabajoSeg: enPlan?.trabajoSeg ?? null,
                     transicionSeg: enPlan?.transicionSeg ?? null,
@@ -797,8 +858,10 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         bDesc.type = "button";
         bDesc.title = tipo === "intervalo" ? "Tocar para cambiar el descanso de cada ciclo"
                                            : "Tocar para cambiar el descanso entre series";
-        bDesc.style.cssText = "font-size:1em;font-family:inherit;background:none;border:none;" +
+        // Enlace subrayado de la cabecera: controles de la cabecera, no texto
+        const estiloEnlace = "font-size:1em;font-family:inherit;background:none;border:none;" +
             "padding:0 2px;cursor:pointer;color:inherit;opacity:.9;text-decoration:underline dotted;";
+        bDesc.style.cssText = estiloEnlace;
         bDesc.onclick = async () => {
             const v = await pedirDescanso(dSeg);
             if (v == null) return;
@@ -807,6 +870,24 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             pintarEjercicio();
         };
         cMeta.appendChild(bDesc);
+        // Un «intervalo» SIN plan no trae trabajo ni transición del creador y la
+        // sesión no podría arrancar ningún ciclo: aquí se fijan (decisión 26).
+        if (tipo === "intervalo" && !enPlanDe(rutina, ej.id)) {
+            const trab = Math.round(Number(ej.objetivo.trabajoSeg) || 0);
+            const trans = Math.round(Number(ej.objetivo.transicionSeg) || 0);
+            const bCiclo = el("button", "", ` · ciclo ${trab > 0 ? `${trab} s` : "＋"}`);
+            bCiclo.type = "button";
+            bCiclo.title = `Tocar para fijar los ciclos: trabajo${trans > 0 ? ` y transición (${trans} s)` : ""}`;
+            bCiclo.style.cssText = estiloEnlace;
+            bCiclo.onclick = async () => {
+                const v = await pedirCiclo(ej.objetivo.trabajoSeg ?? null, ej.objetivo.transicionSeg ?? null);
+                if (v == null) return;
+                ej.objetivo.trabajoSeg = v.trabajo > 0 ? Math.round(v.trabajo) : null;
+                ej.objetivo.transicionSeg = v.transicion > 0 ? Math.round(v.transicion) : null;
+                pintarEjercicio();
+            };
+            cMeta.appendChild(bCiclo);
+        }
         // El tipo de serie también se cambia aquí, igual que el descanso: en la
         // rutina libre no hay plan del que traerlo, así que esta cabecera es el
         // único sitio donde configurarlo. Si el ejercicio viene del plan, el
@@ -830,6 +911,41 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             pintarEjercicio();
         };
         cMeta.appendChild(selTipo);
+        // El tipo de ejercicio también se elige aquí cuando NO viene del plan
+        // (recién añadido, huérfano o de otra rutina; decisión 26): los del
+        // plan respetan el suyo. Cambiarlo vacía los datos del tipo anterior
+        // (mismo criterio que la decisión 13 del creador).
+        if (!enPlanDe(rutina, ej.id)) {
+            const selTipoEj = el("select", "font-size:.95em;font-family:inherit;background:var(--background-secondary);" +
+                "border:1px solid var(--background-modifier-border);border-radius:6px;padding:1px 5px;" +
+                "cursor:pointer;color:inherit;margin-left:6px;max-width:120px;");
+            for (const [v, t] of [["peso", "Peso"], ["tiempo", "Tiempo"], ["intervalo", "Intervalo"]] as const) {
+                const o = el("option", null, t); o.value = v; selTipoEj.appendChild(o);
+            }
+            selTipoEj.value = tipo;
+            // Con un hold o un ciclo activo el tipo no se toca: cambiarlo en
+            // caliente metería los segundos de un tipo en los campos del otro
+            const bloqueado = hold?.ej === idx || ciclo?.ej === idx;
+            selTipoEj.disabled = bloqueado;
+            selTipoEj.title = bloqueado
+                ? "Termina o cancela el hold o el ciclo en marcha para cambiar el tipo"
+                : "Tipo de ejercicio: reps y peso, hold por tiempo o ciclos de intervalo.";
+            selTipoEj.onchange = () => {
+                const v = selTipoEj.value === "tiempo" || selTipoEj.value === "intervalo" ? selTipoEj.value : "peso";
+                ej.objetivo.tipoEjercicio = v;
+                // Los datos del tipo anterior dejan de servir: se vacían y
+                // pintarEjercicio vuelve a precargar lo que toque según el nuevo
+                ej.objetivo.repsObjetivo = null;
+                ej.objetivo.pesoObjetivo = null;
+                ej.objetivo.duracionObjetivo = null;
+                ej.objetivo.trabajoSeg = null;
+                ej.objetivo.transicionSeg = null;
+                inReps.forEach(i => { if (i) i.value = ""; });
+                inPeso.forEach(i => { if (i) i.value = ""; });
+                pintarEjercicio();
+            };
+            cMeta.appendChild(selTipoEj);
+        }
         contEj.appendChild(cMeta);
         if (ej.objetivo.notas) contEj.appendChild(el("div", "font-size:.82em;opacity:.65;font-style:italic;", `💡 ${ej.objetivo.notas}`));
         if (ej.notas) contEj.appendChild(el("div", "font-size:.85em;margin-top:4px;", `📝 ${esc(ej.notas)}`));
@@ -957,7 +1073,11 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             } else cN.textContent = String(i + 1);
             fila.appendChild(cN);
             if (saltada) {
-                fila.appendChild(el("div", "font-size:.92em;font-style:italic;", "⏭ Saltada"));
+                // Su etiqueta también se ve en la saltada (la conserva, decisión 24)
+                const txtS = el("div", "font-size:.92em;font-style:italic;");
+                txtS.appendChild(el("span", "gym-chip gym-chip-mini", etiquetaTipoSerie(tipoSerieDe(ej.objetivo, s))));
+                txtS.append(" ⏭ Saltada");
+                fila.appendChild(txtS);
                 fila.appendChild(el("div"));
                 const cierreS = el("div", "cierre");
                 const bUndoS = el("button", "gym-btn-g", "↩"); bUndoS.type = "button";
@@ -1158,9 +1278,17 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         if (hold?.ej === idx) hold = null;   // idem: el hold de ESTE ejercicio se cancela
         if (ciclo?.ej === idx) ciclo = null;   // idem: el ciclo de ESTE ejercicio se cancela
         if (ejecDesdeEj === idx) ejecDesde = null;   // no se va a ejecutar nada de ese «¡Listo!»
+        // Lo pendiente se marca como saltado: la serie que tocaba con la
+        // etiqueta elegida y el resto con la del plan (como al registrarlas),
+        // para que el registro cuadre sin arrastrar la elegida a mano
+        const etToque = tipoSerieSiguiente(ej);
+        const etPlan = tipoSerieDe(ej.objetivo);
+        const primera = ej.series.length;
         ej.tipoSiguiente = null;   // el ejercicio queda atrás: sin etiqueta pendiente
-        // Marca lo que quede pendiente como saltado, para que el registro cuadre con el plan
-        while (ej.series.length < ej.plan) ej.series.push({ saltada: true, t: transcurridoMs() });
+        while (ej.series.length < ej.plan) {
+            ej.series.push({ saltada: true, t: transcurridoMs(),
+                tipoSerie: ej.series.length === primera ? etToque : etPlan });
+        }
         toast(`⏭ ${ej.nombre}: sin registrar`);
         void siguiente();
     };

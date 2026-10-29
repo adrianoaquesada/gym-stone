@@ -18,12 +18,12 @@ import { rutaMedidas } from "../ajustes";
 import {
     catalogoEjercicios, escribirRutina, esLibre,
     leerMedidas, leerRutina, medidasVacias, resumenLibre, rutaDatosDe, semanaActual,
-    semanasTotales, textoRepsObjetivo, transcurrida,
+    semanasTotales, tipoEjercicioDe, transcurrida,
 } from "../datos";
 import { fechaLegible, hoy, msgError, sumarDias } from "../util";
-import { pesoTexto } from "../unidades";
 import type { LecturaNota, MedidasDatos, Rutina } from "../tipos";
 import { btn, el, KPI, modal, ponerX, toast } from "./componentes";
+import { textoObjetivoDe } from "./registro";
 import { pintarCabecera, pintarNavegacion } from "./cabecera";
 import { abrirFormulario, abrirLista } from "./vistas";
 import { abrirTemporizador } from "./temporizador";
@@ -188,11 +188,14 @@ const seccionDetalles = (c: HTMLElement, rutina: Rutina, pintar: Pintar): void =
             const ul = el("ul", "gym-caja-ul");
             for (const e of d.ejercicios ?? []) {
                 const li = el("li");
+                // El plan se imprime por tipo (decisión 24): reps+peso, hold o
+                // ciclos; en intervalo el descanso 0 es «sin descanso» y se ve
+                const descSeg = Number(e.descansoSeg);
+                const desc = tipoEjercicioDe(e) === "intervalo" && e.descansoSeg != null
+                    ? (descSeg > 0 ? ` · desc. ${Math.round(descSeg)}s` : " · sin descanso")
+                    : (e.descansoSeg ? ` · desc. ${e.descansoSeg}s` : "");
                 li.append(e.nombre, " ",
-                    el("span", "gym-tenue",
-                        `· ${e.series}×${textoRepsObjetivo(e)}` +
-                        (e.pesoObjetivo ? ` @ ${pesoTexto(e.pesoObjetivo)}` : "") +
-                        (e.descansoSeg ? ` · desc. ${e.descansoSeg}s` : "")));
+                    el("span", "gym-tenue", `· ${textoObjetivoDe(e)}${desc}`));
                 ul.appendChild(li);
             }
             box.appendChild(ul);
