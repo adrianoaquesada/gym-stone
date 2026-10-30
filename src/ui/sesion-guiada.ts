@@ -397,6 +397,16 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
     cajaM.appendChild(cab);
 
     const cuerpo = el("div", "gym-modo-cuerpo");
+    const progreso = el("div", "gym-modo-progreso");
+    const etiquetaProgreso = el("div", "gym-et");
+    const actualProgreso = el("span", "gym-modo-progreso-actual");
+    const totalProgreso = el("span");
+    etiquetaProgreso.append("Ejercicio ", actualProgreso, " de ", totalProgreso);
+    const pasosProgreso = el("div", "gym-modo-pasos");
+    pasosProgreso.setAttribute("role", "group");
+    const indicadoresProgreso: HTMLSpanElement[] = [];
+    progreso.append(etiquetaProgreso, pasosProgreso);
+    cuerpo.appendChild(progreso);
     const contEj = el("div");
     cuerpo.appendChild(contEj);
     cajaM.appendChild(cuerpo);
@@ -776,8 +786,46 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         titDia.textContent = `🎯 ${dia.nombre}`;
     };
 
+    const pintarProgreso = (): void => {
+        const ej = defs[idx];
+        progreso.hidden = !ej;
+        if (!ej) return;
+        actualProgreso.textContent = String(idx + 1);
+        totalProgreso.textContent = String(defs.length);
+        pasosProgreso.setAttribute("aria-label", `Progreso de ejercicios: ${idx + 1} de ${defs.length}`);
+        while (indicadoresProgreso.length < defs.length) {
+            const paso = el("span", "gym-modo-paso");
+            paso.setAttribute("role", "img");
+            indicadoresProgreso.push(paso);
+            pasosProgreso.appendChild(paso);
+        }
+        while (indicadoresProgreso.length > defs.length) {
+            indicadoresProgreso.pop()?.remove();
+        }
+        defs.forEach((def, i) => {
+            const completadas = def.series.filter(s => !s.saltada).length;
+            const saltadas = def.series.filter(s => s.saltada).length;
+            const terminado = def.series.length >= def.plan;
+            const estado = i === idx ? "actual"
+                : completadas >= def.plan ? "completado"
+                    : terminado && completadas === 0 && saltadas > 0 ? "omitido"
+                        : completadas + saltadas > 0 ? "parcial" : "pendiente";
+            const descripcion = estado === "actual" ? "ejercicio actual"
+                : estado === "completado" ? "completado"
+                    : estado === "omitido" ? "omitido"
+                        : estado === "parcial" ? "en curso" : "pendiente";
+            const paso = indicadoresProgreso[i];
+            paso.className = `gym-modo-paso ${estado}`;
+            paso.title = `${def.nombre}: ${descripcion}`;
+            paso.setAttribute("aria-label", `${def.nombre}: ${descripcion}`);
+            if (i === idx) paso.setAttribute("aria-current", "step");
+            else paso.removeAttribute("aria-current");
+        });
+    };
+
     const pintarEjercicio = () => {
         const ej = defs[idx];
+        pintarProgreso();
         relojEl.textContent = `⏱ ${relojTexto(transcurridoMs())}`;   // el reloj se refresca también en cada repintado
         // Conservar lo escrito a mano en reps/peso al repintar (p. ej. al pulsar Iniciar o ＋1 serie)
         const prev: Partial<Record<number, { reps: string; peso: string }>> = {};
@@ -825,7 +873,6 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             return;
         }
 
-        contEj.appendChild(el("div", "gym-et", `Ejercicio ${idx + 1} de ${defs.length}`));
         contEj.appendChild(el("div", "gym-modo-ej", ej.nombre));
         const cMeta = el("div", "font-size:.9em;opacity:.8;");
         const tipo = tipoEjercicioDe(ej.objetivo);
@@ -950,9 +997,11 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         if (ej.objetivo.notas) contEj.appendChild(el("div", "font-size:.82em;opacity:.65;font-style:italic;", `💡 ${ej.objetivo.notas}`));
         if (ej.notas) contEj.appendChild(el("div", "font-size:.85em;margin-top:4px;", `📝 ${esc(ej.notas)}`));
 
-        // Descanso / ciclo / hold: cajas mutuamente excluyentes (solo una
-        // montada por repintado; sus refs se limpian aquí para que el reloj
-        // no pinte sobre una caja que ya no existe)
+        // Los temporizadores se montan después de las series para separarlos
+        // de la información del ejercicio y mantenerlos bajo los controles.
+        const zonaTemporizador = el("div", "gym-modo-temporizador");
+        // Descanso / ciclo / hold son mutuamente excluyentes. Sus refs se
+        // limpian aquí para que el reloj no pinte sobre una caja desmontada.
         cajaDescanso = null; tDescanso = null; barraDescanso = null;
         cajaCiclo = null; tCiclo = null; barraCiclo = null;
         cajaHold = null; tHold = null; barraHold = null;
@@ -977,8 +1026,9 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                 if (descanso.restanteMs <= 0) finDescanso();
                 else pintarDescanso();
             };
-            const bMas = el("button", "gym-btn-g", "＋30 s"); bMas.type = "button";
-            bMas.onclick = () => { descanso!.restanteMs += 30000; descanso!.totalMs = Math.max(descanso!.totalMs, descanso!.restanteMs); pintarDescanso(); };
+            const bMas = el("button", "gym-btn-g", "＋15 s"); bMas.type = "button";
+            bMas.title = "Añadir 15 segundos al descanso";
+            bMas.onclick = () => { descanso!.restanteMs += 15000; descanso!.totalMs = Math.max(descanso!.totalMs, descanso!.restanteMs); pintarDescanso(); };
             const bSaltar = el("button", "gym-btn-g verde", "⏭ Saltar descanso"); bSaltar.type = "button";
             bSaltar.onclick = () => {
                 // Si estás mirando otro ejercicio, saltar el descanso te DEVUELVE
@@ -996,7 +1046,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             // Si estás viendo OTRO ejercicio, la caja dice de quién es el descanso
             cajaDescanso.appendChild(el("div", "font-size:.78em;opacity:.7;margin-top:2px;",
                 descanso.ej !== idx ? `de «${defs[descanso.ej].nombre}» — aquí solo miras` : ""));
-            contEj.appendChild(cajaDescanso);
+            zonaTemporizador.appendChild(cajaDescanso);
             pintarDescanso();
         } else if (ciclo) {
             // Caja del ciclo (intervalo): fase actual con su cuenta atrás
@@ -1029,7 +1079,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             cajaCiclo.appendChild(fC);
             cajaCiclo.appendChild(el("div", "font-size:.78em;opacity:.7;margin-top:2px;",
                 ciclo.ej !== idx ? `de «${cEj.nombre}» — aquí solo miras` : ""));
-            contEj.appendChild(cajaCiclo);
+            zonaTemporizador.appendChild(cajaCiclo);
             pintarCiclo();
         } else if (hold) {
             // Caja del hold (tiempo): cuenta arriba con su objetivo
@@ -1053,11 +1103,12 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             cajaHold.appendChild(fH);
             cajaHold.appendChild(el("div", "font-size:.78em;opacity:.7;margin-top:2px;",
                 hold.ej !== idx ? `de «${hEj.nombre}» — aquí solo miras` : ""));
-            contEj.appendChild(cajaHold);
+            zonaTemporizador.appendChild(cajaHold);
             pintarHold();
         }
 
         // Series
+        contEj.appendChild(el("div", "gym-modo-seccion", tipo === "intervalo" ? "Ciclos" : "Series"));
         const total = Math.max(ej.plan, ej.series.length);
         for (let i = 0; i < total; i++) {
             const registrada = i < ej.series.length;   // hecha o saltada: ambas ocupan su hueco
@@ -1213,6 +1264,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             filaExtras.appendChild(bQuitar);
         }
         contEj.appendChild(filaExtras);
+        if (zonaTemporizador.childElementCount > 0) contEj.appendChild(zonaTemporizador);
 
         // Acción principal
         const enDescanso = Boolean(descanso);
@@ -1237,7 +1289,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         else if (enDescanso && !listoDescanso) {
             // Descansando (aquí o en otro ejercicio visto): no se registra nada hasta «¡Listo!»
             texto = descanso!.ej !== idx ? `⏳ Descansando de «${defs[descanso!.ej].nombre}»… (aquí solo miras)`
-                                         : "⏳ Descansando… (usa +30 s o Saltar)";
+                                         : "⏳ Descansando… (usa +15 s o Saltar)";
             accion = null; clase = "";
         }
         else if (pendientes && tipo === "tiempo") { texto = "▶ Empezar hold"; accion = () => empezarHold(); clase = "primario"; }
@@ -1513,10 +1565,10 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         if (!descanso) return;
         sonarDescanso();
         vibrar();
-        descanso.restanteMs = 0;
-        ejecDesde = transcurridoMs();   // AHÍ empiezas la serie (para desglosar descanso/ejecución)
-        ejecDesdeEj = descanso.ej;
         const due = descanso.ej;
+        descanso = null;
+        ejecDesde = transcurridoMs();   // AHÍ empiezas la serie (para desglosar descanso/ejecución)
+        ejecDesdeEj = due;
         if (due !== idx && due >= 0 && due < defs.length && !animando) deslizarA(due);
         else pintarEjercicio();
     };

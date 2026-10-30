@@ -180,6 +180,18 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 /* overflow-x:hidden: durante el deslizamiento a los lados el contenido se sale
    de la caja un instante y, sin esto, asomaba una barra horizontal */
 .gym-modo-cuerpo { flex:1 1 auto; overflow:auto; overflow-x:hidden; padding:12px 14px 14px; -webkit-overflow-scrolling:touch; touch-action:pan-y; }
+.gym-modo-progreso { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:6px; }
+.gym-modo-progreso-actual { color:#F99624; font-weight:800; }
+.gym-modo-pasos { display:flex; align-items:center; justify-content:flex-end; gap:5px; flex-wrap:wrap; }
+.gym-modo-paso { display:block; width:18px; height:4px; border-radius:3px; background:var(--background-modifier-border); }
+.gym-modo-paso.actual { background:#F99624; }
+.gym-modo-paso.completado { background:#2ecc71; }
+.gym-modo-paso.omitido { background:repeating-linear-gradient(135deg,var(--text-faint) 0 2px,transparent 2px 4px); }
+.gym-modo-paso.parcial { background:color-mix(in srgb,#F99624 55%,var(--background-modifier-border)); }
+.gym-modo-seccion { margin:16px 0 8px; font-size:.78em; font-weight:800; letter-spacing:.04em;
+  color:var(--text-muted); text-transform:uppercase; }
+.gym-modo-temporizador { margin-top:14px; }
+.gym-modo-temporizador .gym-descanso { margin:0; }
 .gym-modo-accion { display:flex; gap:8px; padding:8px 12px 0;
   border-top:1px solid var(--background-modifier-border); }
 /* El margen de la barra de navegación ya lo pone .gym-modo (--gym-safe-bottom),
@@ -233,6 +245,8 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
   .gym-modal-caja { padding:14px; width:100%; max-height:92vh; }
   .gym-modo { background:var(--background-primary); }
   .gym-modo-caja { width:100%; height:100%; border:none; border-radius:0; }
+  .gym-modo-progreso { align-items:flex-start; flex-direction:column; gap:2px; }
+  .gym-modo-pasos { justify-content:flex-start; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -542,6 +556,23 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-temp-anillo { position: relative; width: min(240px, 58vw); aspect-ratio: 1; margin: 6px auto 10px; touch-action: pan-y; transform-origin: center; }
 .gym-temp-anillo { flex: 0 0 auto; }
 .gym-temp-anillo svg { width: 100%; height: 100%; display: block; }
+.gym-temp-cronometro-activo .gym-temp-anillo {
+    width: 100%; aspect-ratio: auto; margin: 14px 0 8px; touch-action: auto;
+}
+.gym-temp-cronometro-activo .gym-temp-anillo svg,
+.gym-temp-cronometro-activo .gym-temp-anillo .gym-temp-sub,
+.gym-temp-cronometro-activo .gym-temp-estado,
+.gym-temp-cronometro-activo .gym-temp-puntos,
+.gym-temp-cronometro-activo .gym-temp-acciones-circulares,
+.gym-temp-cronometro-activo .gym-temp-lista-sec,
+.gym-temp-cronometro-activo .gym-temp-configuracion,
+.gym-temp-cronometro-activo .gym-temp-pie-controles { display: none; }
+.gym-temp-cronometro-activo .gym-temp-cen {
+    position: static; min-height: 100px; justify-content: center;
+}
+.gym-temp-cronometro-activo .gym-temp-t {
+    font-size: clamp(2.8em, 12vw, 4em); color: var(--text-normal);
+}
 .gym-temp-anillo .pista { fill: none; stroke: color-mix(in srgb, var(--text-faint) 45%, transparent); stroke-width: 3; }
 .gym-temp-anillo .barra {
     fill: none; stroke: #F99624; stroke-width: 7; stroke-linecap: round;
@@ -575,6 +606,30 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
     flex: 1 1 auto; height: auto; min-height: 0;
 }
 .gym-temp-parciales .gym-temp-lista { max-height: min(28vh, 220px); }
+.gym-temp-parciales.gym-oculto { display: none; }
+.gym-temp-cronometro-activo .gym-temp-parciales {
+    display: flex; flex: 1 1 0; flex-direction: column; min-height: 0;
+    margin: 0; overflow: hidden;
+}
+.gym-temp-cronometro-activo .gym-temp-parciales .gym-temp-lista {
+    flex: 1 1 0; height: auto; min-height: 0; max-height: none; overflow-y: auto;
+}
+.gym-temp-pie {
+    box-sizing: border-box; display: flex; flex: 0 0 116px; flex-direction: column;
+    justify-content: flex-end; gap: 8px; margin-top: auto; padding-top: 8px;
+}
+.gym-temp-lista-activa .gym-temp-pie-controles,
+.gym-temp-cronometro-activo .gym-temp-pie-cronometro { flex-basis: 58px; }
+.gym-temp-pie-cronometro { justify-content: flex-end; }
+.gym-temp-pie-cronometro.gym-oculto { display: none; }
+.gym-temp-cronometro-controles {
+    display: flex; flex: 0 0 50px; gap: 8px; margin-top: auto;
+}
+.gym-temp-cronometro-controles.gym-oculto { display: none; }
+.gym-temp-cronometro-controles > button {
+    box-sizing: border-box; flex: 1 1 0; width: 0; min-width: 0; height: 50px;
+    min-height: 50px; margin: 0; white-space: nowrap;
+}
 .gym-temp-fila {
     display: flex; flex-direction: column; gap: 8px; padding: 10px;
     border: 1px solid var(--background-modifier-border); border-radius: 10px;
@@ -632,9 +687,11 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-temp-config-abierta .gym-temp-puntos,
 .gym-temp-config-abierta .gym-temp-estado,
 .gym-temp-config-abierta .gym-temp-lista-sec { display: none; }
-.gym-temp-pie-controles { display: flex; flex: 0 0 auto; flex-direction: column; margin-top: auto; }
-.gym-temp-controles { flex: 0 0 auto; }
-.gym-temp-iniciar { flex: 0 0 auto; }
+.gym-temp-controles { display: flex; flex: 0 0 50px; gap: 8px; margin: 0; }
+.gym-temp-controles .gym-btn-g {
+    box-sizing: border-box; flex: 1 1 0; min-width: 0; height: 50px; min-height: 50px; margin: 0;
+}
+.gym-temp-iniciar { box-sizing: border-box; flex: 0 0 50px; height: 50px; min-height: 50px; margin: 0; }
 .gym-temp-puntos.gym-oculto { display: none; }
 .gym-temp-estado.gym-oculto { display: none; }
 .gym-temp-punto { width: 8px; height: 8px; min-height: 0; padding: 0; border: 0; border-radius: 50%; background: var(--text-faint); cursor: pointer; }
@@ -698,13 +755,13 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
    fichero → gana, sin necesidad de !important. */
 .gym-temp-caja .gym-temp-campo input { min-height: 46px; text-align: center; font-size: 1em; }
 /* El botón principal ocupa el ancho entero: es arrancar Y pausa/reanudar. */
-.gym-temp-iniciar { width: 100%; min-height: 50px; font-size: 1em; margin-top: 10px; }
+.gym-temp-iniciar { width: 100%; height: 50px; min-height: 50px; font-size: 1em; margin: 0; }
 .gym-temp-iniciar.pausa { background: color-mix(in srgb, #e74c3c 16%, transparent);
     border-color: #e74c3c; color: #e74c3c; }
 /* «Eliminar» va debajo, en su propia fila y más discreta. */
 .gym-temp-eliminar { width: 100%; min-height: 46px; font-size: .92em; opacity: .85; }
-.gym-temp-controles { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 0 0 12px; }
-.gym-temp-controles .gym-btn-g { flex: 1 1 auto; min-width: 96px; }
+.gym-temp-controles { display: flex; gap: 8px; flex-wrap: nowrap; justify-content: center; margin: 0; }
+.gym-temp-controles .gym-btn-g { flex: 1 1 0; min-width: 0; }
 
 /* ── Cabecera de las vistas: solo el ⋮, sin navegación ni título ────────── */
 /* El framework dibuja en .view-header tres zonas: a la izquierda las flechas

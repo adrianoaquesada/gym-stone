@@ -382,7 +382,7 @@ export function abrirTemporizador(): void {
     bModo.onclick = () => {
         if (modo === "cuenta-atras") {
             pausarTemporizadoresActivos();
-            cronometro = { tiempoAcumuladoMs: 0, iniciadoEn: Date.now(), estado: "en-marcha" };
+            cronometro = { tiempoAcumuladoMs: 0, iniciadoEn: null, estado: "pausado" };
             cronometroSesionId = `cronometro-${Date.now()}-${++secuenciaCronometro}`;
             modo = "cronometro";
         } else {
@@ -436,7 +436,6 @@ export function abrirTemporizador(): void {
         actualizarReloj();
         notificar();
     };
-    m.caja.appendChild(bCronometro);
 
     cargarParcialesCronometro();
     const secParciales = el("div", "gym-temp-sec gym-temp-parciales");
@@ -444,18 +443,28 @@ export function abrirTemporizador(): void {
     const bParcial = el("button", "gym-btn-g", "＋ Registrar parcial");
     bParcial.type = "button";
     bParcial.onclick = () => {
-        const acumuladoMs = tiempoCronometro();
-        const ultimoMs = ultimoAcumuladoSesion();
-        if (acumuladoMs <= ultimoMs) return;
-        const parcial: ParcialCronometro = {
-            id: `parcial-${Date.now()}-${parcialesCronometro.length}`,
-            sesionId: cronometroSesionId,
-            parcialMs: acumuladoMs - ultimoMs,
-            acumuladoMs,
-        };
-        if (guardarParcialesCronometro([...parcialesCronometro, parcial])) notificar();
+        if (cronometro.estado === "en-marcha") {
+            const acumuladoMs = tiempoCronometro();
+            const ultimoMs = ultimoAcumuladoSesion();
+            if (acumuladoMs <= ultimoMs) return;
+            const parcial: ParcialCronometro = {
+                id: `parcial-${Date.now()}-${parcialesCronometro.length}`,
+                sesionId: cronometroSesionId,
+                parcialMs: acumuladoMs - ultimoMs,
+                acumuladoMs,
+            };
+            if (guardarParcialesCronometro([...parcialesCronometro, parcial])) notificar();
+            return;
+        }
+        if (estadoParciales !== "listos") {
+            toast("No se pueden restablecer los parciales porque no se pudieron cargar.", false);
+            return;
+        }
+        if (parcialesCronometro.length > 0 && !guardarParcialesCronometro([])) return;
+        cronometro = { tiempoAcumuladoMs: 0, iniciadoEn: null, estado: "pausado" };
+        cronometroSesionId = `cronometro-${Date.now()}-${++secuenciaCronometro}`;
+        notificar();
     };
-    secParciales.appendChild(bParcial);
     const listaParciales = el("div", "gym-temp-lista");
     secParciales.appendChild(listaParciales);
     m.caja.appendChild(secParciales);
@@ -484,8 +493,21 @@ export function abrirTemporizador(): void {
             fila.acumulado.textContent = `Acumulado · ${fmtReloj(parcial.acumuladoMs, false)}`;
         });
         secParciales.classList.toggle("gym-oculto", modo !== "cronometro");
-        bParcial.disabled = estadoParciales !== "listos"
-            || tiempoCronometro() <= ultimoAcumuladoSesion();
+        const enMarcha = modo === "cronometro" && cronometro.estado === "en-marcha";
+        const acumulado = tiempoCronometro();
+        const parcialDisponible = estadoParciales === "listos"
+            && acumulado > ultimoAcumuladoSesion();
+        bCronometro.textContent = cronometro.estado === "en-marcha"
+            ? "⏹ Detener"
+            : acumulado > 0 ? "▶ Reanudar" : "▶ Iniciar";
+        bCronometro.setAttribute("aria-label", bCronometro.textContent);
+        bCronometro.classList.toggle("pausa", enMarcha);
+        bParcial.textContent = enMarcha ? "＋ Parcial" : "↺ Restablecer";
+        bParcial.setAttribute("aria-label", bParcial.textContent);
+        bParcial.title = enMarcha ? "Registrar tiempo parcial" : "Restablecer el cronómetro";
+        bParcial.disabled = enMarcha
+            ? !parcialDisponible
+            : acumulado <= 0 && parcialesCronometro.length === 0;
     };
 
     const secLista = el("div", "gym-temp-sec gym-temp-lista-sec");
@@ -516,6 +538,13 @@ export function abrirTemporizador(): void {
         temporizadorPendienteEliminarId = temporizador.id;
         notificar();
     };
+    m.caja.addEventListener("click", evento => {
+        if (temporizadorPendienteEliminarId === null
+            || !(evento.target instanceof Element)
+            || evento.target.closest(".gym-temp-fila-eliminar")) return;
+        temporizadorPendienteEliminarId = null;
+        notificar();
+    });
     const seleccionarTemporizadorAdyacente = (paso: number): void => {
         if (temporizadores.length < 2) return;
         const indiceActual = temporizadores.findIndex(t => t.id === temporizadorEnAnilloId);
@@ -577,7 +606,7 @@ export function abrirTemporizador(): void {
     };
 
     // ── Presets de un toque: carrusel lateral ──
-    const secRapidos = el("div", "gym-temp-sec");
+    const secRapidos = el("div", "gym-temp-sec gym-temp-rapidos");
     secRapidos.appendChild(el("div", "gym-et gym-temp-tit", "Rápidos"));
     const filaPres = el("div", "gym-temp-presets");
     const chips = new Map<number, HTMLButtonElement>();
@@ -723,9 +752,23 @@ export function abrirTemporizador(): void {
         arrancar(ms);
     };
     m.caja.appendChild(secConfiguracion);
-    const pieControles = el("div", "gym-temp-pie-controles");
+    const pieControles = el("div", "gym-temp-pie gym-temp-pie-controles");
     pieControles.append(controles, bIniciar);
     m.caja.appendChild(pieControles);
+    const controlesCronometro = el("div", "gym-temp-pie gym-temp-pie-cronometro");
+    const filaControlesCronometro = el("div", "gym-temp-cronometro-controles");
+    filaControlesCronometro.append(bParcial, bCronometro);
+    controlesCronometro.appendChild(filaControlesCronometro);
+    m.caja.appendChild(controlesCronometro);
+    m.caja.addEventListener("click", evento => {
+        if (!rapidosEnEdicion) return;
+        const rutaEvento = evento.composedPath();
+        if ([secAjustar, secRapidos, controles].some(area => rutaEvento.includes(area))) return;
+        rapidosEnEdicion = false;
+        rapidoPendienteDeEliminar = null;
+        renderizarRapidos();
+        notificar();
+    });
 
     // ── Repintado: lee el estado del módulo y lo refleja en pantalla ──
     const pintarTemporizadores = (): void => {
@@ -847,6 +890,7 @@ export function abrirTemporizador(): void {
         const esCronometro = modo === "cronometro";
         const vista = msDeEntradas();
         totalMs = vista;
+        m.caja.classList.toggle("gym-temp-cronometro-activo", esCronometro);
         anillo.classList.remove("listo", "pausa");
         if (esCronometro) {
             const transcurrido = tiempoCronometro();
@@ -917,10 +961,7 @@ export function abrirTemporizador(): void {
             eliminarCircular.title = eliminacionArmada
                 ? "Pulsa de nuevo para eliminar esta cuenta atrás" : "Eliminar esta cuenta atrás";
         }
-        bCronometro.textContent = cronometro.estado === "en-marcha" ? "⏸ Pausar cronómetro" : "▶ Reanudar cronómetro";
-        bCronometro.classList.toggle("pausa", cronometro.estado === "en-marcha");
-        bCronometro.classList.toggle("gym-oculto", !esCronometro);
-        bParcial.classList.toggle("gym-oculto", !esCronometro);
+        controlesCronometro.classList.toggle("gym-oculto", !esCronometro);
         bIniciar.disabled = vista < 1000;
         const temporizadorEnfocado = modo === "cuenta-atras"
             ? temporizadores.find(t => t.id === temporizadorEnAnilloId && t.estado !== "terminado")

@@ -108,9 +108,12 @@ y la vibración del móvil; «⏭ Saltar descanso» no suena nunca.
 
 El temporizador libre también permite cambiar al modo **Cronómetro**: al
 hacerlo, todas las cuentas atrás en marcha quedan pausadas y el cronómetro
-empieza desde cero. El botón **Registrar parcial** guarda el tiempo desde el
-parcial anterior y el acumulado; los parciales se conservan por vault en el
-almacenamiento local propio de Obsidian.
+queda detenido en cero hasta pulsar **Iniciar**. En esta vista se muestra solo el tiempo, con los parciales
+en un área desplazable. **Detener** pausa el cronómetro y permite reanudarlo;
+**Parcial** registra el tiempo desde el parcial anterior y el acumulado.
+Al detenerlo, el segundo botón permite restablecerlo para empezar otra sesión.
+Los parciales se conservan por vault en el almacenamiento local propio de
+Obsidian.
 
 Las cuentas atrás se pueden ver en modo circular —con gestos laterales y puntos
 para alternar entre temporizadores— o en una lista completa con su hora de
