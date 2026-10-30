@@ -12,6 +12,28 @@ import type { TFile } from "obsidian";
 export type TipoRutina = "planificada" | "libre";
 export type EstadoRutina = "activa" | "pausada" | "finalizada";
 export type UnidadPeso = "kg" | "lb";
+export type EstadoTemporizadorLibre = "en-marcha" | "pausado" | "terminado";
+
+export interface TemporizadorLibre {
+    id: string;
+    duracionMs: number;
+    restanteMs: number;
+    finEn: number | null;
+    estado: EstadoTemporizadorLibre;
+}
+
+export interface CronometroLibre {
+    tiempoAcumuladoMs: number;
+    iniciadoEn: number | null;
+    estado: "en-marcha" | "pausado";
+}
+
+export interface ParcialCronometro {
+    id: string;
+    sesionId: string;
+    parcialMs: number;
+    acumuladoMs: number;
+}
 
 /* Qué mide y registra un ejercicio (valores guardados en las notas):
      · "peso"      → reps con carga: volumen y 1RM. Ausente/null = este

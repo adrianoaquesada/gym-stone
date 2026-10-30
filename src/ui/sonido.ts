@@ -5,16 +5,46 @@ import { conf } from "../estado";
 type TipoAviso = "temporizador" | "descanso";
 type Nota = { frecuencia: number; duracion: number; inicio: number };
 const segundosAvisados = new Map<string, number>();
+let contextoAudio: AudioContext | null = null;
+let avisoSinAudio = false;
 
-const sintetizar = (activo: boolean, notas: Nota[]): void => {
+const obtenerContextoAudio = (): AudioContext | null => {
+    const Ctx = window.AudioContext
+        ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) {
+        if (!avisoSinAudio) {
+            avisoSinAudio = true;
+            console.warn("Gym Stone: Web Audio API no está disponible en este entorno.");
+        }
+        return null;
+    }
+    contextoAudio ??= new Ctx();
+    return contextoAudio;
+};
+
+export const prepararAudio = (): void => {
     try {
-        if (!activo) return;
+        const ctx = obtenerContextoAudio();
+        if (ctx?.state === "suspended") {
+            void ctx.resume().catch(error => console.error("Gym Stone: no se pudo activar el audio.", error));
+        }
+    } catch (error) {
+        console.error("Gym Stone: no se pudo preparar el audio.", error);
+    }
+};
+
+const sintetizar = async (activo: boolean, notas: Nota[]): Promise<void> => {
+    if (!activo) return;
+    try {
         const vol = Math.min(100, Math.max(0, conf().volumenSonido)) / 100;
         if (vol <= 0) return;
-        const Ctx = window.AudioContext
-            ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-        if (!Ctx) return;
-        const ctx = new Ctx();
+        const ctx = obtenerContextoAudio();
+        if (!ctx) return;
+        if (ctx.state === "suspended") await ctx.resume();
+        if (ctx.state !== "running") {
+            console.warn("Gym Stone: el contexto de audio no está activo.");
+            return;
+        }
         const formaOnda = conf().formaOndaSonido;
         for (const nota of notas) {
             const o = ctx.createOscillator(), g = ctx.createGain();
@@ -27,8 +57,9 @@ const sintetizar = (activo: boolean, notas: Nota[]): void => {
             o.start(ctx.currentTime + nota.inicio);
             o.stop(ctx.currentTime + nota.inicio + nota.duracion + 0.02);
         }
-        window.setTimeout(() => void ctx.close(), 1500);
-    } catch { /* sin audio: el aviso visual y la vibración ya están */ }
+    } catch (error) {
+        console.error("Gym Stone: no se pudo reproducir el sonido.", error);
+    }
 };
 
 const notasAviso = (): Nota[] => {
@@ -60,7 +91,7 @@ const activoPara = (tipo: TipoAviso): boolean =>
     tipo === "temporizador" ? conf().sonidoTemporizador : conf().sonidoDescanso;
 
 const pitarAviso = (tipo: TipoAviso): void => {
-    sintetizar(activoPara(tipo), notasAviso());
+    void sintetizar(activoPara(tipo), notasAviso());
 };
 
 export const sonarTemporizador = (): void => { pitarAviso("temporizador"); };
@@ -76,7 +107,7 @@ export const sonarCuentaAtras = (clave: string, tipo: TipoAviso, restanteMs: num
     if (segundosAvisados.get(clave) === segundos) return;
     segundosAvisados.set(clave, segundos);
     const indice = (limite - segundos) % conf().frecuenciasSonido.length;
-    sintetizar(true, [{ frecuencia: conf().frecuenciasSonido[indice], duracion: 0.12, inicio: 0 }]);
+    void sintetizar(true, [{ frecuencia: conf().frecuenciasSonido[indice], duracion: 0.12, inicio: 0 }]);
 };
 
 export const reiniciarCuentaAtras = (clave: string): void => { segundosAvisados.delete(clave); };
@@ -88,4 +119,4 @@ export const vibrar = (): void => {
     catch { /* sin vibración */ }
 };
 
-export const probarSonido = (): void => { sintetizar(true, notasAviso()); };
+export const probarSonido = (): void => { void sintetizar(true, notasAviso()); };

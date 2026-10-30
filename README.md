@@ -106,6 +106,29 @@ el botón **🔊 Probar**, que suena con el volumen vigente para calibrarlo (ign
 interruptores). Apagados los sonidos siguen los avisos visuales —«⏰ ¡Tiempo!» y «¡Listo!»—
 y la vibración del móvil; «⏭ Saltar descanso» no suena nunca.
 
+El temporizador libre también permite cambiar al modo **Cronómetro**: al
+hacerlo, todas las cuentas atrás en marcha quedan pausadas y el cronómetro
+empieza desde cero. El botón **Registrar parcial** guarda el tiempo desde el
+parcial anterior y el acumulado; los parciales se conservan por vault en el
+almacenamiento local propio de Obsidian.
+
+Las cuentas atrás se pueden ver en modo circular —con gestos laterales y puntos
+para alternar entre temporizadores— o en una lista completa con su hora de
+alarma, duración, tiempo restante y controles. Al iniciar una cuenta atrás se
+ocultan los ajustes; el botón **+** permite volver a abrirlos para añadir otra.
+El panel conserva un tamaño estable adaptado al alto de la pantalla; la lista
+tiene desplazamiento propio y el temporizador circular cambia con una
+transición lateral.
+
+Para el audio se reutiliza un `AudioContext` y se prepara al iniciar una cuenta
+atrás desde el botón **Iniciar**, incluso si el sonido está desactivado en ese
+momento, para que pueda activarse durante la cuenta atrás; si el sistema lo
+suspende, se intenta reanudar antes de reproducir. Gym Stone usa Web Audio y no
+solicita directamente un indicador de reproducción de KDE ni una sesión
+multimedia. No se pudo confirmar visualmente en Plasma si su icono de audio
+aparece durante los pitidos: ese indicador depende de cómo el entorno de
+escritorio detecte el flujo de audio.
+
 ## Dónde viven los datos
 
 Toda la vida del plugin cabe en **UNA carpeta raíz** (`gym-stone` por defecto, ajustable y

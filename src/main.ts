@@ -25,7 +25,7 @@ import { normalizarAjustes, rutaIndice, type AjustesGym } from "./ajustes";
 import { reiniciarDespierta } from "./despierta";
 import { iniciarEstado, actualizarAjustes } from "./estado";
 import { limpiarOverlays, toast } from "./ui/componentes";
-import { abrirTemporizador, pararTemporizador } from "./ui/temporizador";
+import { abrirTemporizador, observarTemporizadoresActivos, pararTemporizador } from "./ui/temporizador";
 import { cerrarSesionesAbiertas } from "./ui/sesion-guiada";
 import { GymStoneTab } from "./ui/tabla-ajustes";
 import { VistaApp, VistaLista, VistaRutina } from "./ui/vista-app";
@@ -50,7 +50,7 @@ export default class GymStone extends Plugin {
 
     async onload(): Promise<void> {
         this.ajustes = normalizarAjustes(((await this.loadData()) ?? {}) as Record<string, unknown>);
-        iniciarEstado(this.app, this.ajustes);
+        iniciarEstado(this.app, this.ajustes, ajustes => this.guardarAjustes(ajustes));
 
         /* ── Las pantallas del plugin: UNA vista para Inicio y la ficha de una
               rutina (la navegación entre las dos no remonta la pestaña) ── */
@@ -64,6 +64,21 @@ export default class GymStone extends Plugin {
            «Gym stone» va concatenado porque es un nombre propio con mayúsculas
            y la regla de sentence case del linter solo mira literales sueltos. */
         this.addRibbonIcon("dumbbell", "Abrir " + "Gym stone", () => void abrirLista());
+        const indicadorTemporizador = this.addRibbonIcon(
+            "timer",
+            "Temporizador: sin cuentas atrás activas",
+            () => abrirTemporizador(),
+        );
+        indicadorTemporizador.classList.add("gym-temporizador-indicador");
+        this.register(() => indicadorTemporizador.remove());
+        this.register(observarTemporizadoresActivos(cantidad => {
+            const activo = cantidad > 0;
+            indicadorTemporizador.classList.toggle("gym-temporizador-activo", activo);
+            const detalle = cantidad === 1 ? "1 cuenta atrás en marcha" : `${cantidad} cuentas atrás en marcha`;
+            const titulo = activo ? `Temporizador: ${detalle}` : "Temporizador: sin cuentas atrás activas";
+            indicadorTemporizador.setAttribute("aria-label", titulo);
+            indicadorTemporizador.setAttribute("title", titulo);
+        }));
 
         /* ── Abrir los archivos del plugin COMO el plugin (truco de Kanban):
               si abres el índice o una rutina desde el explorador, un enlace o
@@ -99,6 +114,10 @@ export default class GymStone extends Plugin {
                         toast(`⚖️ Pesos en ${pesoActual()}`);
                         this.repintarVistasGym();
                     }));
+                menu.addItem(it => it
+                    .setTitle("Abrir el temporizador")
+                    .setIcon("timer")
+                    .onClick(() => abrirTemporizador()));
                 const ruta = v.rutaMarkdown();
                 if (ruta) {
                     menu.addItem(it => it

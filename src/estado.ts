@@ -10,10 +10,16 @@ import type { AjustesGym } from "./ajustes";
 
 let _app: App | null = null;
 let _ajustes: AjustesGym | null = null;
+let _guardarAjustes: ((ajustes: AjustesGym) => Promise<void>) | null = null;
 
-export function iniciarEstado(app: App, ajustes: AjustesGym): void {
+export function iniciarEstado(
+    app: App,
+    ajustes: AjustesGym,
+    guardar: (ajustes: AjustesGym) => Promise<void>,
+): void {
     _app = app;
     _ajustes = ajustes;
+    _guardarAjustes = guardar;
 }
 
 export function actualizarAjustes(ajustes: AjustesGym): void {
@@ -28,4 +34,9 @@ export function aplicacion(): App {
 export function conf(): AjustesGym {
     if (!_ajustes) throw new Error("Gym Stone aún no se ha inicializado.");
     return _ajustes;
+}
+
+export async function persistirAjustes(ajustes: AjustesGym): Promise<void> {
+    if (!_guardarAjustes) throw new Error("Gym Stone aún no puede guardar ajustes.");
+    await _guardarAjustes(ajustes);
 }

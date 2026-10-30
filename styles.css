@@ -69,6 +69,7 @@
   .gym-form .gym-ej > div:nth-child(9) { grid-column:1 / -1; }
   .gym-form .gym-ej > div:nth-child(9) button { width:100%; }
 }
+.gym-temp-cen { will-change: transform, opacity; }
 
 /* ── Gestor: dashboard, calendario, registro, estadísticas, historial ────── */
 
@@ -530,34 +531,136 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 
 /* ── Temporizador libre (modal con anillo, presets y controles) ─────────── */
 /* Modal más estrecho que el genérico: es una columna, no una tabla. */
-.gym-temp-caja { width: min(430px, 94vw); }
-.gym-temp-anillo { position: relative; width: min(240px, 58vw); aspect-ratio: 1; margin: 6px auto 10px; }
+.gym-temp-caja {
+    box-sizing: border-box; display: flex; flex-direction: column;
+    width: min(430px, calc(100vw - 32px));
+    height: min(720px, calc(100vh - 32px)); height: min(720px, calc(100dvh - 32px));
+    min-height: min(520px, calc(100vh - 32px)); min-height: min(520px, calc(100dvh - 32px));
+    max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px);
+    overflow: hidden;
+}
+.gym-temp-anillo { position: relative; width: min(240px, 58vw); aspect-ratio: 1; margin: 6px auto 10px; touch-action: pan-y; transform-origin: center; }
+.gym-temp-anillo { flex: 0 0 auto; }
 .gym-temp-anillo svg { width: 100%; height: 100%; display: block; }
-.gym-temp-anillo .pista { fill: none; stroke: color-mix(in srgb, var(--text-faint) 45%, transparent); stroke-width: 7; }
+.gym-temp-anillo .pista { fill: none; stroke: color-mix(in srgb, var(--text-faint) 45%, transparent); stroke-width: 3; }
 .gym-temp-anillo .barra {
     fill: none; stroke: #F99624; stroke-width: 7; stroke-linecap: round;
     transition: stroke-dashoffset .25s linear, stroke .3s;
 }
-.gym-temp-anillo.pausa .barra { stroke: var(--text-faint); }
-.gym-temp-anillo.listo .barra { stroke: #2ecc71; }
 .gym-temp-cen {
     position: absolute; inset: 0; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 2px; text-align: center; padding: 10px;
+    align-items: center; justify-content: space-evenly; text-align: center;
 }
 .gym-temp-t {
     font-size: 2.6em; font-weight: 800; font-variant-numeric: tabular-nums;
     color: #F99624; line-height: 1.05;
 }
-.gym-temp-anillo.pausa .gym-temp-t { color: var(--text-faint); }
-.gym-temp-anillo.listo .gym-temp-t { color: #2ecc71; font-size: 1.6em; }
 .gym-temp-sub { font-size: .76em; opacity: .7; }
 .gym-temp-estado {
     display: block; text-align: center; font-size: .8em; font-weight: 700;
     letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px;
 }
-.gym-temp-estado.on { color: #F99624; }
-.gym-temp-estado.listo { color: #2ecc71; }
 .gym-temp-tit { margin-top: 12px; }
+.gym-temp-lista {
+    display: flex; flex-direction: column; gap: 8px; overflow-y: auto;
+    scrollbar-width: none;
+}
+.gym-temp-lista::-webkit-scrollbar { display: none; }
+.gym-temp-lista-sec .gym-temp-lista { flex: 0 0 min(34vh, 280px); height: min(34vh, 280px); min-height: 120px; }
+.gym-temp-lista-sec { flex: 0 0 auto; }
+.gym-temp-lista-activa .gym-temp-lista-sec {
+    display: flex; flex: 1 1 0; flex-direction: column; min-height: 0;
+}
+.gym-temp-lista-activa .gym-temp-lista-sec .gym-temp-lista {
+    flex: 1 1 auto; height: auto; min-height: 0;
+}
+.gym-temp-parciales .gym-temp-lista { max-height: min(28vh, 220px); }
+.gym-temp-fila {
+    display: flex; flex-direction: column; gap: 8px; padding: 10px;
+    border: 1px solid var(--background-modifier-border); border-radius: 10px;
+    background: var(--background-secondary); cursor: pointer;
+}
+.gym-temp-fila.en-marcha { border-color: color-mix(in srgb, #F99624 55%, var(--background-modifier-border)); }
+.gym-temp-fila.enfocado {
+    background: color-mix(in srgb, #F99624 12%, var(--background-secondary));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, #F99624 50%, transparent);
+}
+.gym-temp-fila.terminado { opacity: .7; }
+.gym-temp-fila-meta { display: flex; align-items: center; gap: 6px; width: 100%; color: var(--text-muted); font-size: .82em; }
+.gym-temp-fila-duracion { color: var(--text-normal); }
+.gym-temp-fila-resumen { display: flex; align-items: center; gap: 8px; width: 100%; }
+.gym-temp-detalle {
+    display: flex; flex: 1 1 auto; min-width: 0;
+    padding: 0; color: inherit; text-align: left;
+}
+.gym-temp-fila-tiempo { font-size: 1.7em; font-weight: 450; font-variant-numeric: tabular-nums; }
+.gym-temp-fila-acciones { display: flex; gap: 8px; }
+.gym-temp-fila-progreso { width: 100%; height: 6px; overflow: hidden; border-radius: 999px; background: var(--background-modifier-border); }
+.gym-temp-fila-progreso-relleno { width: 0; height: 100%; border-radius: inherit; background: #F99624; transition: width .25s linear; }
+.gym-temp-fila-accion {
+    display: inline-flex; flex: 0 0 34px; width: 34px; height: 34px; min-height: 34px;
+    align-items: center; justify-content: center; padding: 0; border-radius: 9px;
+    font-size: 1.15em; line-height: 1;
+}
+.gym-temp-fila-reanudar { font-size: .9em; }
+.gym-temp-fila-eliminar {
+    background: var(--background-secondary); border-color: var(--background-modifier-border); color: #e74c3c;
+}
+.gym-temp-fila-eliminar-armado { background: #e74c3c; border-color: #e74c3c; color: #fff; }
+.gym-temp-acciones-circulares {
+    display: flex; flex: 0 0 auto; justify-content: center; gap: 10px; margin: -4px 0 8px;
+}
+.gym-temp-acciones-circulares.gym-oculto { display: none; }
+.gym-temp-herramientas { display: flex; align-items: center; gap: 8px; margin: 6px 0 12px; }
+.gym-temp-modo { flex: 1 1 auto; min-width: 0; min-height: 42px; }
+.gym-temp-herramienta { flex: 0 0 42px; width: 42px; height: 42px; min-height: 42px; padding: 0; font-size: 1.35em; }
+.gym-temp-icono-lista { position: relative; display: flex; flex-direction: column; gap: 3px; width: 19px; margin: auto; }
+.gym-temp-icono-linea { display: block; height: 2px; border-radius: 2px; background: currentColor; }
+.gym-temp-icono-lista::after { position: absolute; right: -5px; bottom: -3px; width: 5px; height: 5px; border-radius: 50%; background: #F99624; content: ""; }
+.gym-temp-vista-lista .gym-temp-icono-lista { width: 17px; height: 17px; border: 2px solid currentColor; border-radius: 50%; }
+.gym-temp-vista-lista .gym-temp-icono-linea { display: none; }
+.gym-temp-puntos { display: flex; justify-content: center; gap: 8px; margin: -4px 0 12px; }
+.gym-temp-configuracion {
+    display: flex; flex: 0 0 auto; flex-direction: column; justify-content: center;
+    gap: 4px; min-height: 0; overflow: visible;
+}
+.gym-temp-configuracion.gym-oculto { display: none; }
+.gym-temp-config-abierta .gym-temp-configuracion {
+    flex: 1 1 auto; justify-content: flex-end; padding-bottom: 12px;
+}
+.gym-temp-config-abierta .gym-temp-anillo,
+.gym-temp-config-abierta .gym-temp-puntos,
+.gym-temp-config-abierta .gym-temp-estado,
+.gym-temp-config-abierta .gym-temp-lista-sec { display: none; }
+.gym-temp-pie-controles { display: flex; flex: 0 0 auto; flex-direction: column; margin-top: auto; }
+.gym-temp-controles { flex: 0 0 auto; }
+.gym-temp-iniciar { flex: 0 0 auto; }
+.gym-temp-puntos.gym-oculto { display: none; }
+.gym-temp-estado.gym-oculto { display: none; }
+.gym-temp-punto { width: 8px; height: 8px; min-height: 0; padding: 0; border: 0; border-radius: 50%; background: var(--text-faint); cursor: pointer; }
+.gym-temp-punto.activo { background: #F99624; transform: scale(1.2); }
+.gym-temp-lista-vacia { padding: 12px; color: var(--text-muted); font-size: .88em; }
+@media (max-height: 620px) {
+    .gym-temp-caja {
+        height: calc(100vh - 16px); height: calc(100dvh - 16px);
+        min-height: 0;
+        max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px);
+        padding: 10px;
+    }
+    .gym-temp-anillo { width: min(190px, 48vw); margin-block: 2px 6px; }
+    .gym-temp-caja { overflow-y: auto; }
+    .gym-temp-lista-sec .gym-temp-lista {
+        flex-basis: min(30vh, 220px); height: min(30vh, 220px); min-height: 0;
+    }
+    .gym-temp-lista-activa .gym-temp-lista-sec .gym-temp-lista {
+        flex-basis: 0; height: auto; min-height: 0;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .gym-temp-cen { will-change: auto; }
+    .gym-temp-anillo .barra,
+    .gym-temp-fila-progreso-relleno { transition: none; }
+}
 /* Rápidos: CARRUSEL lateral. Los chips no se encogen (flex:none) y la fila se
    desliza en horizontal; el desbordamiento lateral se sale de la caja del
    modal para que el scroll llegue hasta el borde (márgenes negativos). La
@@ -569,8 +672,24 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 }
 .gym-temp-presets::-webkit-scrollbar { display: none; }   /* Chromium/WebKit */
 .gym-temp-chip {
-    flex: none; min-height: 42px; padding: 8px 14px; font-size: .88em;
+    position: relative; flex: none; min-height: 42px; padding: 8px 20px 8px 14px; font-size: .88em;
     cursor: pointer; scroll-snap-align: start;
+}
+.gym-temp-chip.marcado-eliminar {
+    border-color: #e74c3c; background: color-mix(in srgb, #e74c3c 22%, var(--background-secondary));
+    color: var(--text-normal);
+}
+.gym-temp-chip-x {
+    position: absolute; top: 1px; right: 5px; font-size: .72em; line-height: 1;
+    color: var(--text-muted); pointer-events: none;
+}
+.gym-temp-chip.marcado-eliminar .gym-temp-chip-x { color: #e74c3c; }
+.gym-temp-editar { min-width: 42px; padding-inline: 10px; }
+.gym-temporizador-indicador { position: relative; }
+.gym-temporizador-indicador.gym-temporizador-activo::after {
+    position: absolute; top: 5px; right: 5px; width: 8px; height: 8px;
+    border: 2px solid var(--background-primary); border-radius: 50%;
+    background: #F99624; content: "";
 }
 .gym-temp-ajuste { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
 .gym-temp-campo { flex: 1 1 84px; display: flex; flex-direction: column; gap: 3px; }
@@ -579,13 +698,12 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
    fichero → gana, sin necesidad de !important. */
 .gym-temp-caja .gym-temp-campo input { min-height: 46px; text-align: center; font-size: 1em; }
 /* El botón principal ocupa el ancho entero: es arrancar Y pausa/reanudar. */
-.gym-temp-empezar { width: 100%; min-height: 50px; font-size: 1em; margin-top: 10px; }
-.gym-temp-empezar.pausa { background: color-mix(in srgb, #e74c3c 16%, transparent);
+.gym-temp-iniciar { width: 100%; min-height: 50px; font-size: 1em; margin-top: 10px; }
+.gym-temp-iniciar.pausa { background: color-mix(in srgb, #e74c3c 16%, transparent);
     border-color: #e74c3c; color: #e74c3c; }
-/* «Parar» va debajo, en su propia fila y más discreta: separado del botón
-   principal para que un toque erróneo no detenga la cuenta atrás. */
-.gym-temp-parar { width: 100%; min-height: 46px; font-size: .92em; opacity: .85; }
-.gym-temp-controles { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
+/* «Eliminar» va debajo, en su propia fila y más discreta. */
+.gym-temp-eliminar { width: 100%; min-height: 46px; font-size: .92em; opacity: .85; }
+.gym-temp-controles { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 0 0 12px; }
 .gym-temp-controles .gym-btn-g { flex: 1 1 auto; min-width: 96px; }
 
 /* ── Cabecera de las vistas: solo el ⋮, sin navegación ni título ────────── */

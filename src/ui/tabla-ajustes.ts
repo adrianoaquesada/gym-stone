@@ -12,6 +12,29 @@ import { toast } from "./componentes";
 import { probarSonido } from "./sonido";
 import { fijarUnidadPeso, pesoActual } from "../unidades";
 
+interface AppConAjustes extends App {
+    setting: {
+        open(): void;
+        openTabById(id: string): void;
+    };
+}
+
+export function abrirAjustesOpcionesRapidas(app: App): boolean {
+    const ajustes = (app as AppConAjustes).setting;
+    if (!ajustes || typeof ajustes.open !== "function" || typeof ajustes.openTabById !== "function") {
+        console.error("[Gym Stone] La API para abrir los ajustes de Obsidian no está disponible.");
+        toast("No se pudieron abrir los ajustes de opciones rápidas.", false);
+        return false;
+    }
+    ajustes.open();
+    ajustes.openTabById("gym-stone");
+    window.setTimeout(() => {
+        document.querySelector<HTMLElement>(".gym-ajustes-opciones-rapidas-setting")
+            ?.scrollIntoView({ block: "center" });
+    }, 0);
+    return true;
+}
+
 export class GymStoneTab extends PluginSettingTab {
     constructor(app: App, private readonly pluginRef: GymStone) {
         super(app, pluginRef);
@@ -140,6 +163,7 @@ export class GymStoneTab extends PluginSettingTab {
         setting
             .setName("Opciones rápidas del temporizador")
             .setDesc("Una duración por casilla. Formato: minutos:segundos (3:00).");
+        setting.settingEl.addClass("gym-ajustes-opciones-rapidas-setting");
         setting.controlEl.addClass("gym-ajustes-controles");
         setting.controlEl.empty();
         const lista = setting.controlEl.createDiv("gym-ajustes-opciones-rapidas");
