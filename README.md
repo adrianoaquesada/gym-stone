@@ -107,9 +107,10 @@ interruptores). Apagados los sonidos siguen los avisos visuales —«⏰ ¡Tiemp
 y la vibración del móvil; «⏭ Saltar descanso» no suena nunca.
 
 El temporizador libre también permite cambiar al modo **Cronómetro**: al
-hacerlo, todas las cuentas atrás en marcha quedan pausadas y el cronómetro
-queda detenido en cero hasta pulsar **Iniciar**. En esta vista se muestra solo el tiempo, con los parciales
-en un área desplazable. **Detener** pausa el cronómetro y permite reanudarlo;
+hacerlo, las cuentas atrás siguen en marcha y el cronómetro puede funcionar
+simultáneamente. El cronómetro queda detenido en cero hasta pulsar **Iniciar**.
+En esta vista se muestra solo el tiempo, con los parciales en un área
+desplazable. **Detener** pausa el cronómetro y permite reanudarlo;
 **Parcial** registra el tiempo desde el parcial anterior y el acumulado.
 Al detenerlo, el segundo botón permite restablecerlo para empezar otra sesión.
 Los parciales se conservan por vault en el almacenamiento local propio de
@@ -119,6 +120,9 @@ Las cuentas atrás se pueden ver en modo circular —con gestos laterales y punt
 para alternar entre temporizadores— o en una lista completa con su hora de
 alarma, duración, tiempo restante y controles. Al iniciar una cuenta atrás se
 ocultan los ajustes; el botón **+** permite volver a abrirlos para añadir otra.
+Al finalizar una cuenta atrás se elimina solo esa cuenta y el panel permanece
+abierto. Para iniciar una duración rápida, el primer toque la enfoca y el
+segundo toque la inicia.
 El panel conserva un tamaño estable adaptado al alto de la pantalla; la lista
 tiene desplazamiento propio y el temporizador circular cambia con una
 transición lateral.

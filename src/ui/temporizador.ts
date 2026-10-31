@@ -154,25 +154,6 @@ const terminar = (temporizador: TemporizadorLibre): void => {
     reiniciarCuentaAtras(temporizador.id);
 };
 
-const pausarTemporizadoresActivos = (): void => {
-    const terminados: TemporizadorLibre[] = [];
-    for (const temporizador of temporizadores) {
-        if (temporizador.estado !== "en-marcha") continue;
-        const restanteMs = restante(temporizador);
-        if (restanteMs <= 0) {
-            terminar(temporizador);
-            terminados.push(temporizador);
-            continue;
-        }
-        temporizador.restanteMs = restanteMs;
-        temporizador.finEn = null;
-        temporizador.estado = "pausado";
-        pantallaDe(temporizador.id).quitar();
-        reiniciarCuentaAtras(temporizador.id);
-    }
-    avisar(terminados);
-};
-
 const tic = (): void => {
     const terminados: TemporizadorLibre[] = [];
     for (const temporizador of temporizadores) {
@@ -186,6 +167,7 @@ const tic = (): void => {
         sonarCuentaAtras(temporizador.id, "temporizador", ms);
     }
     avisar(terminados);
+    terminados.forEach(eliminarTemporizador);
     actualizarReloj();
     notificar();
 };
@@ -238,6 +220,7 @@ const alternarPausa = (temporizador: TemporizadorLibre): void => {
         if (restanteMs <= 0) {
             terminar(temporizador);
             avisar([temporizador]);
+            eliminarTemporizador(temporizador);
         } else {
             temporizador.restanteMs = restanteMs;
             temporizador.finEn = null;
@@ -381,16 +364,11 @@ export function abrirTemporizador(): void {
     bModo.type = "button";
     bModo.onclick = () => {
         if (modo === "cuenta-atras") {
-            pausarTemporizadoresActivos();
-            cronometro = { tiempoAcumuladoMs: 0, iniciadoEn: null, estado: "pausado" };
-            cronometroSesionId = `cronometro-${Date.now()}-${++secuenciaCronometro}`;
+            if (!cronometroSesionId) {
+                cronometroSesionId = `cronometro-${Date.now()}-${++secuenciaCronometro}`;
+            }
             modo = "cronometro";
         } else {
-            if (cronometro.estado === "en-marcha") {
-                cronometro.tiempoAcumuladoMs = tiempoCronometro();
-                cronometro.iniciadoEn = null;
-                cronometro.estado = "pausado";
-            }
             modo = "cuenta-atras";
         }
         actualizarReloj();
@@ -570,7 +548,6 @@ export function abrirTemporizador(): void {
     // ── Duración de la próxima cuenta atrás ──
     const secConfiguracion = el("div", "gym-temp-configuracion");
     const secAjustar = el("div", "gym-temp-sec");
-    secAjustar.appendChild(el("div", "gym-et gym-temp-tit", "Ajustar"));
     const filaAjuste = el("div", "gym-temp-ajuste");
     const entradas: HTMLInputElement[] = [];
     for (const [etq, max] of [["Horas", 99], ["Minutos", 59], ["Segundos", 59]] as [string, number][]) {
@@ -607,11 +584,11 @@ export function abrirTemporizador(): void {
 
     // ── Presets de un toque: carrusel lateral ──
     const secRapidos = el("div", "gym-temp-sec gym-temp-rapidos");
-    secRapidos.appendChild(el("div", "gym-et gym-temp-tit", "Rápidos"));
     const filaPres = el("div", "gym-temp-presets");
     const chips = new Map<number, HTMLButtonElement>();
     let rapidoPendienteDeEliminar: number | null = null;
     let rapidosEnEdicion = false;
+    let rapidoEnfocadoMs: number | null = null;
     const guardarOpcionesRapidas = async (opciones: number[], salirDeEdicion = false): Promise<void> => {
         const ordenadas = [...opciones].sort((a, b) => a - b);
         const ajustes = normalizarAjustes({ ...conf(), opcionesRapidasTemporizador: ordenadas });
@@ -629,17 +606,30 @@ export function abrirTemporizador(): void {
             const texto = fmt(ms);
             const chip = el("button", "gym-chip gym-temp-chip", texto);
             chip.type = "button";
+            chip.classList.toggle("enfocado", !rapidosEnEdicion && rapidoEnfocadoMs === ms);
             chip.title = rapidosEnEdicion
                 ? `Marcar ${texto} para eliminar`
-                : `Elegir una cuenta atrás de ${texto}`;
+                : rapidoEnfocadoMs === ms
+                    ? `Iniciar la cuenta atrás de ${texto}`
+                    : `Enfocar la cuenta atrás de ${texto}`;
             chip.setAttribute("aria-label", rapidosEnEdicion
                 ? `Marcar ${texto} para eliminar; pulsa de nuevo para eliminar`
-                : `Elegir una cuenta atrás de ${texto}`);
+                : rapidoEnfocadoMs === ms
+                    ? `Iniciar la cuenta atrás de ${texto}`
+                    : `Enfocar la cuenta atrás de ${texto}`);
             if (rapidosEnEdicion) chip.appendChild(el("span", "gym-temp-chip-x", "×"));
             chip.onclick = () => {
                 if (!rapidosEnEdicion) {
                     rapidoPendienteDeEliminar = null;
-                    elegirDuracion(ms);
+                    if (rapidoEnfocadoMs === ms) {
+                        rapidoEnfocadoMs = null;
+                        configuracionTemporizadorAbierta = false;
+                        arrancar(ms);
+                    } else {
+                        rapidoEnfocadoMs = ms;
+                        elegirDuracion(ms);
+                        renderizarRapidos();
+                    }
                     return;
                 }
                 if (rapidoPendienteDeEliminar === ms) {
@@ -669,6 +659,7 @@ export function abrirTemporizador(): void {
             if (!rapidosEnEdicion) {
                 rapidosEnEdicion = true;
                 rapidoPendienteDeEliminar = null;
+                rapidoEnfocadoMs = null;
                 renderizarRapidos();
                 return;
             }
@@ -720,6 +711,7 @@ export function abrirTemporizador(): void {
             if (temporizadorEnfocado.estado === "en-marcha" && restanteMs <= 0) {
                 terminar(temporizadorEnfocado);
                 avisar([temporizadorEnfocado]);
+                eliminarTemporizador(temporizadorEnfocado);
                 actualizarReloj();
                 notificar();
                 return;

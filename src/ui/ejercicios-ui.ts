@@ -361,6 +361,9 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
     inBusca.placeholder = "Busca por nombre o grupo";
     cont.appendChild(inBusca);
 
+    const categorias = el("div", "gym-ejercicios-categorias");
+    cont.appendChild(categorias);
+
     // Un solo datalist compartido por todos los inputs de grupo (sugerencias),
     // con id único por instancia
     const dl = createEl("datalist");
@@ -375,6 +378,8 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
     let cat: EjercicioGestion[] = [];
     let cargando = true;
     let huerfanos: string[] = [];   // ids del fichero de grupos que ya no se usan
+    let grupoActivo: string | null = null;
+    const editando = new Set<string>();
 
     // Purga de entradas huérfanas: solo aparece si el fichero de grupos guarda
     // ejercicios que ya no están en ninguna rutina ni plantilla (p. ej. tras
@@ -425,9 +430,28 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
         btnPurga.textContent = `🧹 Purgar ${huerfanos.length} entrada${huerfanos.length > 1 ? "s" : ""} sin uso` +
             " (ejercicios que ya no están en ninguna rutina)";
 
+        const grupos = [...new Set(cat.map(x => x.grupo).filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b, "es"));
+        const nSinGrupo = cat.filter(x => !x.grupo).length;
+        if (grupoActivo && grupoActivo !== "" && !grupos.includes(grupoActivo)) grupoActivo = null;
+        if (grupoActivo === "" && !nSinGrupo) grupoActivo = null;
+        categorias.empty();
+        const chipCategoria = (texto: string, grupo: string | null): void => {
+            const b = el("button", "gym-chip gym-puntero" + (grupoActivo === grupo ? " on" : ""), texto);
+            b.type = "button";
+            b.setAttribute("aria-pressed", String(grupoActivo === grupo));
+            b.onclick = () => { grupoActivo = grupo; pintar(); };
+            categorias.appendChild(b);
+        };
+        chipCategoria("Todos", null);
+        for (const grupo of grupos) chipCategoria(grupo, grupo);
+        if (nSinGrupo) chipCategoria(`Sin grupo (${nSinGrupo})`, "");
+
         const q = norm(inBusca.value);
         // La búsqueda alcanza también el grupo, igual que en el buscador de sesión
-        const visibles = cat.filter(x => !q || norm(x.nombre).includes(q) || norm(x.grupo).includes(q));
+        const visibles = cat.filter(x =>
+            (grupoActivo === null || (grupoActivo === "" ? !x.grupo : x.grupo === grupoActivo)) &&
+            (!q || norm(x.nombre).includes(q) || norm(x.grupo).includes(q)));
 
         lista.empty();
         if (cargando) {
@@ -435,82 +459,104 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
                 "Leyendo todas las rutinas y plantillas…"));
         } else if (!visibles.length) {
             lista.appendChild(el("div", "padding:12px;opacity:.65;font-size:.86em;",
-                cat.length ? "Ningún ejercicio encaja con la búsqueda."
+                cat.length ? q ? "Ningún ejercicio coincide con la búsqueda."
+                    : "No hay ejercicios en esta categoría."
                            : "Sin ejercicios todavía en ninguna rutina."));
         }
         for (const e of visibles) {
-            const fila = el("div", "padding:8px 10px;border-bottom:1px solid var(--background-modifier-border);");
-            const controles = el("div", "display:flex;flex-wrap:wrap;gap:8px;align-items:center;");
-
-            const inN = el("input");
-            inN.type = "text"; inN.value = e.nombre;
-            inN.style.cssText = estInput;
-            const inG = el("input");
-            inG.type = "text"; inG.value = e.grupo; inG.placeholder = "Grupo (por ejemplo: Pecho)";
-            inG.setAttribute("list", dl.id);
-            inG.style.cssText = "flex:0 1 130px;" + estInput;
-
-            const guardar = el("button", "gym-btn gym-btn-guardar-ej", "💾");
-            guardar.type = "button";
-            guardar.title = "Guardar nombre y grupo de este ejercicio";
-            const marcar = () => guardar.classList.add("primario");   // hay cambios pendientes
-            inN.oninput = marcar;
-            // Aviso «sin grupo»: visible mientras el campo esté vacío (se oculta
-            // al escribir, sin esperar a guardar)
-            const chipSin = el("span", "gym-chip", "sin grupo");
-            chipSin.style.cssText = "font-size:.7em;font-weight:700;opacity:.5;flex:none;" +
-                (e.grupo ? "display:none;" : "");
-            inG.oninput = () => { marcar(); chipSin.hidden = !!inG.value.trim(); };
-
-            guardar.onclick = async () => {
-                const nuevoNombre = limpiarNombre(inN.value);
-                if (!nuevoNombre) return toast("⚠️ El nombre no puede quedar vacío.", false);
-                const cambioNombre = nuevoNombre !== e.nombre;
-                const nuevoGrupo = inG.value.trim();
-                const cambioGrupo = nuevoGrupo !== e.grupo;
-                if (!cambioNombre && !cambioGrupo) return;
-                if (cambioNombre) {
-                    const choque = cat.some(o => o.id !== e.id && norm(o.nombre) === norm(nuevoNombre));
-                    const aviso = choque
-                        ? "\n\n⚠️ Ya existe OTRO ejercicio con ese nombre: convivirán (comparten texto, no historial)."
-                        : "";
-                    const ok = await confirmar("✏️ Renombrar ejercicio",
-                        `Se pasará «${e.nombre}» → «${nuevoNombre}» en ${e.rutinas.length} rutina(s)` +
-                        (e.plantillas.length ? ` y ${e.plantillas.length} plantilla(s)` : "") + "." +
-                        "\nEl historial NO se pierde: el id del ejercicio es estable." + aviso,
-                        "Renombrar", "Cancelar");
-                    if (!ok) return;
-                }
-                try {
-                    guardar.disabled = true;
-                    const res = cambioNombre ? await renombrarEjercicio(e.id, nuevoNombre) : null;
-                    await fijarGrupo(e.id, nuevoGrupo);   // vacío = sin grupo
-                    toast(cambioNombre
-                        ? `✅ «${nuevoNombre}» actualizado: ${res?.rutinas ?? 0} rutina(s)` +
-                          (res?.plantillas ? `, ${res.plantillas} plantilla(s)` : "")
-                        : nuevoGrupo ? `🏷 «${nuevoNombre}»: grupo «${nuevoGrupo}»`
-                                     : `🏷 «${nuevoNombre}»: sin grupo`);
-                    cat = await catalogoGestion();   // refrescar nombres, grupos y orden
-                    pintar();
-                } catch (err: unknown) {
-                    guardar.disabled = false;
-                    console.error("[Gym Stone renombrar]", err);
-                    toast("⚠️ No pude guardar: " + msgError(err), false);
-                }
-            };
-
-            controles.appendChild(inN); controles.appendChild(inG);
-            controles.appendChild(chipSin); controles.appendChild(guardar);
-            fila.appendChild(controles);
+            const fila = el("div", "gym-ejercicios-fila");
+            const cabecera = el("div", "gym-ejercicios-fila-cab");
+            const detalle = el("div", "gym-flex1");
+            detalle.appendChild(el("div", "gym-ej-nombre", e.nombre));
             const sitio = [
+                e.grupo || "Sin grupo",
                 e.rutinas.length ? `en ${e.rutinas.length} rutina${e.rutinas.length > 1 ? "s" : ""}` : "",
                 e.plantillas.length ? `${e.plantillas.length} plantilla${e.plantillas.length > 1 ? "s" : ""}` : "",
                 `${e.apariciones} aparicion${e.apariciones === 1 ? "" : "es"}`,
             ].filter(Boolean).join(" · ");
-            fila.appendChild(el("div", "font-size:.72em;opacity:.6;margin-top:3px;", sitio));
+            detalle.appendChild(el("div", "gym-ej-sub", sitio));
+            cabecera.appendChild(detalle);
+
+            const editar = el("button", "gym-mini gym-ejercicio-editar", editando.has(e.id) ? "✕" : "✎");
+            editar.type = "button";
+            editar.title = editando.has(e.id) ? "Cancelar edición" : "Editar nombre o grupo";
+            editar.setAttribute("aria-label", `${editar.title}: ${e.nombre}`);
+            editar.onclick = () => {
+                if (editando.has(e.id)) editando.delete(e.id);
+                else editando.add(e.id);
+                pintar();
+            };
+            cabecera.appendChild(editar);
+            fila.appendChild(cabecera);
+
+            if (editando.has(e.id)) {
+                const controles = el("div", "gym-ejercicios-editor");
+
+                const inN = el("input");
+                inN.type = "text"; inN.value = e.nombre;
+                inN.setAttribute("aria-label", "Nombre del ejercicio");
+                inN.style.cssText = estInput;
+                const inG = el("input");
+                inG.type = "text"; inG.value = e.grupo; inG.placeholder = "Grupo (por ejemplo: Pecho)";
+                inG.setAttribute("aria-label", "Grupo muscular");
+                inG.setAttribute("list", dl.id);
+                inG.style.cssText = "flex:0 1 130px;" + estInput;
+
+                const chipSin = el("span", "gym-chip", "sin grupo");
+                chipSin.style.cssText = "font-size:.7em;font-weight:700;opacity:.5;flex:none;" +
+                    (e.grupo ? "display:none;" : "");
+                inG.oninput = () => { chipSin.hidden = !!inG.value.trim(); };
+                const guardar = el("button", "gym-btn gym-btn-guardar-ej", "Guardar");
+                guardar.type = "button";
+                guardar.title = "Guardar nombre y grupo de este ejercicio";
+
+                guardar.onclick = async () => {
+                    const nuevoNombre = limpiarNombre(inN.value);
+                    if (!nuevoNombre) return toast("⚠️ El nombre no puede quedar vacío.", false);
+                    const cambioNombre = nuevoNombre !== e.nombre;
+                    const nuevoGrupo = inG.value.trim();
+                    const cambioGrupo = nuevoGrupo !== e.grupo;
+                    if (!cambioNombre && !cambioGrupo) {
+                        editando.delete(e.id);
+                        pintar();
+                        return;
+                    }
+                    if (cambioNombre) {
+                        const choque = cat.some(o => o.id !== e.id && norm(o.nombre) === norm(nuevoNombre));
+                        const aviso = choque
+                            ? "\n\n⚠️ Ya existe OTRO ejercicio con ese nombre: convivirán (comparten texto, no historial)."
+                            : "";
+                        const ok = await confirmar("✏️ Renombrar ejercicio",
+                            `Se pasará «${e.nombre}» → «${nuevoNombre}» en ${e.rutinas.length} rutina(s)` +
+                            (e.plantillas.length ? ` y ${e.plantillas.length} plantilla(s)` : "") + "." +
+                            "\nEl historial NO se pierde: el id del ejercicio es estable." + aviso,
+                            "Renombrar", "Cancelar");
+                        if (!ok) return;
+                    }
+                    try {
+                        guardar.disabled = true;
+                        const res = cambioNombre ? await renombrarEjercicio(e.id, nuevoNombre) : null;
+                        await fijarGrupo(e.id, nuevoGrupo);   // vacío = sin grupo
+                        toast(cambioNombre
+                            ? `✅ «${nuevoNombre}» actualizado: ${res?.rutinas ?? 0} rutina(s)` +
+                              (res?.plantillas ? `, ${res.plantillas} plantilla(s)` : "")
+                            : nuevoGrupo ? `🏷 «${nuevoNombre}»: grupo «${nuevoGrupo}»`
+                                         : `🏷 «${nuevoNombre}»: sin grupo`);
+                        editando.delete(e.id);
+                        cat = await catalogoGestion();   // refrescar nombres, grupos y orden
+                        pintar();
+                    } catch (err: unknown) {
+                        guardar.disabled = false;
+                        console.error("[Gym Stone renombrar]", err);
+                        toast("⚠️ No pude guardar: " + msgError(err), false);
+                    }
+                };
+
+                controles.append(inN, inG, chipSin, guardar);
+                fila.appendChild(controles);
+            }
             lista.appendChild(fila);
         }
-        const nSinGrupo = cat.filter(x => !x.grupo).length;
         cuenta.textContent = cargando
             ? "Leyendo el catálogo del vault…"
             : `${cat.length} ejercicios` +

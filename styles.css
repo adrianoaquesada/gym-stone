@@ -180,7 +180,8 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 /* overflow-x:hidden: durante el deslizamiento a los lados el contenido se sale
    de la caja un instante y, sin esto, asomaba una barra horizontal */
 .gym-modo-cuerpo { flex:1 1 auto; overflow:auto; overflow-x:hidden; padding:12px 14px 14px; -webkit-overflow-scrolling:touch; touch-action:pan-y; }
-.gym-modo-progreso { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:6px; }
+.gym-modo-progreso { flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px;
+  margin:0; padding:8px 14px; border-bottom:1px solid var(--background-modifier-border); }
 .gym-modo-progreso-actual { color:#F99624; font-weight:800; }
 .gym-modo-pasos { display:flex; align-items:center; justify-content:flex-end; gap:5px; flex-wrap:wrap; }
 .gym-modo-paso { display:block; width:18px; height:4px; border-radius:3px; background:var(--background-modifier-border); }
@@ -192,6 +193,24 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
   color:var(--text-muted); text-transform:uppercase; }
 .gym-modo-temporizador { margin-top:14px; }
 .gym-modo-temporizador .gym-descanso { margin:0; }
+.gym-modo-accion.descansando { flex-direction:column; }
+.gym-modo-accion.descansando .gym-descanso { width:100%; margin:0; }
+.gym-descanso-compacto { padding:6px 8px; }
+.gym-descanso-controles { display:grid; grid-template-columns:minmax(0,1fr) 52px minmax(72px,auto) 52px minmax(0,1fr);
+  align-items:center; gap:8px; }
+.gym-descanso-controles > .gym-btn-g { min-width:0; min-height:44px; padding:6px 5px; white-space:nowrap; }
+.gym-descanso-controles > .gym-btn-g:first-child { justify-self:start; }
+.gym-descanso-controles > .gym-btn-g:nth-child(2),
+.gym-descanso-controles > .gym-btn-g:nth-child(4) { width:52px; }
+.gym-descanso-controles > .gym-btn-g:last-child { justify-self:end; }
+.gym-descanso-centro { position:relative; grid-column:3; grid-row:1; display:flex; align-items:center;
+  justify-content:center; height:44px; text-align:center; }
+.gym-descanso-centro .gym-et { position:absolute; right:0; bottom:calc(100% - 5px); left:0;
+  margin:0; white-space:nowrap; }
+.gym-descanso-compacto .t { font-size:1.9em; line-height:1; }
+.gym-descanso-barra { height:5px; margin:5px 0 0; overflow:hidden; border-radius:4px;
+  background:var(--background-secondary); }
+.gym-descanso-propietario { margin-top:4px; text-align:center; font-size:.72em; opacity:.7; }
 .gym-modo-accion { display:flex; gap:8px; padding:8px 12px 0;
   border-top:1px solid var(--background-modifier-border); }
 /* El margen de la barra de navegación ya lo pone .gym-modo (--gym-safe-bottom),
@@ -247,6 +266,19 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
   .gym-modo-caja { width:100%; height:100%; border:none; border-radius:0; }
   .gym-modo-progreso { align-items:flex-start; flex-direction:column; gap:2px; }
   .gym-modo-pasos { justify-content:flex-start; }
+  .gym-descanso-controles { grid-template-columns:minmax(0,1fr) 42px minmax(64px,auto) 42px minmax(0,1fr); gap:4px; }
+  .gym-descanso-controles > .gym-btn-g { min-height:42px; padding:5px 3px; font-size:.78em; }
+  .gym-descanso-controles > .gym-btn-g:nth-child(2),
+  .gym-descanso-controles > .gym-btn-g:nth-child(4) { width:42px; }
+  .gym-descanso-centro { height:42px; }
+  .gym-descanso-compacto .t { font-size:1.6em; }
+}
+@media (max-width: 420px) {
+  .gym-descanso-controles > .gym-btn-descanso-pausa,
+  .gym-descanso-controles > .gym-btn-descanso-saltar { width:34px; min-width:34px; padding:4px; font-size:0; }
+  .gym-descanso-controles > .gym-btn-descanso-pausa::before { content:"Ⅱ"; font-size:1rem; }
+  .gym-descanso-controles > .gym-btn-descanso-pausa.reanudar::before { content:"▶"; font-size:.9rem; }
+  .gym-descanso-controles > .gym-btn-descanso-saltar::before { content:"⏭"; font-size:1rem; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -507,6 +539,26 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-sin-grupo { opacity: .45; }
 .gym-chip-btn { flex: none; cursor: pointer; opacity: .85; }
 .gym-ej-sub { font-size: .75em; opacity: .62; margin-top: 1px; }
+.gym-ejercicios-categorias {
+    display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; overflow-y: hidden;
+    margin-top: 4px; padding: 8px 0 5px; overscroll-behavior-x: contain;
+    scrollbar-width: thin; -webkit-overflow-scrolling: touch;
+}
+.gym-ejercicios-categorias .gym-chip {
+    flex: 0 0 auto; min-height: 40px; padding: 8px 14px; border-radius: 999px;
+    font-size: .84em; white-space: nowrap; cursor: pointer;
+}
+.gym-ejercicios-fila {
+    padding: 12px 14px; border-bottom: 1px solid var(--background-modifier-border);
+}
+.gym-ejercicios-fila-cab { display: flex; align-items: center; gap: 12px; }
+.gym-ejercicios-fila .gym-ej-nombre { font-size: .96em; font-weight: 600; }
+.gym-ejercicios-fila .gym-ej-sub { font-size: .78em; }
+.gym-ejercicio-editar { flex: none; min-width: 40px; min-height: 40px; font-size: 1em; }
+.gym-ejercicios-editor {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--background-modifier-border);
+}
 
 /* ── Selector de unidad de peso (kg | lb) ───────────────────────────────── */
 .gym-selector-um { display: inline-flex; gap: 6px; align-items: center; }
@@ -553,7 +605,7 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
     max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px);
     overflow: hidden;
 }
-.gym-temp-anillo { position: relative; width: min(240px, 58vw); aspect-ratio: 1; margin: 6px auto 10px; touch-action: pan-y; transform-origin: center; }
+.gym-temp-anillo { position: relative; width: min(320px, calc(100vw - 56px)); aspect-ratio: 1; margin: 6px auto 10px; touch-action: pan-y; transform-origin: center; }
 .gym-temp-anillo { flex: 0 0 auto; }
 .gym-temp-anillo svg { width: 100%; height: 100%; display: block; }
 .gym-temp-cronometro-activo .gym-temp-anillo {
@@ -568,7 +620,7 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-temp-cronometro-activo .gym-temp-configuracion,
 .gym-temp-cronometro-activo .gym-temp-pie-controles { display: none; }
 .gym-temp-cronometro-activo .gym-temp-cen {
-    position: static; min-height: 100px; justify-content: center;
+    position: static; min-height: 100px; justify-content: center; padding: 0;
 }
 .gym-temp-cronometro-activo .gym-temp-t {
     font-size: clamp(2.8em, 12vw, 4em); color: var(--text-normal);
@@ -579,11 +631,11 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
     transition: stroke-dashoffset .25s linear, stroke .3s;
 }
 .gym-temp-cen {
-    position: absolute; inset: 0; display: flex; flex-direction: column;
+    position: absolute; inset: 0; box-sizing: border-box; display: flex; flex-direction: column;
     align-items: center; justify-content: space-evenly; text-align: center;
 }
 .gym-temp-t {
-    font-size: 2.6em; font-weight: 800; font-variant-numeric: tabular-nums;
+    font-size: 2.45em; font-weight: 500; font-variant-numeric: tabular-nums;
     color: #F99624; line-height: 1.05;
 }
 .gym-temp-sub { font-size: .76em; opacity: .7; }
@@ -704,7 +756,7 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
         max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px);
         padding: 10px;
     }
-    .gym-temp-anillo { width: min(190px, 48vw); margin-block: 2px 6px; }
+    .gym-temp-anillo { width: min(260px, calc(100vw - 80px)); margin-block: 2px 6px; }
     .gym-temp-caja { overflow-y: auto; }
     .gym-temp-lista-sec .gym-temp-lista {
         flex-basis: min(30vh, 220px); height: min(30vh, 220px); min-height: 0;
@@ -731,6 +783,10 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-temp-chip {
     position: relative; flex: none; min-height: 42px; padding: 8px 20px 8px 14px; font-size: .88em;
     cursor: pointer; scroll-snap-align: start;
+}
+.gym-temp-chip.enfocado {
+    background: color-mix(in srgb, #F99624 16%, var(--background-secondary));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, #F99624 45%, transparent);
 }
 .gym-temp-chip.marcado-eliminar {
     border-color: #e74c3c; background: color-mix(in srgb, #e74c3c 22%, var(--background-secondary));
