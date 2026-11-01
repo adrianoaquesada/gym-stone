@@ -1,16 +1,3 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   Calendario mensual de la rutina y detalle de un día.
-
-   · Sección 2 del motor: rejilla de 42 cuadros (lunes primero, como en
-     trading), navegable por mes, con resumen del mes y tabla de semanas.
-   · Sección 2b: al clicar un cuadro se abre el modal «detalle de ese día»,
-     con sus sesiones, anotaciones y los botones de registrar/editar/borrar.
-
-   El mes abierto se recuerda entre renders en un Map por rutina (en el motor
-   era `window.__gymCalendario`), para que un repintado del dashboard no
-   vuelva siempre al mes actual.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
 import { CONFIG, DIAS, DIAS_LARGO } from "../config";
 import {
     diaProgramado, escribirRutina, esLibre, esSaltada, esSinRegistrar, nombreDia,
@@ -26,11 +13,8 @@ import { btn, conAyuda, confirmar, el, modal, toast } from "./componentes";
 import type { Pintar } from "./pintar";
 import { abrirRegistro, formularioAnotacion, formularioSesion } from "./registro";
 
-/* El mes abierto sobrevive a los re-renders del dashboard (por rutina) */
 const almacenMeses = new Map<string, number>();
 
-/* Carga de un día o una sesión: kilos en «peso» y segundos en «tiempo»/
-   «intervalo». Si no hay ninguno de los dos, «0 kg» como antes. */
 const cargaTexto = (kg: number, seg: number): string => {
     const partes: string[] = [];
     if (kg > 0) partes.push(pesoTexto(kg));
@@ -38,15 +22,12 @@ const cargaTexto = (kg: number, seg: number): string => {
     return partes.length ? partes.join(" · ") : pesoTexto(0);
 };
 
-/* ══════════════════ 2 · Calendario mensual ══════════════════ */
-
 export function seccionCalendario(c: HTMLElement, rutina: Rutina, pintar: Pintar): void {
     c.appendChild(el("div", "gym-tit")).append(
         el("span", null, "📅 Calendario"),
         " — clic en un cuadro para ver (y editar) el detalle de ese día",
     );
 
-    // Sesiones agrupadas por fecha
     const porDia = new Map<string, Sesion[]>();
     for (const s of rutina.sesiones ?? []) {
         if (!esFechaValida(s.fecha)) continue;
@@ -60,24 +41,20 @@ export function seccionCalendario(c: HTMLElement, rutina: Rutina, pintar: Pintar
     const claves = [...porDia.keys()].map(d => d.slice(0, 7));
     const clavesUnicas = [...new Set(claves)].sort();
 
-    // Navegación libre: como en el panel de trading se arranca en el mes más
-    // reciente con datos, pero sin bloquear ◀/▶ (así puedes ir al mes actual
-    // o al de la fecha de inicio aunque no haya sesiones ahí).
     const mesMin = clavesUnicas.length ? aMes(clavesUnicas[0])
         : Math.min(hoyMes, aMes((rutina.inicio ?? hoy()).slice(0, 7)));
     const mesMax = Math.max(hoyMes, clavesUnicas.length ? aMes(clavesUnicas[clavesUnicas.length - 1]) : hoyMes);
 
-    // El mes abierto se recuerda entre renders (por rutina)
     let indiceMes = almacenMeses.get(rutina.id) ?? Math.min(mesMax, hoyMes);
     indiceMes = Math.max(mesMin, Math.min(mesMax, indiceMes));
 
     const nav = el("div", "display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;");
     c.appendChild(nav);
-    const estiloBtn = "padding:5px 12px;border-radius:6px;border:1px solid var(--background-modifier-border);background:var(--background-secondary);color:var(--text-normal);cursor:pointer;font-size:.9em;min-height:34px;";
+    const estiloBtn = "box-sizing:border-box;height:34px;min-height:34px;padding:4px 10px;border-radius:6px;border:1px solid var(--background-modifier-border);background:var(--background-secondary);color:var(--text-normal);cursor:pointer;font-size:.9em;";
     const btnAnt = el("button", estiloBtn, "◀"); btnAnt.type = "button"; btnAnt.title = "Mes anterior";
     const etiqueta = el("div", "font-weight:700;font-size:.95em;min-width:150px;text-align:center;");
     const btnSig = el("button", estiloBtn, "▶"); btnSig.type = "button"; btnSig.title = "Mes siguiente";
-    const selector = el("select", "padding:5px 8px;border-radius:6px;border:1px solid var(--background-modifier-border);background:var(--background-primary);color:var(--text-normal);font-size:.85em;");
+    const selector = el("select", "box-sizing:border-box;height:34px;min-height:34px;padding:4px 8px;border-radius:6px;border:1px solid var(--background-modifier-border);background:var(--background-primary);color:var(--text-normal);font-size:.85em;");
     for (const clave of [...new Set(claves)].sort().reverse()) {
         const n = [...porDia.entries()].filter(([d]) => d.startsWith(clave)).reduce((t, [, a]) => t + a.length, 0);
         const o = createEl("option");
@@ -87,7 +64,7 @@ export function seccionCalendario(c: HTMLElement, rutina: Rutina, pintar: Pintar
     }
     nav.appendChild(btnAnt); nav.appendChild(etiqueta); nav.appendChild(btnSig); nav.appendChild(selector);
 
-    const cajaMes = el("div", "margin-bottom:6px;");   // cssText vía el(): permitido
+    const cajaMes = el("div", "margin-bottom:6px;");
     c.appendChild(cajaMes);
 
     const pintarMes = (): void => {
@@ -101,7 +78,6 @@ export function seccionCalendario(c: HTMLElement, rutina: Rutina, pintar: Pintar
 
         cajaMes.empty();
 
-        // Días programados y sesiones del mes
         const primerDia = `${anyo}-${dos(mes + 1)}-01`;
         const ultimoDia = `${anyo}-${dos(mes + 1)}-${dos(new Date(anyo, mes + 1, 0).getDate())}`;
         const progMes = programados(rutina, primerDia, ultimoDia);
@@ -111,11 +87,9 @@ export function seccionCalendario(c: HTMLElement, rutina: Rutina, pintar: Pintar
         const segundosMes = sesionesMes.reduce((t, s) => t + segundosSesion(s), 0);
         const hechas = progMes.filter(p => porDia.has(p.fecha)).length;
         const pctMes = progMes.length ? (hechas / progMes.length) * 100 : NaN;
-        // En la libre no hay días programados: lo que se cuenta son los días
-        // distintos con sesión en este mes.
+
         const diasMes = new Set(sesionesMes.map(s => s.fecha)).size;
 
-        // Resumen del mes
         const resumen = el("div", "display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:.85em;margin-bottom:10px;");
         const cabeceraMes = el("span", "gym-res-sesiones",
             `${sesionesMes.length} ${sesionesMes.length === 1 ? "sesión" : "sesiones"}`);
@@ -140,12 +114,10 @@ export function seccionCalendario(c: HTMLElement, rutina: Rutina, pintar: Pintar
         }
         cajaMes.appendChild(resumen);
 
-        // Cabecera de la semana (empieza en lunes, como en trading)
         const cab = el("div", "display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px;");
         for (const d of DIAS) cab.appendChild(el("div", "padding:0 6px;opacity:.5;font-weight:600;font-size:.7em;", d));
         cajaMes.appendChild(cab);
 
-        // Rejilla de 42 cuadros (con las colas opacas de los meses contiguos)
         const offset = (new Date(anyo, mes, 1).getDay() + 6) % 7;
         const diasDelMes = new Date(anyo, mes + 1, 0).getDate();
         const diasPrevios = new Date(anyo, mes, 0).getDate();
@@ -172,7 +144,6 @@ export function seccionCalendario(c: HTMLElement, rutina: Rutina, pintar: Pintar
         }
         cajaMes.appendChild(rejilla);
 
-        // Leyenda
         const ley = el("div", "font-size:.78em;opacity:.72;margin-top:8px;");
         ley.append(
             el("span", "gym-verde", "■"), " completado   ",
@@ -181,7 +152,6 @@ export function seccionCalendario(c: HTMLElement, rutina: Rutina, pintar: Pintar
         );
         cajaMes.appendChild(ley);
 
-        // Resumen semanal del mes (como el pie del calendario de trading)
         cajaMes.appendChild(tablaSemanas(rutina, primerDia, ultimoDia, porDia, progPorFecha));
     };
 
@@ -190,8 +160,6 @@ export function seccionCalendario(c: HTMLElement, rutina: Rutina, pintar: Pintar
     selector.onchange = () => { indiceMes = Number(selector.value); pintarMes(); };
     pintarMes();
 }
-
-/* ── Cuadro de un día ───────────────────────────────────────────────────── */
 
 interface ParamsCelda {
     clave: string;
@@ -203,10 +171,6 @@ interface ParamsCelda {
     pintar: Pintar;
 }
 
-/* Nombre del día que se enseña en una celda de RUTINA LIBRE: no hay plan del
-   que traerlo, así que sale el de las propias sesiones de ese día (su diaId,
-   el nombre que se le dio al registrarlas), igual que en las tablas y en la
-   sesión guiada. Si en una misma fecha conviven varios, el más repetido. */
 const nombreDiaDeSesiones = (sesiones: Sesion[]): string => {
     const cuenta = new Map<string, number>();
     let mejor = "", nMejor = 0;
@@ -229,28 +193,23 @@ const celdaCalendario = ({ clave, numero, fuera, progPorFecha, porDia, rutina, p
     const volumen = sesiones.reduce((t, s) => t + volumenSesion(s), 0);
     const segundos = sesiones.reduce((t, s) => t + segundosSesion(s), 0);
 
-    // El relleno es SOLO de hoy: los demás días no se colorean (su estado se
-    // distingue por el BORDE: verde = con sesión, rojo = programado pasado,
-    // naranja = pendiente de hoy en adelante)
     let borde = "transparent";
     if (sesiones.length) borde = CONFIG.VERDE;
     else if (diaProg && pasado) borde = CONFIG.ROJO;
     else if (diaProg) borde = CONFIG.NARANJA;
 
     const cel = el("div", "gym-cel" + (esHoy ? " hoy" : ""));
-    // Fondo: HOY en naranja atenuado; los días con anotación, gris suave;
-    // el resto, transparente (su estado lo marca el borde)
+
     cel.style.background = esHoy
         ? `color-mix(in srgb, ${CONFIG.NARANJA} 15%, transparent)`
         : anotaciones.length ? "var(--background-secondary)"
         : "transparent";
     cel.style.borderColor = borde;
-    if (fuera) cel.classList.add("fuera");                          // colas del mes (CSS)
-    if (diaProg && !sesiones.length) cel.classList.add("sin-hacer"); // programado y sin registrar (CSS)
+    if (fuera) cel.classList.add("fuera");
+    if (diaProg && !sesiones.length) cel.classList.add("sin-hacer");
 
     cel.appendChild(el("div", "n", String(numero)));
-    // El nombre del día: en la planificada lo trae el plan (diaProg); en la
-    // libre, el de las sesiones de esa fecha. Se pinta igual en los dos casos.
+
     const nomDia = diaProg ? diaProg.nombre : nombreDiaDeSesiones(sesiones);
     if (nomDia) {
         const d = el("div", "d", nomDia);
@@ -259,9 +218,7 @@ const celdaCalendario = ({ clave, numero, fuera, progPorFecha, porDia, rutina, p
     }
     if (sesiones.length) cel.appendChild(el("div", "v", `${sesiones.length > 1 ? sesiones.length + "× " : ""}${cargaTexto(volumen, segundos)}`));
     else if (diaProg && pasado) cel.appendChild(el("div", "v", "omitido"));
-    // La anotación del día se ve SIEMPRE: vive fija en la esquina inferior
-    // derecha del cuadrado, fuera del flujo — así no compite con el .v de
-    // volumen u «omitido», que siguen ocupando su propia línea.
+
     if (anotaciones.length) {
         cel.classList.add("con-nota");
         cel.appendChild(el("div", "gym-cel-nota", "📝"));
@@ -271,8 +228,6 @@ const celdaCalendario = ({ clave, numero, fuera, progPorFecha, porDia, rutina, p
     cel.onclick = () => detalleDia(rutina, clave, pintar);
     return cel;
 };
-
-/* ── Resumen semanal del mes ─────────────────────────────────────────────── */
 
 interface SemanaResumen {
     desde: string;
@@ -301,15 +256,14 @@ const tablaSemanas = (
         const w = semanas.get(clave)!;
         if (progPorFecha.has(f)) w.prog++;
         for (const s of porDia.get(f) ?? []) { w.hechas++; w.vol += volumenSesion(s); w.seg += segundosSesion(s); w.min += Number(s.duracionMin) || 0; }
-        // En la libre no hay «programado»: lo que interesa es cuántos días distintos
-        // de esa semana has entrenado.
+
         if (porDia.has(f)) w.dias.add(f);
     }
     if (!semanas.size) return el("div");
     const wrap = el("div", "margin-top:10px;");
     const tabla = createEl("table");
     tabla.className = "gym-tabla";
-    // La columna «Adherencia» solo tiene sentido con días programados
+
     const thead = createEl("thead");
     const trH = createEl("tr");
     for (const h of libre
@@ -329,9 +283,9 @@ const tablaSemanas = (
     for (const w of [...semanas.values()].sort((a, b) => (a.desde < b.desde ? -1 : 1))) {
         const tr = createEl("tr");
         tr.appendChild(celda(`${w.desde.slice(8)}/${w.desde.slice(5, 7)} → ${w.hasta.slice(8)}/${w.hasta.slice(5, 7)}`));
-        // En la libre solo hay sesiones contadas; en la planificada, hechas/programadas
+
         tr.appendChild(celda(libre ? String(w.hechas) : `${w.hechas}/${w.prog || "–"}`));
-        // La tercera columna es «Días» en la libre y «Volumen / tiempo» en la planificada
+
         if (libre) tr.appendChild(celda(String(w.dias.size || "–")));
         tr.append(celda(cargaTexto(w.vol, w.seg)), celda(String(w.min || "–")));
         if (!libre) {
@@ -351,17 +305,12 @@ const tablaSemanas = (
     return wrap;
 };
 
-/* ══════════════════ 2b · Detalle de un día (clic en el calendario) ══════════════════ */
-
-/* min:seg del reloj de sesión («3:05»; con horas: «1:03:05») */
 const relojMs = (ms: number): string => {
     const s = Math.max(0, Math.round(ms / 1000));
     const h = Math.floor(s / 3600);
     return (h ? `${h}:${dos(Math.floor((s % 3600) / 60))}` : String(Math.floor(s / 60))) + `:${dos(s % 60)}`;
 };
 
-/* Barra horizontal de gráfico (CSS puro, sin dependencias); con `ayuda` la
-   barra entera responde al cursor/tap con su dato completo */
 const barraH = (max: number, etiqueta: string, valor: number, texto: string, color: string, ayuda?: string): HTMLDivElement => {
     const f = el("div", "display:flex;align-items:center;gap:8px;margin:3px 0;font-size:.82em;");
     f.appendChild(el("div", "flex:0 0 100px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.85;", etiqueta));
@@ -373,19 +322,15 @@ const barraH = (max: number, etiqueta: string, valor: number, texto: string, col
     return f;
 };
 
-/* Resumen del día: KPIs (duración, volumen, tiempo de trabajo, series, reps,
-   ritmo y descanso previsto) + gráficos CSS: volumen y tiempo por ejercicio,
-   histograma de series por carga y —cuando las series traen su «t» (sesión
-   guiada)— histograma del tiempo entre registros con media y mediana. */
 const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
     let min = 0, vol = 0, seg = 0, reps = 0, hechas = 0, saltadas = 0;
     const porEj = new Map<string, { nombre: string; vol: number; seg: number; reps: number; series: number }>();
     const cargas = new Map<string, { peso: number | null; n: number; reps: number }>();
-    const deltas: number[] = [];   // ms entre registros consecutivos (descanso + ejecución de la siguiente serie)
-    const descs: number[] = [];    // descansos previstos (s) de los ejercicios del día
-    const pausasMs: number[] = []; // duración de cada pausa de la sesión
-    const descReal: number[] = []; // descansos REALES entre series (ms), cuando la serie los trae
-    const ejecs: number[] = [];    // tiempos (aprox.) de ejecución (ms), cuando la serie los trae
+    const deltas: number[] = [];
+    const descs: number[] = [];
+    const pausasMs: number[] = [];
+    const descReal: number[] = [];
+    const ejecs: number[] = [];
 
     for (const s of sesiones) {
         min += Number(s.duracionMin) || 0;
@@ -395,7 +340,7 @@ const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
         for (const e of s.ejercicios ?? []) {
             const d = Number(e.descansoSeg) || 0;
             if (d > 0) descs.push(d);
-            // El tipo viaja en la sesión (2b/2c); ausente = «peso» (datos previos)
+
             const tipo = tipoEjercicioDe(e);
             const k = e.ejercicioId || e.nombre || "?";
             const actual = porEj.get(k) ?? { nombre: e.nombre || e.ejercicioId || "?", vol: 0, seg: 0, reps: 0, series: 0 };
@@ -405,16 +350,14 @@ const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
             porEj.set(k, actual);
             const sinReg = esSinRegistrar(e);
             for (const x of e.series ?? []) {
-                if (sinReg) { /* ⏳ sin datos: solo aporta su tiempo si lo tiene */ }
-                else if (esSaltada(x)) saltadas++;
-                else {
+                if (!sinReg && esSaltada(x)) saltadas++;
+                else if (!sinReg) {
                     hechas++; reps += Number(x.reps) || 0;
                     actual.reps += Number(x.reps) || 0;
                     actual.series++;
                     if (x.descansoMs != null) descReal.push(x.descansoMs);
                     if (x.ejecMs != null) ejecs.push(x.ejecMs);
-                    // El histograma de cargas es solo de «peso»: las series de
-                    // tiempo/intervalo no tienen kilos que agrupar.
+
                     if (tipo === "peso") {
                         const et = pesoTexto(x.peso);
                         const c = cargas.get(et) ?? { peso: x.peso ?? null, n: 0, reps: 0 };
@@ -500,11 +443,6 @@ const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
     }
 };
 
-/* 🕒 Línea de tiempo de una sesión: cada ejercicio es una fila con sus series
-   colocadas en su instante real (✔ de color por ejercicio, ⏭ tenue), el tramo
-   «de vida» del primero al último registro y el eje con su escala 0 → fin.
-   Cada tick responde al cursor/tap con el dato completo de su serie.
-   Solo tiene sentido donde hay «t» (sesión guiada): sin tiempos no se pinta. */
 const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
     type Ev = { t: number; hecha: boolean; reps: number | null; peso: number | null; dur: number | null; descansoMs?: number; ejecMs?: number };
     const filas: { nombre: string; evs: Ev[] }[] = [];
@@ -526,14 +464,14 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
         if (evs.length) filas.push({ nombre: e.nombre || e.ejercicioId || "–", evs });
     }
     if (!filas.length) return null;
-    // El eje cubre hasta el fin real de la sesión (o al menos un minuto)
+
     const eje = Math.max(lejos, (Number(s.duracionMin) || 0) * 60000, 60000);
     const pct = (t: number): number => Math.min(100, Math.max(0, t / eje * 100));
     const col = (i: number): string => [CONFIG.NARANJA, CONFIG.AZUL, CONFIG.VERDE, "#af7ac5"][i % 4];
 
     const wrap = el("div", "margin:10px 0 6px;");
     wrap.appendChild(el("div", "gym-et", "🕒 Línea de tiempo de la sesión"));
-    // Fila de pausas (si las hubo): marca dónde se pausó y cuánto duró cada una
+
     if (s.pausas?.length) {
         const filaP = el("div", "display:flex;align-items:center;gap:8px;margin:3px 0;");
         filaP.appendChild(el("div", "flex:0 0 90px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.76em;opacity:.6;", "⏸ pausas"));
@@ -559,12 +497,12 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
             (fin.t > f.evs[0].t ? ` · ${relojMs(fin.t - f.evs[0].t)} de duración` : ""));
         fila.appendChild(nom);
         const pista = el("div", "flex:1;position:relative;height:14px;border-radius:7px;background:var(--background-secondary);overflow:hidden;");
-        // Tramo «de vida»: de su primera a su última serie
+
         const tramo = el("div", `position:absolute;top:0;bottom:0;border-radius:7px;background:${color};opacity:.18;`);
         tramo.style.left = `${pct(f.evs[0].t)}%`;
         tramo.style.width = `${Math.max(1, pct(fin.t) - pct(f.evs[0].t))}%`;
         pista.appendChild(tramo);
-        // Un tick por evento (serie): ✔ de color, ⏭ tenue — con su dato al tocar
+
         f.evs.forEach((ev, iS) => {
             const tick = el("div", `position:absolute;top:2px;bottom:2px;width:4px;border-radius:2px;background:${ev.hecha ? color : "var(--text-faint)"};`);
             tick.style.left = `calc(${pct(ev.t)}% - 2px)`;
@@ -581,7 +519,7 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
         fila.appendChild(pista);
         wrap.appendChild(fila);
     });
-    // Escala del eje: 0 · ¼ · ½ · ¾ · fin
+
     const escala = el("div", "display:flex;justify-content:space-between;font-size:.7em;opacity:.55;margin:2px 0 0 98px;");
     for (const p of [0, 0.25, 0.5, 0.75, 1]) escala.appendChild(el("span", "", relojMs(eje * p)));
     wrap.appendChild(escala);
@@ -602,13 +540,13 @@ export function detalleDia(rutina: Rutina, fecha: string, pintar: Pintar): void 
         const prog = diaProgramado(rutina, fecha);
 
         cajaD.appendChild(el("div", "gym-et", esLibre(rutina)
-            // En la libre no hay programa: un día es "de descanso" si no anotaste nada
+
             ? (sesiones.length || anotaciones.length
                 ? "Rutina libre · con registros"
                 : "Rutina libre · sin registros ese día")
             : `Programado: ${prog ? prog.nombre : "descanso (día no programado)"}`));
 
-        if (sesiones.length) bloqueResumenDia(cajaD, sesiones);   // KPIs + gráficos del día
+        if (sesiones.length) bloqueResumenDia(cajaD, sesiones);
 
         if (!sesiones.length && !anotaciones.length) {
             cajaD.appendChild(el("div", "opacity:.7;font-size:.88em;margin:10px 0;", "Ese día no tiene registros todavía."));
@@ -651,7 +589,7 @@ export function detalleDia(rutina: Rutina, fecha: string, pintar: Pintar): void 
             cab.append(tit, acciones);
             box.appendChild(cab);
 
-            const lt = lineaTiempo(s);   // 🕒 con «t» (guiada): se ve toda la sesión en su eje
+            const lt = lineaTiempo(s);
             if (lt) box.appendChild(lt);
 
             const tabla = createEl("table");
@@ -663,7 +601,7 @@ export function detalleDia(rutina: Rutina, fecha: string, pintar: Pintar): void 
             const tb = createEl("tbody");
             for (const e of s.ejercicios ?? []) {
                 const sinReg = esSinRegistrar(e);
-                // Tipo de la propia sesión; ausente = «peso» (datos previos)
+
                 const tipo = tipoEjercicioDe(e);
                 const esPeso = tipo === "peso";
                 const celdas = (e.series ?? []).map(x => esSaltada(x)
@@ -673,8 +611,7 @@ export function detalleDia(rutina: Rutina, fecha: string, pintar: Pintar): void 
                         : `${x.duracionSeg ?? "–"} s`);
                 const nHechas = seriesHechas(e).length;
                 const nSaltadas = (e.series ?? []).length - nHechas;
-                // ⏱ Tiempos (sesión guiada): a qué hora pasó cada serie y el
-                // tiempo entre una y otra (con ritmo de ese ejercicio)
+
                 const conT = seriesHechas(e).filter(x => x.t != null).map(x => x.t as number);
                 let lineaT: HTMLDivElement | null = null;
                 if (conT.length >= 2) {

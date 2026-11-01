@@ -1,27 +1,3 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   Temporizador libre (cuenta atrás para lo que quieras: descanso, series
-   temporizadas, cocina…). No está atado a ninguna rutina ni a ninguna sesión.
-
-   Se abre desde «Rutinas» —la lista o el dashboard de una rutina— o con el
-   comando «Abrir el temporizador». Es la suma de tres referencias: el anillo
-   circular con la hora a la que sonará, el ajuste a mano de h/m/s y los
-   presets de un toque —en carrusel lateral—, más los controles del descanso
-   de la sesión guiada (−15 s, ＋15 s…). Ni los presets arrancan: solo fijan
-   la duración; el botón principal crea una cuenta atrás independiente. Las
-   cuentas activas aparecen en una vista circular navegable o en una lista con
-   pausa, reanudación y eliminación.
-
-   El estado vive en el MÓDULO, no en el modal: se puede cerrar la ventana y
-   las cuentas atrás siguen corriendo; al volver se reanudan donde estaban. Al
-   llegar a 0 cada una suena y vibra de forma independiente (el sonido, su volumen y su interruptor
-   viven en sonido.ts y en Ajustes → Gym Stone) y sale un aviso. El tiempo
-   sale de Date.now() —no de tics—, así que con la pantalla apagada u
-   Obsidian en segundo plano, al volver se recalcula solo: la misma lección
-   que el descanso de la sesión guiada. Mientras corre (y con el ajuste
-   «Mantener la pantalla encendida» activo, por defecto) la pantalla no se
-   apaga sola —ver despierta.ts—; al pausar, eliminar o terminar se suelta.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
 import { dos } from "../util";
 import { ReclamoDespierta } from "../despierta";
 import { aplicacion, conf, persistirAjustes } from "../estado";
@@ -30,8 +6,7 @@ import type { CronometroLibre, ParcialCronometro, TemporizadorLibre } from "../t
 import { el, modal, ponerX, toast } from "./componentes";
 import { prepararAudio, reiniciarCuentaAtras, sonarCuentaAtras, sonarTemporizador, vibrar } from "./sonido";
 
-/* ── Estado (del módulo: sobrevive al cierre del modal) ─────────────────── */
-let totalMs = 5 * 60000;        // la duración elegida (5:00 al empezar)
+let totalMs = 5 * 60000;
 let temporizadores: TemporizadorLibre[] = [];
 let secuenciaTemporizador = 0;
 let temporizadorEnAnilloId: string | null = null;
@@ -45,7 +20,7 @@ let parcialesCronometro: ParcialCronometro[] = [];
 let estadoParciales: "sin-cargar" | "listos" | "error" = "sin-cargar";
 let idReloj: number | null = null;
 let idColaAvisos: number | null = null;
-let alPintar: (() => void) | null = null;   // repintado del modal, si está abierto
+let alPintar: (() => void) | null = null;
 const colaAvisos: string[] = [];
 const CLAVE_PARCIALES = "gym-stone-parciales-cronometro";
 
@@ -249,7 +224,6 @@ const eliminarTemporizador = (temporizador: TemporizadorLibre): void => {
     notificar();
 };
 
-/* Detiene el intervalo al descargar el plugin (lo llama main.onunload) */
 export const pararTemporizador = (): void => {
     if (idReloj != null) window.clearInterval(idReloj);
     if (idColaAvisos != null) window.clearTimeout(idColaAvisos);
@@ -268,7 +242,6 @@ export const pararTemporizador = (): void => {
     alPintar = null;
 };
 
-/* ── Formato ────────────────────────────────────────────────────────────── */
 const fmt = (ms: number, redondearArriba = true): string => {
     const segundos = redondearArriba ? Math.ceil(ms / 1000) : Math.floor(ms / 1000);
     const s = Math.max(0, segundos);
@@ -296,16 +269,11 @@ const svgEl = (tag: string, attrs: Record<string, string>): SVGElement => {
     return n;
 };
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   El modal. Se puede cerrar (✕, Escape o clic fuera) sin parar la cuenta
-   atrás: al reabrirlo se ve donde iba.
-   ═══════════════════════════════════════════════════════════════════════════ */
 export function abrirTemporizador(): void {
     const m = modal("⏱ Temporizador", "cuentas atrás independientes · al cerrarlo siguen corriendo");
     m.caja.classList.add("gym-temp-caja");
     ponerX(m, "Cerrar (la cuenta atrás sigue corriendo)");
 
-    // ── Anillo con el tiempo dentro (arriba el total, abajo la hora del aviso) ──
     const anillo = el("div", "gym-temp-anillo");
     const svg = svgEl("svg", { viewBox: "0 0 200 200", "aria-hidden": "true" });
     const R = 88, C = 2 * Math.PI * R;
@@ -314,8 +282,8 @@ export function abrirTemporizador(): void {
         svgEl("circle", { cx: "100", cy: "100", r: String(R), class: "barra" }),
     );
     const barra = svg.lastElementChild as SVGElement;
-    barra.style.strokeDasharray = String(C);   // perímetro completo: con offset = 0 el anillo está lleno
-    barra.setAttribute("transform", "rotate(-90 100 100)");   // empieza arriba
+    barra.style.strokeDasharray = String(C);
+    barra.setAttribute("transform", "rotate(-90 100 100)");
     const cen = el("div", "gym-temp-cen");
     const tTotal = el("div", "gym-temp-sub");
     const tGrande = el("div", "gym-temp-t");
@@ -338,7 +306,6 @@ export function abrirTemporizador(): void {
     const puntosTemporizadores = el("div", "gym-temp-puntos");
     m.caja.appendChild(puntosTemporizadores);
 
-    // ── Estado (el «Running» de la referencia) ──
     const estado = el("div", "gym-temp-estado");
     m.caja.appendChild(estado);
     const accionesCirculares = el("div", "gym-temp-acciones-circulares");
@@ -545,7 +512,6 @@ export function abrirTemporizador(): void {
     });
     anillo.addEventListener("pointercancel", () => { inicioDeslizamiento = null; });
 
-    // ── Duración de la próxima cuenta atrás ──
     const secConfiguracion = el("div", "gym-temp-configuracion");
     const secAjustar = el("div", "gym-temp-sec");
     const filaAjuste = el("div", "gym-temp-ajuste");
@@ -582,7 +548,6 @@ export function abrirTemporizador(): void {
         entradas[2].value = String(s % 60);
     };
 
-    // ── Presets de un toque: carrusel lateral ──
     const secRapidos = el("div", "gym-temp-sec gym-temp-rapidos");
     const filaPres = el("div", "gym-temp-presets");
     const chips = new Map<number, HTMLButtonElement>();
@@ -688,9 +653,6 @@ export function abrirTemporizador(): void {
     secRapidos.appendChild(filaPres);
     secConfiguracion.appendChild(secRapidos);
 
-    // ── Controles: los ajustes del descanso de la sesión guiada (−15 s,
-    //    ＋15 s). El botón principal y «Eliminar» van debajo, cada uno en su
-    //    propia fila. ──
     const controles = el("div", "gym-temp-controles");
     const bMenos = el("button", "gym-btn-g", "−15 s"); bMenos.type = "button";
     bMenos.title = "Restar 15 segundos";
@@ -734,7 +696,6 @@ export function abrirTemporizador(): void {
     bMas.onclick = () => ajustarDesdeControles(15000);
     controles.append(bMenos, bMas);
 
-    // Inicia una nueva cuenta atrás sin afectar las que ya están en la lista.
     const bIniciar = el("button", "gym-btn gym-temp-iniciar primario", "▶ Iniciar");
     bIniciar.type = "button";
     bIniciar.onclick = () => {
@@ -762,7 +723,6 @@ export function abrirTemporizador(): void {
         notificar();
     });
 
-    // ── Repintado: lee el estado del módulo y lo refleja en pantalla ──
     const pintarTemporizadores = (): void => {
         const idsActuales = new Set(temporizadores.map(t => t.id));
         for (const [id, fila] of filas) {
@@ -878,7 +838,7 @@ export function abrirTemporizador(): void {
     };
 
     const pintar = (): void => {
-        if (!m.overlay.isConnected) { alPintar = null; return; }   // ya se cerró
+        if (!m.overlay.isConnected) { alPintar = null; return; }
         const esCronometro = modo === "cronometro";
         const vista = msDeEntradas();
         totalMs = vista;
@@ -971,9 +931,6 @@ export function abrirTemporizador(): void {
         });
     };
 
-    // Elegir un preset: fija la duración (campos «Ajustar» y anillo a la vez)
-    // y deja el temporizador PARADO, a la espera de «▶ Iniciar». Si había una
-    // cuenta atrás previa, no la modifica.
     const elegirDuracion = (ms: number): void => {
         totalMs = Math.max(1000, ms);
         fijarEntradas(totalMs);

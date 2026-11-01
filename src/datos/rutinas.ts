@@ -1,11 +1,3 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   Rutinas: estructuras por defecto, leer, escribir y borrar.
-
-   Cada rutina vive en UN archivo (su plan + todas sus sesiones y anotaciones)
-   y deja su fila en el índice (datos/indice.ts). No hay notas-dashboard ni
-   frontmatter: el plugin es el dueño único de estos archivos.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
 import { TFile } from "obsidian";
 import { CONFIG } from "../config";
 import { aplicacion } from "../estado";
@@ -18,28 +10,21 @@ import type { DiaRutina, EjercicioDef, LecturaNota, Rutina, SerieSesion, TipoEje
 
 export const rutinaVacia = (): Rutina => ({
     id: "", nombre: "", objetivo: "",
-    tipo: "planificada",             // "planificada" | "libre"
+    tipo: "planificada",
     inicio: hoy(), fin: "", semanas: CONFIG.SEMANAS_POR_DEFECTO,
-    diasSemana: [],                  // unión de los días de la semana de cada día (informativo)
-    dias: [],                        // [{ id, nombre, diasSemana, ejercicios }]
-    sesiones: [],                    // [{ fecha, diaId, duracionMin, anotaciones, ejercicios }]
-    notasDia: [],                    // [{ fecha, texto }]
-    estado: "activa",                // activa | pausada | finalizada
+    diasSemana: [],
+    dias: [],
+    sesiones: [],
+    notasDia: [],
+    estado: "activa",
     creado: "", modificado: "",
 });
 
-// Ejercicio del plan por defecto: tipo «peso» (null = el que se lee siempre
-// como «peso»); duración, trabajo y transición quedan vacías hasta que el
-// creador pida otro tipo de ejercicio.
 export const ejercicioVacio = (): EjercicioDef =>
     ({ id: "", nombre: "", tipoEjercicio: null, series: 3, repsObjetivo: 8, pesoObjetivo: null,
        duracionObjetivo: null, descansoSeg: 90, trabajoSeg: null, transicionSeg: null,
        notas: "", tipoSerie: null });
 
-/* Texto del objetivo de reps de un ejercicio, según su tipo de serie:
-     · fallo   → «al fallo» (sin número: no hay objetivo de reps)
-     · el resto → «10»
-   Lo usan el dashboard, el chip «objetivo» del registro y la sesión guiada. */
 export const textoRepsObjetivo =
     (ej: Pick<EjercicioDef, "repsObjetivo" | "tipoSerie"> | undefined | null): string => {
         if (!ej) return "–";
@@ -49,30 +34,19 @@ export const textoRepsObjetivo =
 
 export const diaVacio = (): DiaRutina => ({ id: "", nombre: "", diasSemana: [], ejercicios: [] });
 
-/* ── Lecturas por defecto de los campos nuevos ──────────────────────────── */
-
-/* Opcionales en disco: las notas escritas antes del cambio no los traen y
-   hay que seguirlas leyendo (sin migración):
-     · tipoEjercicio ausente/null → "peso"
-     · tipoSerie ausente/null     → "trabajo" */
 export const tipoEjercicioDe =
     (ej: Pick<EjercicioDef, "tipoEjercicio"> | undefined | null): TipoEjercicio =>
         ej?.tipoEjercicio ?? "peso";
 
-/* Tipo de serie de una serie registrada: manda lo etiquetado al registrarla
-   (SerieSesion.tipoSerie) y, si no lo lleva, el tipo del plan del ejercicio. */
 export const tipoSerieDe = (
     plan: Pick<EjercicioDef, "tipoSerie"> | undefined | null,
     serie?: Pick<SerieSesion, "tipoSerie"> | null,
 ): TipoSerie => serie?.tipoSerie ?? plan?.tipoSerie ?? "trabajo";
 
-/* Reps objetivo de un ejercicio: en «fallo» no hay número que fijar (cada
-   serie es la que salga); en el resto, las reps fijas del plan. */
 export const repsObjetivoDe =
     (ej: Pick<EjercicioDef, "repsObjetivo" | "tipoSerie"> | undefined | null): number | null =>
         tipoSerieDe(ej) === "fallo" ? null : ej?.repsObjetivo ?? null;
 
-// Fecha de fin a partir del inicio y las semanas
 export const finDesde = (inicio: string, semanas: number): string =>
     sumarDias(inicio, Math.max(1, Number(semanas) || 1) * 7 - 1);
 
@@ -83,8 +57,6 @@ export const semanasTotales = (rutina: Rutina): number => {
 
 export const rutaDatosDe = (id: string): string => `${carpetaDatos()}/${id}${SUFIJO_MD}`;
 
-/* ── Lectura ────────────────────────────────────────────────────────────── */
-
 export const leerRutina = async (id: string): Promise<LecturaNota<Rutina>> => {
     const limp = String(id ?? "").trim();
     if (!limp) return { error: "No tengo el id de la rutina.", ruta: "" };
@@ -94,19 +66,15 @@ export const leerRutina = async (id: string): Promise<LecturaNota<Rutina>> => {
     return r;
 };
 
-/* ── Escritura (siempre acompañada del índice) ──────────────────────────── */
-
 export const escribirRutina = async (rutina: Rutina): Promise<string> => {
     if (!rutina?.id) throw new Error("La rutina no tiene id.");
     rutina.modificado = hoy();
     const ruta = rutaDatosDe(rutina.id);
     await escribirSeguro(ruta, contenidoNotaDatos(rutina));
-    await guardarEnIndice(rutina);      // el índice siempre refleja lo último guardado
+    await guardarEnIndice(rutina);
     return ruta;
 };
 
-/* Borrado: se lleva el archivo de datos y su fila del índice. La copia .bak
-   del anterior queda en disco por si se arrepiente. */
 export const borrarRutina = async (id: string): Promise<void> => {
     const ruta = rutaDatosDe(id);
     const f = aplicacion().vault.getAbstractFileByPath(ruta);
@@ -120,7 +88,6 @@ export const borrarRutina = async (id: string): Promise<void> => {
     await quitarDeIndice(id);
 };
 
-/* Id nuevo para una rutina: rutina-YYYY-MM-<nombre>, desambiguado si ya existe */
 export const idNuevo = async (nombre: string, prefijoFecha = hoy().slice(0, 7)): Promise<string> => {
     const base = `rutina-${prefijoFecha}-${slug(nombre) || "sin-nombre"}`;
     let id = base, n = 2;

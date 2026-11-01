@@ -1,12 +1,3 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   Gestión del catálogo de ejercicios: renombrar y clasificar.
-
-   Los ejercicios no viven en fichero propio —su id es estable y el nombre
-   viaja en cada aparición—, así que renombrar significa reescribir TODAS las
-   rutinas (y plantillas) donde aparezca ese id. El grupo muscular vive en el
-   fichero global de grupos (datos/grupos.ts).
-   ═══════════════════════════════════════════════════════════════════════════ */
-
 import { carpetaDatos } from "../ajustes";
 import { limpiarNombre } from "../util";
 import { archivosMdEnCarpeta, leerNotaDatos } from "./archivos";
@@ -15,17 +6,15 @@ import { actualizarPlantilla, leerPlantilla, listarPlantillas } from "./plantill
 import { cargarGrupos, gruposEnMemoria } from "./grupos";
 import type { Rutina } from "../tipos";
 
-/* Una fila del gestor: un ejercicio CONCRETO (id estable) y dónde vive */
 export interface EjercicioGestion {
     id: string;
-    nombre: string;        // el más visto entre todas sus apariciones
-    grupo: string;         // "" = sin clasificar
-    rutinas: string[];     // ids de las rutinas donde aparece
-    plantillas: string[];  // nombres de las plantillas donde aparece
-    apariciones: number;   // total de sitios (plan + sesiones)
+    nombre: string;
+    grupo: string;
+    rutinas: string[];
+    plantillas: string[];
+    apariciones: number;
 }
 
-// Solo .md de la carpeta de datos (ni .bak ni nada de fuera de ella)
 const archivosRutinas = (): { path: string }[] => {
     try {
         return archivosMdEnCarpeta(carpetaDatos());
@@ -33,17 +22,14 @@ const archivosRutinas = (): { path: string }[] => {
 };
 
 interface Cuenta {
-    nombres: Map<string, number>;   // nombre → cuántas apariciones lo traen
+    nombres: Map<string, number>;
     rutinas: Set<string>;
     plantillas: Set<string>;
     n: number;
 }
 
-/* El catálogo entero del vault (todas las rutinas + todas las plantillas),
-   ordenado alfabéticamente. Un ejercicio con dos nombres distintos en sitios
-   distintos aparece UNA vez, con el más frecuente. */
 export const catalogoGestion = async (): Promise<EjercicioGestion[]> => {
-    await cargarGrupos();   // la clasificación actual, si no estaba en memoria
+    await cargarGrupos();
     const mapa = new Map<string, Cuenta>();
     const apuntar = (id: string, nombre: string, donde: string, esPlantilla: boolean): void => {
         if (!id) return;
@@ -83,8 +69,6 @@ export const catalogoGestion = async (): Promise<EjercicioGestion[]> => {
     return fuera;
 };
 
-/* Cambia el nombre (solo el texto: el id NO se toca, así el historial, las
-   series guardadas y las gráficas siguen cuadrando por id). */
 export interface ResultadoRenombre { rutinas: number; plantillas: number; }
 
 export const renombrarEjercicio = async (id: string, nombreNuevo: string): Promise<ResultadoRenombre> => {

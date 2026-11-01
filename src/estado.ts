@@ -1,10 +1,3 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   Estado global del plugin: la instancia de App y los ajustes vigentes.
-
-   El motor original usaba el global `app` de Obsidian; aquí se inyecta una
-   vez desde main.ts y el resto de módulos lo pide con aplicacion()/conf().
-   ═══════════════════════════════════════════════════════════════════════════ */
-
 import type { App } from "obsidian";
 import type { AjustesGym } from "./ajustes";
 

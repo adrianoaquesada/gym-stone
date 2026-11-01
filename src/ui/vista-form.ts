@@ -1,11 +1,3 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   La pantalla del formulario: crear una rutina o editar una existente.
-
-   El formulario en sí vive en ui/creador.ts; aquí solo se decide qué versión
-   montar (según el estado de la pestaña). Al guardar, la propia pestaña pasa
-   al dashboard de la rutina (no se abre ninguna pestaña nueva).
-   ═══════════════════════════════════════════════════════════════════════════ */
-
 import { ItemView, type ViewStateResult, type WorkspaceLeaf } from "obsidian";
 import { leerRutina } from "../datos";
 import type { Rutina } from "../tipos";
@@ -46,7 +38,7 @@ export class VistaForm extends ItemView {
     private acciones(): void {
         if (this.accionesHechas) return;
         this.accionesHechas = true;
-        // «Volver»: de edición, a la propia rutina; de creación, a la lista
+
         this.addAction("arrow-left", "Volver", () => {
             if (this.modo === "editar" && this.rutinaId) void abrirRutina(this.rutinaId);
             else void abrirLista();
@@ -59,7 +51,6 @@ export class VistaForm extends ItemView {
         cont.addClass("gym-vista");
         this.acciones();
 
-        // Al guardar, `abrirRutina` lleva esta misma pestaña al dashboard
         if (this.modo === "editar" && this.rutinaId) {
             const r = await leerRutina(this.rutinaId);
             if (r.error) {

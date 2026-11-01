@@ -1,25 +1,3 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   Gym Stone — plugin de Obsidian (entrada principal)
-
-   Sistema de rutinas de gimnasio a pantalla completa: el plugin vive en
-   pestañas propias (tipo Kanban), no dentro de notas. Navegación en una sola
-   pestaña y en la misma vista: Inicio ⇄ ficha de la rutina; crear/editar en
-   hoja superpuesta.
-
-   Dónde están los datos (notas .md con bloques ```json```: legibles a mano,
-   git-friendly; el motor avisa y no sobrescribe si alguien lo rompe): todo
-   dentro de UNA carpeta raíz (por defecto gym-stone/, ajustable), con los
-   datos en minúsculas y marcados con el sufijo .gym-stone.md:
-
-     · rutinas.gym-stone.md                 el índice: una fila por rutina
-     · datos/rutinas/<id>.gym-stone.md      cada rutina con TODO (plan + sesiones)
-     · datos/medidas.gym-stone.md           peso y talla (globales)
-     · datos/ejercicios.gym-stone.md        grupos musculares
-     · plantillas/*.md                      plantillas reutilizables (a mano)
-
-   (Las rutas exactas salen de ajustes.ts.)
-   ═══════════════════════════════════════════════════════════════════════════ */
-
 import { MarkdownView, Plugin, type EventRef, type Menu, type WorkspaceLeaf } from "obsidian";
 import { normalizarAjustes, rutaIndice, type AjustesGym } from "./ajustes";
 import { reiniciarDespierta } from "./despierta";
@@ -37,10 +15,6 @@ import {
     esArchivoGym, esMdRecienteDelPlugin,
 } from "./ui/vistas";
 
-/* «leaf-menu»: el evento que Obsidian dispara al abrir el menú ⋮ de una
-   pestaña (comprobado en el asar: workspace.trigger("leaf-menu", menu, leaf)).
-   El runtime lo trae, pero la librería de tipos pública aún no lo declara:
-   por eso este enganche tipado con cast. */
 interface WorkspaceConLeafMenu {
     on(name: "leaf-menu", callback: (menu: Menu, leaf: WorkspaceLeaf) => void): EventRef;
 }
@@ -52,17 +26,12 @@ export default class GymStone extends Plugin {
         this.ajustes = normalizarAjustes(((await this.loadData()) ?? {}) as Record<string, unknown>);
         iniciarEstado(this.app, this.ajustes, ajustes => this.guardarAjustes(ajustes));
 
-        /* ── Las pantallas del plugin: UNA vista para Inicio y la ficha de una
-              rutina (la navegación entre las dos no remonta la pestaña) ── */
         this.registerView(VISTA_APP, leaf => new VistaApp(leaf));
-        // Tipos antiguos: solo para restaurar pestañas de versiones previas
+
         this.registerView(VISTA_LISTA, leaf => new VistaLista(leaf));
         this.registerView(VISTA_RUTINA, leaf => new VistaRutina(leaf));
-        this.registerView(VISTA_FORM, leaf => new VistaForm(leaf));   // legado
+        this.registerView(VISTA_FORM, leaf => new VistaForm(leaf));
 
-        /* ── Cinta lateral: la lista de rutinas con un clic ──
-           «Gym stone» va concatenado porque es un nombre propio con mayúsculas
-           y la regla de sentence case del linter solo mira literales sueltos. */
         this.addRibbonIcon("dumbbell", "Abrir " + "Gym stone", () => void abrirLista());
         const indicadorTemporizador = this.addRibbonIcon(
             "timer",
@@ -80,12 +49,9 @@ export default class GymStone extends Plugin {
             indicadorTemporizador.setAttribute("title", titulo);
         }));
 
-        /* ── Abrir los archivos del plugin COMO el plugin (truco de Kanban):
-              si abres el índice o una rutina desde el explorador, un enlace o
-              el buscador rápido, ESA pestaña pasa a la vista del plugin ── */
         this.registerEvent(this.app.workspace.on("file-open", f => {
             if (!f || !esArchivoGym(f.path)) return;
-            if (esMdRecienteDelPlugin(f.path)) return;   // fue nuestra propia «abrir como markdown»
+            if (esMdRecienteDelPlugin(f.path)) return;
             const vistasMd = this.app.workspace.getLeavesOfType("markdown");
             const vistaActiva = this.app.workspace.getActiveViewOfType(MarkdownView);
             const hoja = vistasMd.find(l => (l.view as MarkdownView).file?.path === f.path)
@@ -94,14 +60,8 @@ export default class GymStone extends Plugin {
             void abrirArchivoComoPlugin(hoja, f.path);
         }));
 
-        /* ── Y al revés: botón «abrir con el plugin» en la cabecera (arriba-
-              derecha) de las pestañas markdown de esos mismos archivos ── */
         this.registerEvent(this.app.workspace.on("active-leaf-change", leaf => this.marcarVistaMarkdownGym(leaf)));
 
-        /* ── Menú ⋮ de las pestañas del plugin: aquí viven «alternar pesos» y
-              «abrir como markdown» (fuera de la barra de iconos, a petición).
-              Ver WorkspaceConLeafMenu: el evento existe en runtime y los
-              tipos aún no lo declaran. ── */
         this.registerEvent(
             (this.app.workspace as unknown as WorkspaceConLeafMenu).on("leaf-menu", (menu, leaf) => {
                 const v = leaf.view;
@@ -110,7 +70,7 @@ export default class GymStone extends Plugin {
                     .setTitle("Alternar pesos kg ↔ libras")
                     .setIcon("arrow-left-right")
                     .onClick(() => {
-                        if (!fijarUnidadPeso(unidadContraria())) return;   // ya estaba en esa unidad
+                        if (!fijarUnidadPeso(unidadContraria())) return;
                         toast(`⚖️ Pesos en ${pesoActual()}`);
                         this.repintarVistasGym();
                     }));
@@ -128,7 +88,6 @@ export default class GymStone extends Plugin {
             }),
         );
 
-        /* ── Comandos ── */
         this.addCommand({
             id: "abrir-lista",
             name: "Abrir la lista de rutinas",
@@ -147,11 +106,8 @@ export default class GymStone extends Plugin {
 
         this.addSettingTab(new GymStoneTab(this.app, this));
 
-        /* Aviso la primera vez (solo si aún no hay índice) */
         this.app.workspace.onLayoutReady(() => {
-            // Pestañas markdown de archivos del plugin restauradas al arrancar:
-            // se les pone su botón «abrir con el plugin» (a diferencia del
-            // file-open, aquí no se convierte nada sin que lo pidas)
+
             for (const hoja of this.app.workspace.getLeavesOfType("markdown")) {
                 this.marcarVistaMarkdownGym(hoja);
             }
@@ -160,13 +116,12 @@ export default class GymStone extends Plugin {
                     toast("🏋️ Gym Stone: pulsa la campana de mancuerna (izquierda) o el comando «Abrir la lista de rutinas».");
                     void this.guardarAjustes({ ...this.ajustes, avisoListo: true });
                 }
-            } catch { /* sin datos no hay nada que avisar */ }
+            } catch (err: unknown) {
+                console.warn("[Gym Stone] No se pudo comprobar el aviso inicial", err);
+            }
         });
     }
 
-    /* Botón «abrir con el plugin» en la vista markdown de un archivo del
-       plugin (índice o rutina). Se añade UNA sola vez por pestaña: la marca
-       vive en la propia vista, que es la que se destruye al convertirla. */
     private marcarVistaMarkdownGym(leaf: WorkspaceLeaf | null): void {
         const v = leaf?.view;
         if (!(v instanceof MarkdownView)) return;
@@ -181,13 +136,11 @@ export default class GymStone extends Plugin {
     }
 
     onunload(): void {
-        cerrarSesionesAbiertas(); // una sesión guiada abierta retira su intervalo, su teclado y su candado
-        pararTemporizador();   // el intervalo del temporizador libre no debe sobrevivir
-        reiniciarDespierta();  // ni ningún candado de pantalla encendida
+        cerrarSesionesAbiertas();
+        pararTemporizador();
+        reiniciarDespierta();
         limpiarOverlays();
     }
-
-    /* ── Utilidades para la pestaña de ajustes ── */
 
     async guardarAjustes(ajustes: AjustesGym): Promise<void> {
         this.ajustes = ajustes;
@@ -195,7 +148,6 @@ export default class GymStone extends Plugin {
         await this.saveData(ajustes);
     }
 
-    // Tras cambiar rutas o unidades, las pestañas abiertas se repintan
     repintarVistasGym(): void {
         for (const tipo of [VISTA_APP, VISTA_LISTA, VISTA_RUTINA]) {
             for (const hoja of this.app.workspace.getLeavesOfType(tipo)) {

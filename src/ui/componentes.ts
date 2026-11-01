@@ -1,19 +1,8 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   Componentes de UI compartidos: creador, gestor, modales y sesión guiada.
-
-   El CSS vive en styles.css (antes cada engine inyectaba su propio <style>).
-   Los selectores .gym-* son exclusivos de este plugin, así que no pisan nada.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
 import { CONFIG } from "../config";
 import { aplicacion } from "../estado";
 import { pesoActual, UNIDADES_PESO, fijarUnidadPeso } from "../unidades";
 import type { UnidadPeso } from "../tipos";
 
-/* ── Elementos ──────────────────────────────────────────────────────────────
-   Crea un elemento. El 2.º argumento admite DOS formatos:
-     · clase(s)  → "gym-chip on"      (sin ":" se asigna como className)
-     · CSS línea→ "display:flex;"    (con ":" se asigna como cssText)      */
 export function el<K extends keyof HTMLElementTagNameMap>(
     tag: K, claseOCss?: string | null, texto?: string,
 ): HTMLElementTagNameMap[K] {
@@ -26,18 +15,12 @@ export function el<K extends keyof HTMLElementTagNameMap>(
     return e;
 }
 
-// Sustituto de dv.paragraph(): un párrafo plano dentro del bloque.
 export const parrafo = (raiz: HTMLElement, texto: string): HTMLDivElement => {
     const d = el("div", "gym-parrafo", texto);
     raiz.appendChild(d);
     return d;
 };
 
-/* ── Ayuda flotante (tooltip propio) ──────────────────────────────────────
-   A diferencia del `title` nativo: aparece al instante con el cursor y
-   TAMBIÉN AL TOCAR en móvil. Un solo globo a la vez; se cierra al salir del
-   elemento, al tocar fuera, al hacer scroll o al abrir otro. El texto se
-   pide al momento (callback), así que siempre refleja el dato pintado. */
 let globo: HTMLDivElement | null = null;
 let globoEscuchas = false;
 const cerrarGlobo = (): void => { globo?.remove(); globo = null; };
@@ -50,17 +33,17 @@ export const conAyuda = (e: HTMLElement, texto: () => string): void => {
         const r = e.getBoundingClientRect();
         const b = g.getBoundingClientRect();
         let top = r.top - b.height - 6;
-        if (top < 6) top = r.bottom + 6;   // si no cabe encima, se pone debajo
+        if (top < 6) top = r.bottom + 6;
         g.style.top = `${Math.max(6, Math.min(top, window.innerHeight - b.height - 6))}px`;
         g.style.left = `${Math.max(6, Math.min(r.left + r.width / 2 - b.width / 2, window.innerWidth - b.width - 6))}px`;
         globo = g;
         if (!globoEscuchas) {
             globoEscuchas = true;
-            window.addEventListener("scroll", cerrarGlobo, { passive: true, capture: true });   // el scroll de la hoja no despega el globo: lo cierra
+            window.addEventListener("scroll", cerrarGlobo, { passive: true, capture: true });
         }
     };
-    e.classList.add("gym-con-ayuda");   // cursor:help desde CSS
-    e.addEventListener("pointerenter", (ev) => { if (ev.pointerType === "mouse") abrir(); });   // hover de escritorio
+    e.classList.add("gym-con-ayuda");
+    e.addEventListener("pointerenter", (ev) => { if (ev.pointerType === "mouse") abrir(); });
     e.addEventListener("pointerleave", cerrarGlobo);
     e.addEventListener("pointerdown", () => {                                                   // tap de móvil
         abrir();
@@ -68,10 +51,6 @@ export const conAyuda = (e: HTMLElement, texto: () => string): void => {
     });
 };
 
-/* ── Cajas y tablas ─────────────────────────────────────────────────────── */
-
-/* El pie admite texto (lo normal) o un elemento para casos compuestos,
-   p. ej. la barra de avance del KPI «Progreso» del dashboard. */
 export const KPI = (k: string, v: string, color: string, pie?: string | HTMLElement): HTMLDivElement => {
     const d = el("div", "gym-kpi");
     d.style.setProperty("--color", color);
@@ -86,25 +65,23 @@ export const caja = (raiz: HTMLElement, titulo: string, subtitulo?: string): HTM
     const c = el("div");
     c.style.cssText = `border:1px solid ${CONFIG.BORDE};border-radius:12px;padding:16px;margin:12px 0;line-height:1.45;`;
     raiz.appendChild(c);
-    const t = el("div", "gym-tit-caja");   // el título, con su borde naranja (CSS)
+    const t = el("div", "gym-tit-caja");
     t.append(el("span", "gym-naranja", titulo), " ", el("span", "gym-sub", subtitulo ?? ""));
     c.appendChild(t);
     return c;
 };
 
-// Tarjeta plegable: botón con texto para abrirla/cerrarla. Oculta por defecto;
-// la elección se recuerda por dispositivo.
 export const cajaColapsable = (raiz: HTMLElement, titulo: string, subtitulo: string, clave: string): HTMLDivElement => {
     const c2 = caja(raiz, titulo, subtitulo);
     c2.classList.add("gym-colaps");
-    const tTit = c2.firstElementChild as HTMLDivElement;   // fila de título: queda visible también al plegar
+    const tTit = c2.firstElementChild as HTMLDivElement;
     tTit.classList.add("gym-colaps-tit");
     const nombre = titulo.replace(/^\S+\s/, "");
     const nombreMin = nombre.charAt(0).toLowerCase() + nombre.slice(1);
-    /* El estado vive en el almacenamiento propio del vault (App#saveLocalStorage,
-       por vault y no global como el localStorage del navegador). */
+
     let abierta = false;
-    try { abierta = aplicacion().loadLocalStorage(clave) === "1"; } catch { /* sin almacenamiento */ }
+    try { abierta = aplicacion().loadLocalStorage(clave) === "1"; }
+    catch (err: unknown) { console.warn("[Gym Stone] No se pudo leer el estado plegable", err); }
     const etiqueta = el("div", "gym-colaps-etq");
     etiqueta.append(
         el("span", "gym-naranja", titulo), " ",
@@ -112,7 +89,7 @@ export const cajaColapsable = (raiz: HTMLElement, titulo: string, subtitulo: str
     );
     const bPliegue = el("button", "gym-btn gym-colaps-btn", "");
     bPliegue.type = "button";
-    // La fila de título (.gym-colaps-tit) ya trae el reparto en CSS
+
     tTit.replaceChildren(etiqueta, bPliegue);
     const pintarTit = () => {
         c2.classList.toggle("oculto", !abierta);
@@ -121,27 +98,22 @@ export const cajaColapsable = (raiz: HTMLElement, titulo: string, subtitulo: str
     };
     bPliegue.onclick = () => {
         abierta = !abierta;
-        try { aplicacion().saveLocalStorage(clave, abierta ? "1" : "0"); } catch { /* sin almacenamiento */ }
+        try { aplicacion().saveLocalStorage(clave, abierta ? "1" : "0"); }
+        catch (err: unknown) { console.warn("[Gym Stone] No se pudo guardar el estado plegable", err); }
         pintarTit();
     };
     pintarTit();
-    /* El contenido va en un único cuerpo plegable: así el oculto se resuelve
-       con una clase (display:none) y no hace falta !important contra los
-       estilos en línea de cada hijo. */
+
     const cuerpo = el("div", "gym-colaps-cuerpo");
     c2.appendChild(cuerpo);
     return cuerpo;
 };
 
-// Con un tema translúcido --background-primary puede ser rgba(...) con alfa < 1,
-// y entonces la cabecera pegajosa deja ver el texto que pasa por detrás. Se
-// opaca el color de la propia cabecera y, si viene transparente, se sube a
-// buscar uno opaco al ancestro más cercano que tenga fondo.
 const parseColor = (c: string): { r: number; g: number; b: number; a: number } | null => {
     const s = String(c || "").trim();
     if (!s || s === "transparent") return { r: 0, g: 0, b: 0, a: 0 };
     const m = /^rgba?\(([^)]+)\)$/i.exec(s);
-    if (!m) return null;   // no es un color que sepamos leer: mejor no tocar nada
+    if (!m) return null;
     const p = m[1].replace(/\//g, " ").trim().split(/[\s,]+/).filter(Boolean);
     const r = Number(p[0]), g = Number(p[1]), b = Number(p[2]);
     if (![r, g, b].every(Number.isFinite)) return null;
@@ -155,26 +127,22 @@ const parseColor = (c: string): { r: number; g: number; b: number; a: number } |
 
 const opacaFondo = (th: HTMLTableCellElement): void => {
     const fijo = (col: { r: number; g: number; b: number }) => {
-        const t = `rgb(${col.r},${col.g},${col.b})`;   // alfa fuera: con eso basta
-        if (th.style.background !== t) th.style.background = t;   // solo escribe si cambia
+        const t = `rgb(${col.r},${col.g},${col.b})`;
+        if (th.style.background !== t) th.style.background = t;
     };
     const c = parseColor(getComputedStyle(th).backgroundColor);
-    if (c && c.a >= 1) return fijo(c);   // ya es opaco: se respeta el color del tema
+    if (c && c.a >= 1) return fijo(c);
     let n = th.parentElement;
     while (n) {   // transparente: se sube buscando el primer ancestro con fondo opaco
         const cn = parseColor(getComputedStyle(n).backgroundColor);
         if (cn && cn.a >= 1) return fijo(cn);
         n = n.parentElement;
     }
-    const lum = c ? (c.r * .299 + c.g * .587 + c.b * .114) / 255 : 1;   // último recurso
+    const lum = c ? (c.r * .299 + c.g * .587 + c.b * .114) / 255 : 1;
     const solido = lum > .5 ? { r: 255, g: 255, b: 255 } : { r: 0, g: 0, b: 0 };
     fijo(solido);
 };
 
-// Fija la altura del contenedor a las N primeras filas (más la cabecera) para
-// que la tabla se scrollee en vez de crecer sin límite. Se recalcula cuando el
-// contenedor cambia de tamaño: la sección del historial es colapsable y al
-// renderizar puede estar oculta (display:none), en cuyo caso no hay medidas.
 export const limitaAlto = (wrap: HTMLElement, t: HTMLTableElement, n: number): void => {
     const cabeceras = t.tHead ? [...t.tHead.rows[0].cells] : [];
     const medir = () => {
@@ -185,7 +153,7 @@ export const limitaAlto = (wrap: HTMLElement, t: HTMLTableElement, n: number): v
         const alto = cab + filas.reduce((s, f) => s + f.offsetHeight, 0);
         if (alto <= 0) return;
         const px = `${Math.ceil(alto)}px`;
-        if (wrap.style.maxHeight !== px) wrap.style.maxHeight = px;   // solo escribe si cambia: evita bucle con el ResizeObserver
+        if (wrap.style.maxHeight !== px) wrap.style.maxHeight = px;
     };
     medir();
     if (typeof ResizeObserver === "function") {
@@ -194,13 +162,6 @@ export const limitaAlto = (wrap: HTMLElement, t: HTMLTableElement, n: number): v
     }
 };
 
-// Tabla dentro de una sección, con las celdas ya en HTML.
-// Con {filasVisibles:n} la tabla deja de ser infinita: se limita a n filas en
-// pantalla y el resto se recorre con scroll dentro de su propia caja.
-// Tabla dentro de una sección. Las celdas son texto plano (nunca se
-// interpretan como HTML) o elementos ya construidos por quien llama.
-// Con {filasVisibles:n} la tabla deja de ser infinita: se limita a n filas en
-// pantalla y el resto se recorre con scroll dentro de su propia caja.
 export const tablaEn = (
     raiz: HTMLElement, cabeceras: string[], filas: (string | HTMLElement)[][],
     { filasVisibles = 0 }: { filasVisibles?: number } = {},
@@ -229,16 +190,12 @@ export const tablaEn = (
     return t;
 };
 
-/* Botón común. La acción puede ser async: aquí se «void» para que ningún
-   caller acumule promesas flotantes. */
 export const btn = (texto: string, css: string | null, accion: (() => void | Promise<void>) | null): HTMLButtonElement => {
     const b = el("button", "gym-btn" + (css ? " " + css : ""), texto);
     b.type = "button";
     if (accion) b.onclick = () => { void accion(); };
     return b;
 };
-
-/* ── Toast y confirmación ───────────────────────────────────────────────── */
 
 export const toast = (txt: string, ok = true): void => {
     const d = el("div",
@@ -248,17 +205,11 @@ export const toast = (txt: string, ok = true): void => {
     d.className = "gym-toast";
     document.body.appendChild(d);
     window.setTimeout(() => {
-        d.classList.add("gym-saliendo");   // opaca y desvanece (transición en CSS)
+        d.classList.add("gym-saliendo");
         window.setTimeout(() => d.remove(), 500);
     }, 3600);
 };
 
-/* Confirmación con el estilo del vault (window.confirm() en Electron dibuja el
-   cartel genérico del sistema). Devuelve una promesa<boolean>.
-   · El overlay es PROPIO: se puede preguntar encima de un formulario o de
-     otro modal sin cerrarlos.
-   · Escape o clic en el fondo = cancelar, y el Escape no se cuela en el modal
-     de debajo (fase capture). */
 export const confirmar = (titulo: string, mensaje: string, textoOk = "Aceptar", textoNo = "Cancelar",
     peligro = false): Promise<boolean> =>
     new Promise(resolve => {
@@ -276,7 +227,7 @@ export const confirmar = (titulo: string, mensaje: string, textoOk = "Aceptar", 
         const overlay = el("div",
             `position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;display:flex;` +
             `align-items:center;justify-content:center;padding:16px;`);
-        overlay.id = "gym-confirm-activo";   // los modales que quieran cederle el Escape lo buscan por aquí
+        overlay.id = "gym-confirm-activo";
         const cajaM = el("div",
             `background:var(--background-primary);border:1px solid var(--background-modifier-border);` +
             `border-radius:14px;padding:18px;width:min(480px,94vw);max-height:86vh;overflow:auto;` +
@@ -285,10 +236,10 @@ export const confirmar = (titulo: string, mensaje: string, textoOk = "Aceptar", 
             `font-weight:700;color:${CONFIG.NARANJA};border-bottom:2px solid ${CONFIG.NARANJA};padding-bottom:6px;margin-bottom:12px;`, titulo);
         const p = el("div", "opacity:.9;white-space:pre-wrap;margin-bottom:4px;", mensaje);
         const fila = el("div", "display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;");
-        const baseBtn = `padding:9px 15px;border-radius:9px;border:1px solid var(--background-modifier-border);` +
+        const baseBtn = `box-sizing:border-box;height:44px;padding:6px 10px;border-radius:9px;border:1px solid var(--background-modifier-border);` +
             `background:var(--background-secondary);color:var(--text-normal);font-family:inherit;` +
-            `font-size:.88em;font-weight:600;min-height:40px;cursor:pointer;`;
-        // `peligro` pinta el botón de confirmar en rojo (acciones destructivas)
+            `font-size:.88em;font-weight:600;min-height:44px;cursor:pointer;`;
+
         const estiloOk = peligro
             ? `background:${CONFIG.ROJO};border-color:${CONFIG.ROJO};color:#fff;font-weight:800;`
             : `background:${CONFIG.NARANJA};border-color:${CONFIG.NARANJA};color:#101010;font-weight:800;`;
@@ -301,12 +252,10 @@ export const confirmar = (titulo: string, mensaje: string, textoOk = "Aceptar", 
         fila.appendChild(ok); fila.appendChild(no);
         cajaM.appendChild(t); cajaM.appendChild(p); cajaM.appendChild(fila);
         overlay.appendChild(cajaM);
-        document.addEventListener("keydown", onKey, true);   // capture, por encima del modal de debajo
+        document.addEventListener("keydown", onKey, true);
         document.body.appendChild(overlay);
-        no.focus();   // el foco empieza en lo seguro: nada destructivo se dispara sin querer
+        no.focus();
     });
-
-/* ── Modales ────────────────────────────────────────────────────────────── */
 
 export interface ModalUI {
     overlay: HTMLDivElement;
@@ -315,10 +264,6 @@ export interface ModalUI {
     cerrar: () => void;
 }
 
-// Modal simple: devuelve el overlay para que quien lo llama lo rellene.
-// `anidado = true` abre un modal ENCIMA de otro ya abierto (p. ej. el selector
-// de ejercicio dentro del formulario de sesión). En ese caso NO se retira el de
-// abajo y se usa otro id, para que al cerrar el de arriba siga intacto el suyo.
 export const modal = (titulo: string, subtitulo?: string, anidado = false): ModalUI => {
     const viejo = document.getElementById("gym-modal-activo");
     if (viejo && !anidado) viejo.remove();
@@ -333,9 +278,8 @@ export const modal = (titulo: string, subtitulo?: string, anidado = false): Moda
     const cerrar = () => { overlay.remove(); document.removeEventListener("keydown", onKey); };
     const onKey = (e: KeyboardEvent) => {
         if (e.key !== "Escape") return;
-        if (document.getElementById("gym-confirm-activo")) return;   // el confirm captura el Escape antes (evita bucle)
-        // Con un modal anidado encima, Escape solo debe cerrar EL DE ARRIBA:
-        // si no, se cerrarían los dos de golpe y se perdería el formulario.
+        if (document.getElementById("gym-confirm-activo")) return;
+
         const modales = [...document.body.children].filter(n => /^gym-modal/.test(n.className || ""));
         if (modales.length && modales[modales.length - 1] !== overlay) return;
         cerrar();
@@ -346,27 +290,18 @@ export const modal = (titulo: string, subtitulo?: string, anidado = false): Moda
     return { overlay, caja: cajaM, cab, cerrar };
 };
 
-// ✕ de cierre en la cabecera de un modal. Mismo estilo que la de la sesión
-// guiada: la clase .gym-cerrar-x es la única fuente de verdad de las dos.
 export const ponerX = (m: ModalUI, titulo = "Cerrar"): HTMLButtonElement => {
-    const contenido = el("div", "gym-flex1");   // flex:1;min-width:0 en CSS
+    const contenido = el("div", "gym-flex1");
     while (m.cab.firstChild) contenido.appendChild(m.cab.firstChild);
     const bX = el("button", "gym-btn-g gym-cerrar-x", "✕");
     bX.type = "button";
     bX.title = titulo;
     bX.onclick = () => m.cerrar();
-    m.cab.classList.add("gym-fila-cab");   // reparto en CSS
+    m.cab.classList.add("gym-fila-cab");
     m.cab.appendChild(contenido); m.cab.appendChild(bX);
     return bX;
 };
 
-// Diálogo de texto (Obsidian/Electron no tiene window.prompt).
-// · `sugerencias` → lista desplegable bajo el campo (datalist), p. ej. los
-//   grupos musculares ya usados.
-// · `anidado` → se abre SOBRE otro modal sin quitarlo (p. ej. sobre el
-//   buscador de ejercicios).
-// Escape y clic en el fondo cancelan y resuelven con null: sin eso, quien
-// espera el texto se quedaría colgado aunque el diálogo se vea cerrado.
 let dlN = 0;
 export const pedirTexto = (
     titulo: string, inicial?: string, sugerencias?: string[], anidado = false,
@@ -391,9 +326,7 @@ export const pedirTexto = (
     const onKey = (e: KeyboardEvent) => {
         if (e.key !== "Escape") return;
         if (document.getElementById("gym-confirm-activo")) return;
-        // Como en modal(): Escape solo cierra ESTE si es el de arriba del todo.
-        // Si el listener de modal() (que va antes) ya cerró el overlay, se
-        // resuelve igualmente: la promesa NO debe quedar colgada.
+
         if (m.overlay.isConnected) {
             const modales = [...document.body.children].filter(n => /^gym-modal/.test(n.className || ""));
             if (modales.length && modales[modales.length - 1] !== m.overlay) return;
@@ -417,12 +350,8 @@ export const pedirTexto = (
     input.select();
 });
 
-/* ── Selector de unidad de peso (kg | lb) ───────────────────────────────── */
-// El MISMO componente se usa en el creador y en la rutina. `alCambiar` se
-// invoca después del cambio para que quien lo monta repinte; aquí se repinta
-// a sí mismo.
 export const selectorUnidad = (alCambiar?: (u: UnidadPeso) => void): HTMLElement => {
-    const cont = el("div", "gym-selector-um");   // display:inline-flex… en CSS
+    const cont = el("div", "gym-selector-um");
     const pintar = () => {
         cont.empty();
         for (const u of UNIDADES_PESO) {
@@ -432,7 +361,7 @@ export const selectorUnidad = (alCambiar?: (u: UnidadPeso) => void): HTMLElement
             b.title = u === "kg" ? "Mostrar y teclear los pesos en kilogramos" : "Mostrar y teclear los pesos en libras";
             b.setAttribute("aria-pressed", String(activo));
             b.style.cssText =
-                "min-width:54px;min-height:40px;padding:7px 13px;border-radius:8px;cursor:pointer;" +
+                "box-sizing:border-box;min-width:54px;height:44px;min-height:44px;padding:6px 12px;border-radius:8px;cursor:pointer;" +
                 "font-size:.88em;font-weight:800;letter-spacing:.05em;" +
                 (activo
                     ? `background:${CONFIG.NARANJA};border:1px solid ${CONFIG.NARANJA};color:#111;`
@@ -449,9 +378,6 @@ export const selectorUnidad = (alCambiar?: (u: UnidadPeso) => void): HTMLElement
     return cont;
 };
 
-/* ── Limpieza al descargar el plugin ────────────────────────────────────── */
-// Los modales, el confirm y la sesión guiada se montan en document.body:
-// si el plugin se desactiva a mitad de todo eso, se retiran.
 export const limpiarOverlays = (): void => {
     for (const s of [".gym-modal", ".gym-modo", "#gym-confirm-activo", ".gym-hoja-overlay", ".gym-toast"]) {
         document.querySelectorAll(s).forEach(n => n.remove());

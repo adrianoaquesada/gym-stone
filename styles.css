@@ -1,27 +1,18 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   Gym Stone — CSS del plugin (antes lo inyectaba cada engine con <style>).
-
-   Los selectores .gym-* son exclusivos de este plugin, así que no pisan nada.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* ── Bloque ```gym``` ────────────────────────────────────────────────────── */
-/* El contenido del bloque se ignora: lo dibuja el plugin entero. */
 .gym-parrafo { margin: .5em 0; }
-
-/* ── Creador de rutinas (formulario) ─────────────────────────────────────── */
 
 .gym-form .gym-campo { margin-bottom: 14px; }
 .gym-form .gym-etiqueta { font-size:.72em; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
   color:var(--text-muted); margin-bottom:6px; }
 .gym-form .gym-ayuda { font-size:.78em; color:var(--text-faint); margin-top:5px; opacity:.85; }
 .gym-form input[type=text], .gym-form input[type=number], .gym-form input[type=date], .gym-form select, .gym-form textarea {
-  padding:9px 11px; border-radius:8px; border:1px solid var(--background-modifier-border);
-  background:var(--background-secondary); color:var(--text-normal); font-size:.95em; width:100%; min-height:40px; }
-.gym-form textarea { min-height:70px; resize:vertical; font-family:inherit; line-height:1.45; }
+  box-sizing:border-box; height:34px; min-height:34px; padding:4px 8px; border-radius:8px;
+  border:1px solid var(--background-modifier-border); background:var(--background-secondary);
+  color:var(--text-normal); font-size:.95em; width:100%; }
+.gym-form textarea { height:auto; min-height:70px; resize:vertical; font-family:inherit; line-height:1.45; }
 .gym-form input:focus, .gym-form select:focus, .gym-form textarea:focus { outline:1px solid #F99624; }
 .gym-form button { cursor:pointer; transition:filter .12s, border-color .12s; }
 .gym-form button:hover { filter:brightness(1.06); }
-.gym-form .gym-chip { padding:7px 12px; border-radius:8px; font-weight:600; font-size:.85em; min-height:36px;
+.gym-form .gym-chip { box-sizing:border-box; height:34px; min-height:34px; padding:4px 10px; border-radius:8px; font-weight:600; font-size:.85em;
   border:1px solid var(--background-modifier-border); background:var(--background-secondary); color:var(--text-muted); }
 .gym-form .gym-chip.on { border-color:#F99624; background:#F99624; color:#101010; }
 .gym-form .gym-dia { border:1px solid var(--background-modifier-border); border-radius:10px; padding:12px; margin-bottom:12px;
@@ -29,36 +20,32 @@
 .gym-form .gym-dia-cab { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
 .gym-form .gym-dias-semana { display:flex; gap:5px; flex-wrap:wrap; }
 .gym-form .gym-dias-semana .gym-chip { padding:6px 9px; min-width:34px; text-align:center; }
-/* La fila son 9 celdas: ejercicio, tipo, series (ciclos en intervalo),
-   tipo · reps, tiempo (duración o trabajo · transición), peso, descanso,
-   notas y borrar. */
+
 .gym-form .gym-ej { display:grid; gap:6px; padding:8px; border-radius:8px; background:var(--background-primary);
   border:1px solid var(--background-modifier-border); margin-bottom:6px;
   grid-template-columns:2fr .85fr .7fr .7fr 1fr .85fr 1.1fr 2fr 34px; align-items:end; }
 .gym-form .gym-ej label { font-size:.66em; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); font-weight:700; }
-/* Controles que comparten celda (tipo · reps, o trabajo y transición en el
-   intervalo): si no caben, se apilan (flex-wrap). */
+
 .gym-form .gym-ej .gym-reps,
 .gym-form .gym-ej .gym-par { display:flex; gap:4px; flex-wrap:wrap; }
 .gym-form .gym-ej .gym-reps > select,
 .gym-form .gym-ej .gym-reps > input,
 .gym-form .gym-ej .gym-par > input { flex:1 1 auto; min-width:0; width:auto; }
-.gym-form .gym-ej input { min-height:40px; padding:9px 11px; }   /* misma altura para todos los campos de la fila */
-.gym-form .gym-ej .gym-borrar { align-self:end; width:100%; min-height:40px; }
+.gym-form .gym-ej input { height:34px; min-height:34px; padding:4px 8px; }
+.gym-form .gym-ej .gym-borrar { box-sizing:border-box; align-self:end; width:100%; height:34px; min-height:34px; }
 .gym-form .gym-ej-cab { display:none; }
-.gym-form .gym-mini { padding:5px 9px; border-radius:7px; font-size:.85em; min-height:32px; }
-.gym-form .gym-borrar { padding:4px 0; border-radius:7px; border:1px solid var(--background-modifier-border);
-  background:var(--background-secondary); color:var(--text-muted); font-size:.9em; min-height:40px; }
-/* Sin display:none propio: el estado oculto lo pone la clase .gym-oculto
-   (el creador la alterna al mostrar/limpiar un error de validación). */
+.gym-form .gym-mini { box-sizing:border-box; height:34px; min-height:34px; padding:4px 8px; border-radius:7px; font-size:.85em; }
+.gym-form .gym-borrar { box-sizing:border-box; padding:4px 0; border-radius:7px; border:1px solid var(--background-modifier-border);
+  background:var(--background-secondary); color:var(--text-muted); font-size:.9em; height:34px; min-height:34px; }
+
 .gym-form .gym-aviso { color:#e74c3c; background:color-mix(in srgb, #e74c3c 12%, transparent);
   border:1px solid #e74c3c; border-radius:8px; padding:8px 12px; margin-bottom:12px; font-size:.85em; }
 .gym-form .gym-ruta { margin-top:4px; padding:10px 13px; border-radius:8px; background:var(--background-secondary);
   border:1px solid var(--background-modifier-border); font-family:var(--font-monospace); font-size:.8em; word-break:break-all; }
 .gym-form .gym-fila-guardar { display:flex; gap:8px; flex-wrap:wrap; margin-top:4px; }
-.gym-form .gym-fila-guardar .gym-guardar { flex:1 1 200px; padding:13px; border-radius:10px; border:none;
+.gym-form .gym-fila-guardar .gym-guardar { box-sizing:border-box; flex:1 1 200px; height:44px; min-height:44px; padding:6px 12px; border-radius:10px; border:none;
   background:#F99624; color:#101010; font-weight:800; font-size:1em; }
-.gym-form .gym-limpiar { flex:0 0 auto; padding:13px 16px; border-radius:10px; cursor:pointer;
+.gym-form .gym-limpiar { box-sizing:border-box; flex:0 0 auto; height:44px; min-height:44px; padding:6px 12px; border-radius:10px; cursor:pointer;
   border:1px solid var(--background-modifier-border); background:var(--background-secondary);
   color:var(--text-muted); font-size:.9em; font-weight:600; }
 .gym-form .gym-limpiar:hover { color:#e74c3c; border-color:#e74c3c; }
@@ -71,8 +58,6 @@
 }
 .gym-temp-cen { will-change: transform, opacity; }
 
-/* ── Gestor: dashboard, calendario, registro, estadísticas, historial ────── */
-
 .gym-kpi { min-width:110px; flex:1 1 110px; padding:10px 14px; border-radius:10px;
   background:var(--background-secondary); border-left:4px solid var(--color, #F99624); }
 .gym-kpi .k { font-size:.72em; text-transform:uppercase; letter-spacing:.05em; opacity:.7; }
@@ -81,27 +66,26 @@
 .gym-tit { font-weight:700; font-size:.9em; border-top:1px dashed var(--background-modifier-border); padding-top:12px; margin:16px 0 10px; }
 .gym-tit > span { color:#F99624; }
 .gym-botones { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 4px; }
-.gym-btn { padding:9px 15px; border-radius:9px; border:1px solid var(--background-modifier-border);
-  background:var(--background-secondary); color:var(--text-normal); font-size:.88em; font-weight:600; min-height:40px; cursor:pointer; }
+.gym-btn { box-sizing:border-box; height:44px; min-height:44px; padding:6px 10px; border-radius:9px; border:1px solid var(--background-modifier-border);
+  background:var(--background-secondary); color:var(--text-normal); font-size:.88em; font-weight:600; cursor:pointer; }
 .gym-btn.primario { background:#F99624; border-color:#F99624; color:#101010; font-weight:800; }
 .gym-btn.peligro { color:#e74c3c; border-color:#e74c3c; }
 table.gym-tabla { width:100%; font-size:.86em; border-collapse:collapse; }
 table.gym-tabla th { text-align:left; font-size:.8em; text-transform:uppercase; letter-spacing:.04em;
   color:var(--text-muted); border-bottom:1px solid var(--background-modifier-border); padding:6px 8px; }
 table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); padding:7px 8px; vertical-align:top; }
-.gym-tabla-wrap { overflow-x:auto; max-width:100%; }   /* tabla ancha → scroll dentro de su sección, nunca del dashboard */
-/* Historial: alto fijo (~10 filas) y scroll propio en vez de una tabla infinita.
-   La cabecera queda pegajosa para no perder las columnas al bajar. */
+.gym-tabla-wrap { overflow-x:auto; max-width:100%; }
+
 .gym-tabla-vista { overflow:auto; }
-/* El fondo va por CSS como red de seguridad, pero si el tema es translúdio
-   (desenfoque, ventana semitransparente) se ve el texto por detrás: por eso
-   limitaAlto() lo reemplaza por el color opaco del ancestro más cercano. */
+
 .gym-tabla-vista thead th { position:sticky; top:0; z-index:1; background:var(--background-primary);
-  /* border-collapse hace desaparecer el borde del th sticky: se repone con sombra */
+
   box-shadow:inset 0 -1px 0 var(--background-modifier-border); }
-.gym-g select, .gym-g input[type=date] { padding:8px 10px; border-radius:8px;
+.gym-g input:not([type=checkbox]):not([type=radio]):not([type=range]),
+.gym-g select { box-sizing:border-box; height:34px; min-height:34px; padding:4px 8px; border-radius:8px;
   border:1px solid var(--background-modifier-border); background:var(--background-secondary);
-  color:var(--text-normal); font-size:.88em; min-height:36px; min-width:0; max-width:100%; }
+  color:var(--text-normal); font-size:.88em; min-width:0; max-width:100%; }
+.gym-g textarea { box-sizing:border-box; min-height:70px; }
 .gym-modal { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:9998; display:flex;
   align-items:center; justify-content:center; padding:16px; }
 .gym-modal-caja { background:var(--background-primary); border:1px solid var(--background-modifier-border);
@@ -109,16 +93,17 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
   box-shadow:0 18px 50px rgba(0,0,0,.5); }
 .gym-modal input[type=text], .gym-modal input[type=number], .gym-modal input[type=date],
 .gym-modal select, .gym-modal textarea {
-  padding:10px 11px; border-radius:8px; border:1px solid var(--background-modifier-border);
-  background:var(--background-secondary); color:var(--text-normal); font-size:.95em; width:100%; min-height:42px; }
-.gym-modal textarea { min-height:70px; resize:vertical; font-family:inherit; line-height:1.45; }
+  box-sizing:border-box; height:34px; min-height:34px; padding:4px 8px; border-radius:8px;
+  border:1px solid var(--background-modifier-border); background:var(--background-secondary);
+  color:var(--text-normal); font-size:.95em; width:100%; }
+.gym-modal textarea { height:auto; min-height:70px; resize:vertical; font-family:inherit; line-height:1.45; }
 .gym-et { font-size:.68em; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
   color:var(--text-muted); margin-bottom:4px; }
 .gym-fila { margin-bottom:12px; }
 .gym-serie { display:grid; grid-template-columns:26px 1fr 1fr 34px; gap:6px; align-items:center; margin-bottom:5px; }
 .gym-serie.saltada { opacity:.5; background:color-mix(in srgb, var(--text-faint)% 12%, transparent);
   border-radius:8px; padding:2px 4px; }
-.gym-serie input { min-height:38px; }
+.gym-serie input { box-sizing:border-box; height:34px; min-height:34px; }
 .gym-serie input:disabled { opacity:.6; font-style:italic; }
 .gym-saltada { font-style:italic; opacity:.65; }
 .gym-sinreg { border:1px dashed color-mix(in srgb, var(--text-faint)% 70%, transparent);
@@ -126,22 +111,23 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-ej-reg { border:1px solid var(--background-modifier-border); border-radius:10px; padding:10px;
   margin-bottom:10px; background:var(--background-secondary); }
 .gym-ej-reg-cab { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
-/* Fila de ejercicio con TODO en una línea —ejercicio, series, reps, peso, descanso
-   y notas—, idéntica a la de «Editar rutina». Es como se registran los ejercicios
-   de una rutina libre, que no tiene objetivos que enseñar. */
+
 .gym-ej-fila { display:grid; gap:6px; padding:8px; border-radius:8px; background:var(--background-secondary);
   border:1px solid var(--background-modifier-border); margin-bottom:6px;
   grid-template-columns:2fr .7fr .7fr .85fr 1.1fr 2fr 34px; align-items:end; }
 .gym-ej-fila label { font-size:.66em; text-transform:uppercase; letter-spacing:.04em;
   color:var(--text-muted); font-weight:700; }
-.gym-ej-fila .gym-borrar { align-self:end; width:100%; min-height:40px; padding:4px 0; border-radius:7px;
+.gym-ej-fila .gym-borrar { box-sizing:border-box; align-self:end; width:100%; height:34px; min-height:34px; padding:4px 0; border-radius:7px;
   cursor:pointer; border:1px solid var(--background-modifier-border);
   background:var(--background-secondary); color:var(--text-muted); }
 .gym-ej-fila .gym-borrar:hover { color:#e74c3c; border-color:#e74c3c; }
 .gym-chip { padding:4px 10px; border-radius:7px; font-size:.78em; font-weight:600;
   background:var(--background-primary); border:1px solid var(--background-modifier-border); color:var(--text-muted); }
 .gym-chip.on { border-color:#F99624; background:#F99624; color:#101010; }
-.gym-mini { padding:6px 10px; border-radius:7px; font-size:.85em; min-height:34px; cursor:pointer;
+.gym-chip.gym-puntero, .gym-chip-btn {
+    box-sizing:border-box; height:34px; min-height:34px; padding:4px 10px;
+}
+.gym-mini { box-sizing:border-box; height:34px; min-height:34px; padding:4px 8px; border-radius:7px; font-size:.85em; cursor:pointer;
   background:var(--background-primary); border:1px solid var(--background-modifier-border); color:var(--text-normal); }
 .gym-mini.activo { background:color-mix(in srgb, #F99624 15%, transparent);
   border-color:#F99624; color:#F99624; }
@@ -153,19 +139,12 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-cel .n { opacity:.65; font-weight:600; line-height:1; }
 .gym-cel .d { margin-top:4px; font-weight:700; overflow-wrap:anywhere; }
 .gym-cel .v { margin-top:2px; opacity:.75; }
-/* Nota del día: siempre a la vista en la esquina inferior derecha (fuera del
-   flujo, para que el .v de volumen u «omitido» no la tape) */
+
 .gym-cel.con-nota .v { padding-right:14px; }
 .gym-cel-nota { position:absolute; right:4px; bottom:3px; font-size:.78em; line-height:1; opacity:.9; }
 .gym-cel.hoy { outline:2px solid #F99624; outline-offset:2px;
-  box-shadow:inset 0 0 0 2px #F99624; }   /* doble contorno; el relleno atenuado lo pone el JS */
-/* ── Modo sesión guiada (pantalla casi completa, pensado para el móvil) ── */
-/* inset:0 lo estira hasta el borde físico de la pantalla, así que se mete POR
-   DETRÁS de la barra de estado (reloj, iconos, batería) y de la barra de
-   navegación de Android. El padding con --gym-safe-* deja el contenido dentro
-   de la zona segura; el fondo sí cubre hasta el borde, para no dejar huecos.
-   Esas variables las fija medirAreasSeguras(): lee env() si el viewport expone
-   las barras y, si devuelve 0, aplica un margen de reserva. */
+  box-shadow:inset 0 0 0 2px #F99624; }
+
 .gym-modo { position:fixed; inset:0; z-index:9997; background:var(--background-primary);
   display:flex; align-items:center; justify-content:center;
   padding:var(--gym-safe-top,env(safe-area-inset-top)) var(--gym-safe-right,env(safe-area-inset-right))
@@ -175,10 +154,7 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
   border:1px solid var(--background-modifier-border); border-radius:14px; }
 .gym-modo-cab { display:flex; align-items:center; gap:8px; padding:8px 12px; flex-wrap:wrap;
   border-bottom:1px solid var(--background-modifier-border); }
-/* El cuerpo desplaza verticalmente; el gesto horizontal queda libre para el
-   deslizamiento a los lados (ejercicio anterior / siguiente) */
-/* overflow-x:hidden: durante el deslizamiento a los lados el contenido se sale
-   de la caja un instante y, sin esto, asomaba una barra horizontal */
+
 .gym-modo-cuerpo { flex:1 1 auto; overflow:auto; overflow-x:hidden; padding:12px 14px 14px; -webkit-overflow-scrolling:touch; touch-action:pan-y; }
 .gym-modo-progreso { flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px;
   margin:0; padding:8px 14px; border-bottom:1px solid var(--background-modifier-border); }
@@ -201,7 +177,7 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-descanso-controles > .gym-btn-g { min-width:0; min-height:44px; padding:6px 5px; white-space:nowrap; }
 .gym-descanso-controles > .gym-btn-g:first-child { justify-self:start; }
 .gym-descanso-controles > .gym-btn-g:nth-child(2),
-.gym-descanso-controles > .gym-btn-g:nth-child(4) { width:52px; }
+.gym-descanso-controles > .gym-btn-g:nth-child(4) { width:44px; }
 .gym-descanso-controles > .gym-btn-g:last-child { justify-self:end; }
 .gym-descanso-centro { position:relative; grid-column:3; grid-row:1; display:flex; align-items:center;
   justify-content:center; height:44px; text-align:center; }
@@ -213,50 +189,131 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-descanso-propietario { margin-top:4px; text-align:center; font-size:.72em; opacity:.7; }
 .gym-modo-accion { display:flex; gap:8px; padding:8px 12px 0;
   border-top:1px solid var(--background-modifier-border); }
-/* El margen de la barra de navegación ya lo pone .gym-modo (--gym-safe-bottom),
-   aquí solo queda el aire propio: si no, se sumarían los dos y quedaba un hueco. */
+
 .gym-modo-pie { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:8px 12px 10px; }
-.gym-btn-g { min-height:54px; border-radius:12px; font-size:.95em; font-weight:700; cursor:pointer; padding:8px 10px;
+.gym-btn-g { box-sizing:border-box; height:44px; min-height:44px; border-radius:12px; font-size:.95em; font-weight:700; cursor:pointer; padding:6px 10px;
   border:1px solid var(--background-modifier-border); background:var(--background-secondary); color:var(--text-normal); }
 .gym-btn-g.primario { background:#F99624; border-color:#F99624; color:#101010; }
 .gym-btn-g.verde { background:#2ecc71; border-color:#2ecc71; color:#101010; }
 .gym-btn-g.pausa { background:color-mix(in srgb, #e74c3c 16%, transparent);
   border-color:#e74c3c; color:#e74c3c; }
 .gym-btn-g:disabled { opacity:.4; cursor:default; }
-/* ✕ de cierre: cuadrada siempre. Va después de .gym-btn-g para pisarle el min-height:54px.
-   El tamaño se cambia con la variable --x (44px en cabecera de modal, 54px en la sesión guiada). */
-.gym-cerrar-x { width:var(--x,44px); height:var(--x,44px); min-height:0; padding:0;
+
+.gym-cerrar-x { box-sizing:border-box; width:var(--x,44px); height:var(--x,44px); min-height:0; padding:0;
   display:flex; align-items:center; justify-content:center; border-radius:12px; font-size:1.05em; }
+.gym-modo-ej-cab {
+    display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center;
+    gap:2px 12px; min-width:0;
+}
+.gym-modo-ej-cab > .gym-modo-ej { grid-column:1; min-width:0; overflow-wrap:anywhere; }
+.gym-modo-ej-meta {
+    grid-column:1; display:flex; flex-wrap:wrap; align-items:center; gap:2px;
+    min-width:0; font-size:.9em; opacity:.8; overflow-wrap:anywhere;
+}
 .gym-modo-ej { font-size:1.3em; font-weight:800; line-height:1.25; margin:2px 0 4px; }
-.gym-modo-set { display:grid; grid-template-columns:32px 1fr 1fr auto; gap:8px; align-items:center;
+.gym-timer-serie {
+    box-sizing:border-box; display:grid; grid-template-columns:auto minmax(0,1fr) 28px;
+    grid-template-rows:auto auto; grid-column:2 / 4; align-items:center; gap:0 8px;
+    width:100%; min-width:0; margin:0; padding:0;
+}
+.gym-timer-serie-etiqueta { grid-column:1 / 3; grid-row:1; min-width:0; font-size:.68em; line-height:1.1;
+    color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.gym-timer-serie-tiempo { grid-column:1; grid-row:2; min-width:0; font-size:1.15em; font-weight:800;
+    line-height:1.1; color:#F99624; font-variant-numeric:tabular-nums; }
+.gym-timer-serie-barra { grid-column:2; grid-row:2; align-self:center; height:4px; min-width:0; overflow:hidden;
+    border-radius:4px; background:var(--background-secondary); }
+.gym-timer-serie-progreso { width:0; height:100%; background:#F99624; }
+.gym-hold-ajeno { margin:4px 0; color:var(--text-muted); font-size:.78em; overflow-wrap:anywhere; }
+.gym-timer-serie-control {
+    box-sizing:border-box; grid-column:3; grid-row:1 / span 2; align-self:center;
+    width:28px; min-width:28px; height:28px; min-height:28px; padding:0;
+    border:1px solid var(--background-modifier-border); border-radius:8px;
+    background:var(--background-secondary); color:var(--text-normal);
+    font:inherit; font-size:.85em; font-weight:800; line-height:1; cursor:pointer;
+}
+.gym-timer-serie-control.confirmar {
+    border-color:#e74c3c; background:#e74c3c; color:#fff;
+}
+.gym-ciclo-inline.ajeno { grid-column:auto; }
+.gym-ciclo-ajeno-texto {
+    grid-column:1 / -1; color:var(--text-muted); font-size:.74em; overflow-wrap:anywhere;
+}
+.gym-modo-set { display:grid; grid-template-columns:58px minmax(0,1fr) minmax(0,1fr) auto; gap:8px; align-items:center;
   margin-bottom:8px; padding:4px; border-radius:12px; }
+.gym-modo-numero { display:flex; align-items:center; justify-content:center; gap:4px; min-width:0; }
+.gym-modo-tipo-btn { box-sizing:border-box; width:34px; height:34px; min-height:0; flex:0 0 34px; padding:0;
+  border:1px solid var(--background-modifier-border); border-radius:6px; background:var(--background-secondary);
+  color:var(--text-muted); font:inherit; font-size:.72em; font-weight:700; cursor:pointer; }
+.gym-modo-tipo-btn:hover, .gym-modo-tipo-btn[aria-expanded="true"] { border-color:#F99624; color:#F99624; }
+.gym-modo-tipos-opciones { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+.gym-modo-tipo-opcion { box-sizing:border-box; height:34px; min-height:34px; padding:4px 8px; border:1px solid var(--background-modifier-border);
+  border-radius:8px; background:var(--background-secondary); color:var(--text-normal);
+  font:inherit; font-size:.82em; text-align:left; cursor:pointer; }
+.gym-modo-tipo-opcion.actual { border-color:#F99624; color:#F99624; }
+.gym-modo-logros-btn {
+    box-sizing:border-box; display:inline-flex; flex:0 0 34px; align-items:center; justify-content:center;
+    width:34px; min-width:34px; height:34px; min-height:34px; margin:0; padding:0;
+    border:1px solid color-mix(in srgb, #F4C542 42%, transparent); border-radius:999px;
+    background:color-mix(in srgb, #F4C542 12%, var(--background-secondary));
+    color:var(--text-normal); font:inherit; font-size:.82em; font-weight:800;
+    line-height:1; cursor:pointer;
+}
+.gym-modo-logros-btn:hover,
+.gym-modo-logros-btn[aria-expanded="true"] { border-color:#F4C542; }
+.gym-modo-logros-opciones {
+    grid-column:1 / -1; display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));
+    gap:6px; min-width:0; padding:8px; border:1px solid color-mix(in srgb, #F4C542 28%, var(--background-modifier-border));
+    border-radius:9px; background:color-mix(in srgb, #F4C542 5%, var(--background-secondary));
+}
+.gym-modo-logro { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between;
+    gap:4px 8px; min-width:0; font-size:.8em; overflow-wrap:anywhere; }
+.gym-modo-logro-nombre { color:var(--text-muted); }
+.gym-modo-logro-valor { min-width:0; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
 .gym-modo-set.actual { box-shadow:inset 0 0 0 2px #F99624;
   background:color-mix(in srgb, #F99624 7%, transparent); }
-.gym-modo-set.hecha { opacity:.55; }
-.gym-modo-set.saltada { opacity:.5; background:color-mix(in srgb, var(--text-faint)% 12%, transparent); }
 .gym-modo-set.saltada .n { text-decoration:line-through; }
 .gym-modo-set .cierre { display:flex; gap:6px; justify-content:flex-end; }
-.gym-modo-set input { min-height:52px; font-size:1.02em; text-align:center; width:100%; border-radius:10px;
+.gym-modo-set .cierre > .gym-btn-g { box-sizing:border-box; width:34px; height:34px; min-width:34px; min-height:34px;
+  padding:0; display:flex; align-items:center; justify-content:center; border-radius:6px; font-size:.78em; }
+.gym-modo-set input { box-sizing:border-box; height:34px; min-height:34px; padding:2px 4px; font-size:.85em;
+  text-align:center; width:100%; border-radius:6px;
   border:1px solid var(--background-modifier-border); background:var(--background-secondary); color:var(--text-normal); }
 .gym-modo-set .n { text-align:center; font-weight:800; opacity:.55; }
 .gym-modo-set.extra { background:color-mix(in srgb, #F99624 6%, transparent);
   border:1px dashed color-mix(in srgb, #F99624 50%, transparent); }
+.gym-modo-set.hecha { background:color-mix(in srgb, #2ecc71 8%, var(--background-secondary));
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, #2ecc71 24%, transparent); }
+.gym-modo-set.saltada { opacity:.8; background:color-mix(in srgb, #F99624 8%, var(--background-secondary));
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, #F99624 24%, transparent); }
+.gym-recorde-chip { display:inline-flex; align-items:center; gap:3px; margin:3px 4px 0 0; padding:2px 6px;
+  border:1px solid color-mix(in srgb, #F4C542 42%, transparent); border-radius:999px;
+  background:color-mix(in srgb, #F4C542 12%, var(--background-secondary)); color:var(--text-normal);
+  font-size:.72em; font-weight:800; line-height:1.35; vertical-align:middle; }
+.gym-resumen-kpis { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:14px 0; }
+.gym-resumen-kpi { display:flex; flex-direction:column; gap:4px; padding:10px; border:1px solid var(--background-modifier-border);
+  border-radius:10px; background:var(--background-secondary); }
+.gym-resumen-kpi > b { font-size:1.1em; }
+.gym-resumen-recordes { display:flex; flex-direction:column; gap:7px; margin-top:14px; }
+.gym-resumen-recorde { display:grid; grid-template-columns:auto auto minmax(0,1fr); align-items:center; gap:6px;
+  padding:8px; border:1px solid color-mix(in srgb, #F4C542 24%, var(--background-modifier-border));
+  border-radius:9px; background:color-mix(in srgb, #F4C542 5%, var(--background-secondary)); font-size:.88em; }
+.gym-resumen-sin-record,.gym-resumen-nota { padding:8px 10px; border-radius:8px;
+  background:var(--background-secondary); color:var(--text-muted); font-size:.88em; }
+.gym-resumen-nota { margin-top:10px; }
 .gym-modo-set.extra .n { opacity:1; color:#F99624; line-height:1.05; }
 .gym-modo-set.extra .n .ext { display:block; font-size:.5em; font-weight:800; letter-spacing:.03em; text-transform:uppercase; }
 .gym-descanso { text-align:center; border:1px dashed #F99624; border-radius:12px; padding:12px 10px; margin:12px 0; }
 .gym-descanso .t { font-size:2.5em; font-weight:800; font-variant-numeric:tabular-nums; color:#F99624; line-height:1.05; }
 .gym-descanso.listo { border-color:#2ecc71; border-style:solid; }
 .gym-descanso.listo .t { color:#2ecc71; }
-/* Fila de título: etiqueta a la izquierda, botón de pliegue a la derecha */
+
 .gym-colaps-tit { user-select:none; display:flex; align-items:center; justify-content:space-between;
   gap:8px; flex-wrap:wrap; }
-/* El contenido vive en un único cuerpo plegable (creado por cajaColapsable):
-   al plegar basta un display:none por clase, sin !important. */
+
 .gym-colaps.oculto > .gym-colaps-cuerpo { display:none; }
 @media (max-width: 640px) {
   .gym-serie { grid-template-columns:22px 1fr 1fr 32px; }
-  /* La fila del ejercicio se parte en 2 columnas (igual que en «Editar rutina»):
-     el nombre, las notas y la papelera ocupan el ancho completo. */
+
   .gym-ej-fila { grid-template-columns:1fr 1fr; }
   .gym-ej-fila > div:nth-child(1) { grid-column:1 / -1; }
   .gym-ej-fila > div:nth-child(6) { grid-column:1 / -1; }
@@ -266,39 +323,33 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
   .gym-modo-caja { width:100%; height:100%; border:none; border-radius:0; }
   .gym-modo-progreso { align-items:flex-start; flex-direction:column; gap:2px; }
   .gym-modo-pasos { justify-content:flex-start; }
-  .gym-descanso-controles { grid-template-columns:minmax(0,1fr) 42px minmax(64px,auto) 42px minmax(0,1fr); gap:4px; }
-  .gym-descanso-controles > .gym-btn-g { min-height:42px; padding:5px 3px; font-size:.78em; }
+  .gym-descanso-controles { grid-template-columns:minmax(0,1fr) 44px minmax(64px,auto) 44px minmax(0,1fr); gap:4px; }
+  .gym-descanso-controles > .gym-btn-g { height:44px; min-height:44px; padding:5px 3px; font-size:.78em; }
   .gym-descanso-controles > .gym-btn-g:nth-child(2),
-  .gym-descanso-controles > .gym-btn-g:nth-child(4) { width:42px; }
-  .gym-descanso-centro { height:42px; }
+  .gym-descanso-controles > .gym-btn-g:nth-child(4) { width:44px; }
+  .gym-descanso-centro { height:44px; }
   .gym-descanso-compacto .t { font-size:1.6em; }
 }
 @media (max-width: 420px) {
   .gym-descanso-controles > .gym-btn-descanso-pausa,
-  .gym-descanso-controles > .gym-btn-descanso-saltar { width:34px; min-width:34px; padding:4px; font-size:0; }
+  .gym-descanso-controles > .gym-btn-descanso-saltar { box-sizing:border-box; width:34px; min-width:34px; height:34px; min-height:34px; padding:4px; font-size:0; }
   .gym-descanso-controles > .gym-btn-descanso-pausa::before { content:"Ⅱ"; font-size:1rem; }
   .gym-descanso-controles > .gym-btn-descanso-pausa.reanudar::before { content:"▶"; font-size:.9rem; }
   .gym-descanso-controles > .gym-btn-descanso-saltar::before { content:"⏭"; font-size:1rem; }
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   Pestañas del plugin (vistas a todo el ancho, estilo Kanban)
-   ══════════════════════════════════════════════════════════════════════════ */
 .view-content.gym-vista {
-    padding: 8px 26px 40px;   /* 8px arriba: la navegación sube hacia la cabecera */
+    padding: 8px 26px 40px;
     overflow-y: auto;
-    overflow-x: hidden;   /* en móvil ningún texto debe sacar la pestaña de su ancho */
+    overflow-x: hidden;
     max-width: none;
-    /* La barra de scroll vertical ocupa su hueco aunque no haya scroll: si no,
-       al aparecer o desaparecer desplaza TODO el contenido hacia la izquierda */
+
     scrollbar-gutter: stable;
 }
 .gym-vista .gym-g, .gym-vista .gym-form { max-width: none; }
 
-/* Fila de resumen (KPIs) */
 .gym-kpis { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
 
-/* Lista de rutinas */
 .gym-lista-rutinas { display: flex; flex-direction: column; gap: 8px; }
 .gym-fila-rutina {
     display: flex; align-items: center; gap: 8px;
@@ -315,26 +366,21 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-fila-nombre { font-weight: 700; font-size: 1.02em; overflow-wrap: anywhere; }
 .gym-fila-meta { font-size: .8em; line-height: 1.35; overflow-wrap: anywhere; }
 .gym-fila-rutina-acciones { display: flex; gap: 4px; flex: 0 0 auto; }
-.gym-btn-icono { min-width: 38px; min-height: 38px; padding: 4px 8px; }
+.gym-btn-icono { box-sizing:border-box; width:44px; min-width:44px; height:44px; min-height:44px; padding:4px 8px; }
 @media (max-width: 640px) {
   .view-content.gym-vista { padding: 6px 10px 32px; }
   .gym-fila-rutina { padding: 6px; }
-  .gym-btn-icono { min-width: 42px; min-height: 42px; }
 }
 
-/* Estado vacío de la lista */
 .gym-vacio { text-align: center; padding: 26px 10px; color: var(--text-muted); }
 .gym-vacio .gym-vacio-txt { margin-bottom: 12px; font-size: 1.05em; }
 
-/* Avisos de error dentro de las pestañas (índice o archivo ilegible) */
 .view-content.gym-vista .gym-error-vista {
     display: block; color: #e74c3c;
     background: color-mix(in srgb, #e74c3c 12%, transparent);
     border-radius: 8px; padding: 10px 13px; margin-bottom: 12px;
 }
 
-/* Cabecera del panel de rutina (antes era una caja con marco; ahora suelta,
-   pero conservando el subrayado naranja del título) */
 .gym-cab {
     display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px;
     font-weight: 700; font-size: 1.14em; line-height: 1.4;
@@ -344,11 +390,9 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-cab .t { color: #F99624; }
 .gym-cab .s { font-weight: 400; font-size: .8em; opacity: .7; }
 
-/* Chips desactivados (el tipo de rutina no se cambia al editar) */
 .gym-form .gym-chip:disabled { opacity: .55; cursor: not-allowed; }
 .gym-form .gym-chip:disabled:hover { filter: none; }
 
-/* ═════════════ Navegación (migas de pan en la cabecera) ═════════════ */
 .gym-cab .gym-miga {
     background: none; border: none; padding: 0; font: inherit;
     color: var(--text-muted); cursor: pointer;
@@ -356,35 +400,27 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-cab .gym-miga:hover { color: #F99624; }
 .gym-cab .gym-miga-sep { opacity: .45; font-weight: 400; }
 
-/* ═════════════ Navegación (carrusel de pestañas bajo la cabecera) ═════════════
-   Una sola línea que se recorre lateralmente (sin barra de desplazamiento
-   visible): los botones nunca se apilan ni se cortan. */
 .gym-nav {
     display: flex; gap: 8px; flex-wrap: nowrap; align-items: center;
     margin: 2px 0 14px; padding-bottom: 2px;
     overflow-x: auto; overflow-y: hidden;
-    scrollbar-width: none; -ms-overflow-style: none;   /* Firefox e IE/Edge */
-    -webkit-overflow-scrolling: touch;                 /* momentum en iOS */
+    scrollbar-width: none; -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
 }
-.gym-nav::-webkit-scrollbar { display: none; }         /* Chromium/Safari */
+.gym-nav::-webkit-scrollbar { display: none; }
 .gym-nav-btn {
     flex: 0 0 auto; white-space: nowrap;
-    padding: 9px 15px; border-radius: 9px; border: 1px solid var(--background-modifier-border);
+    box-sizing:border-box; height:44px; min-height:44px; padding:6px 10px; border-radius: 9px; border: 1px solid var(--background-modifier-border);
     background: var(--background-secondary); color: var(--text-normal);
-    font-size: .88em; font-weight: 600; min-height: 40px; cursor: pointer;
+    font-size: .88em; font-weight: 600; cursor: pointer;
 }
 .gym-nav-btn:hover { filter: brightness(1.06); }
 .gym-nav-btn.primario { background: #F99624; border-color: #F99624; color: #101010; font-weight: 800; }
-/* .activo marca la sección en pantalla con el MISMO reparto que el resto (sin
-   subir el peso de la letra): con 800 el botón se ensancha y todos los de su
-   derecha dan un salto lateral cada vez que se cambia de sección. El relleno
-   naranja ya lo distingue. */
+
 .gym-nav-btn.activo { background: #F99624; border-color: #F99624; color: #101010; }
-/* Separador elástico: empuja a la derecha lo que venga detrás (p. ej. el
-   temporizador del dashboard de una rutina) cuando aún cabe en pantalla */
+
 .gym-nav-espacio { flex: 1 0 auto; }
 
-/* ═════════════ E: hoja superpuesta de crear/editar ═════════════ */
 .gym-hoja-overlay {
     position: fixed; inset: 0; background: rgba(0, 0, 0, .55); z-index: 10000;
     display: flex; align-items: center; justify-content: center; padding: 2vh 3vw;
@@ -400,30 +436,21 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
     border-bottom: 2px solid #F99624; font-weight: 700;
 }
 .gym-hoja-x {
-    background: none; border: 1px solid var(--background-modifier-border);
-    border-radius: 8px; width: 34px; height: 34px; flex: 0 0 auto;
+    box-sizing:border-box; background: none; border: 1px solid var(--background-modifier-border);
+    border-radius: 8px; width: 34px; height: 34px; min-height:34px; flex: 0 0 auto;
     cursor: pointer; color: var(--text-normal); font-size: 1em;
 }
 .gym-hoja-x:hover { background: var(--background-modifier-hover); }
 .gym-hoja-sub { font-weight: 400; font-size: .8em; opacity: .7; }
 .gym-hoja-cuerpo { overflow: auto; padding: 14px 16px 18px; }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   Estilos que antes iban en línea en cada componente: la revisión exige que
-   los fijos vivan en CSS. Solo sigue en JS lo que varía en tiempo de
-   ejecución (anchos de barra, colores de datos y posiciones calculadas).
-   Van al final del fichero para pisar, cuando toca, las reglas base
-   (.gym-btn, .gym-btn-g, .gym-chip) de igual especificidad.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* ── Utilidades ──────────────────────────────────────────────────────────── */
 .gym-naranja { color: #F99624; }
 .gym-verde { color: #2ecc71; font-weight: 600; }
 .gym-rojo { color: #e74c3c; }
 .gym-tenue { opacity: .75; }
 .gym-nowrap { white-space: nowrap; }
 .gym-puntero { cursor: pointer; }
-.gym-con-ayuda { cursor: help; }          /* globo de ayuda de conAyuda() */
+.gym-con-ayuda { cursor: help; }
 .gym-oculto { display: none; }
 .gym-flex1 { flex: 1; min-width: 0; }
 .gym-mt4 { margin-top: 4px; }
@@ -431,7 +458,6 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-mt12 { margin-top: 12px; }
 .gym-fila-cab { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
-/* ── Títulos de caja, modal y cabeceras ─────────────────────────────────── */
 .gym-tit-caja {
     font-weight: 700; border-bottom: 2px solid #F99624;
     padding-bottom: 6px; margin-bottom: 14px;
@@ -443,18 +469,15 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-modo-fecha { font-size: .75em; opacity: .65; }
 .gym-ruta-lin { color: var(--text-muted); }
 
-/* ── Caja colapsable: reparto de la fila de título ──────────────────────── */
 .gym-colaps-etq { min-width: 0; }
 .gym-colaps-btn {
-    min-height: 34px; font-size: .85em; padding: 4px 12px;
+    box-sizing:border-box; height:34px; min-height:34px; font-size: .85em; padding: 4px 12px;
     white-space: nowrap; cursor: pointer;
 }
 
-/* ── Toast: la transición la pone CSS (los estilos base van en línea) ───── */
 .gym-toast { transition: opacity .45s; }
 .gym-toast.gym-saliendo { opacity: 0; }
 
-/* ── Ajustes: grupos y opciones del temporizador ────────────────────────── */
 .gym-ajustes-sonido {
     margin: 22px 0;
     padding: 8px 14px 14px;
@@ -466,6 +489,9 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-ajustes-sonido .setting-item:not(.setting-item-heading) { border-top: 0; }
 .gym-ajustes-frecuencias { align-items: flex-start; flex-direction: column; min-width: min(100%, 320px); }
 .gym-ajustes-frecuencia { display: flex; align-items: center; justify-content: space-between; gap: var(--size-4-2); width: 100%; }
+.gym-ajustes input:not([type=checkbox]):not([type=range]),
+.gym-ajustes select { box-sizing:border-box; height:34px; min-height:34px; padding:4px 8px; }
+.gym-ajustes button { box-sizing:border-box; height:44px; min-height:44px; padding:6px 10px; }
 .gym-ajustes-frecuencia input { width: 120px; }
 .gym-ajustes-controles { align-items: stretch; flex-direction: column; min-width: min(100%, 320px); }
 .gym-ajustes-opciones-rapidas { display: flex; flex-direction: column; gap: var(--size-4-2); width: 100%; }
@@ -474,7 +500,6 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-ajuste-opcion-duracion { flex: 1 1 auto; min-width: 0; }
 .gym-ajustes-opciones-acciones { display: flex; flex-wrap: wrap; gap: var(--size-4-2); width: 100%; }
 
-/* ── Gestor: dashboard ───────────────────────────────────────────────────── */
 .gym-g { line-height: 1.45; }
 .gym-progreso {
     display: block; height: 6px; border-radius: 4px;
@@ -495,16 +520,15 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-caja-dias { font-size: .76em; opacity: .75; margin-bottom: 6px; }
 .gym-caja-ul { margin: 0; padding-left: 16px; font-size: .82em; line-height: 1.6; }
 
-/* ── Calendario ──────────────────────────────────────────────────────────── */
-.gym-cel.fuera { opacity: .3; }              /* colas del mes */
-.gym-cel.sin-hacer { border-style: dashed; } /* día programado sin registrar */
+.gym-cel.fuera { opacity: .3; }
+.gym-cel.sin-hacer { border-style: dashed; }
 .gym-res-sesiones { color: #F99624; font-weight: 600; flex-shrink: 0; }
 .gym-res-det { opacity: .8; min-width: 0; }
 .gym-barra-mes {
     flex: 1 1 120px; min-width: 110px; height: 9px; border-radius: 6px;
     overflow: hidden; background: var(--background-secondary); display: flex;
 }
-.gym-barra-mes-fill { height: 100%; background: #2ecc71; }  /* el ancho va en línea */
+.gym-barra-mes-fill { height: 100%; background: #2ecc71; }
 .gym-pct { font-weight: 600; }
 .gym-td-nom { font-weight: 600; }
 .gym-td-sub { font-weight: 400; font-size: .78em; opacity: .6; }
@@ -512,25 +536,27 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-td-tiempos-entre { opacity: .85; }
 .gym-td-notas { opacity: .75; }
 
-/* ── Registro de sesión ──────────────────────────────────────────────────── */
-.gym-btn-anadir { width: 100%; min-height: 46px; margin-top: 8px; }
+.gym-btn-anadir { width: 100%; height:44px; min-height:44px; margin-top: 8px; }
 .gym-serie-num { opacity: .6; font-size: .8em; font-weight: 700; }
 .gym-tachado { text-decoration: line-through; }
 
-/* ── Catálogo de ejercicios ─────────────────────────────────────────────── */
-.gym-chip-desc { min-height: 38px; padding: 6px 11px; font-size: .85em; cursor: pointer; }
-.gym-btn-ancho { width: 100%; min-height: 48px; }
-.gym-btn-purga { width: 100%; min-height: 40px; margin-top: 8px; }
-.gym-btn-guardar-ej { flex: none; min-width: 44px; min-height: 38px; padding: 6px 12px; }
-/* Lista del gestor del catálogo: en el popup va acotada; en la sección
-   «Ejercicios» de Inicio (pantalla completa) crece hasta donde haga falta */
+.gym-chip-desc { box-sizing:border-box; height:34px; min-height:34px; padding:4px 10px; font-size:.85em; cursor: pointer; }
+.gym-btn-ancho { width: 100%; height:44px; min-height:44px; }
+.gym-btn-purga {
+    box-sizing:border-box; width:100%; height:auto; min-height:44px; margin-top:8px;
+    padding:8px 12px; white-space:normal; overflow-wrap:anywhere; line-height:1.35;
+}
+.gym-btn-guardar-ej { box-sizing:border-box; flex:none; min-width:44px; height:44px; min-height:44px; padding:6px 12px; }
+
 .gym-ejercicios-lista {
-    max-height: 46vh; overflow: auto; margin-top: 8px;
-    border: 1px solid var(--background-modifier-border); border-radius: 8px;
+    display:flex; flex-direction:column; gap:6px; max-height:46vh;
+    overflow-x:hidden; overflow-y:auto; margin-top:8px;
+    padding:6px; border:1px solid var(--background-modifier-border); border-radius:12px;
+    background:var(--background-primary);
 }
 .gym-ejercicios-inline .gym-ejercicios-lista { max-height: none; }
 .gym-ejercicios-busca {
-    width: 100%; min-height: 44px; padding: 9px 12px; border-radius: 8px;
+    width: 100%; height:34px; min-height:34px; padding:4px 8px; border-radius: 8px;
     border: 1px solid var(--background-modifier-border); background: var(--background-secondary);
     color: var(--text-normal); font-size: 1em; box-sizing: border-box; margin-top: 8px;
 }
@@ -540,45 +566,91 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-chip-btn { flex: none; cursor: pointer; opacity: .85; }
 .gym-ej-sub { font-size: .75em; opacity: .62; margin-top: 1px; }
 .gym-ejercicios-categorias {
-    display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; overflow-y: hidden;
+    display: flex; flex-wrap: wrap; gap: 8px; overflow: visible;
     margin-top: 4px; padding: 8px 0 5px; overscroll-behavior-x: contain;
-    scrollbar-width: thin; -webkit-overflow-scrolling: touch;
 }
 .gym-ejercicios-categorias .gym-chip {
-    flex: 0 0 auto; min-height: 40px; padding: 8px 14px; border-radius: 999px;
-    font-size: .84em; white-space: nowrap; cursor: pointer;
+    box-sizing:border-box; flex: 0 1 auto; max-width:100%; min-height:38px; padding:6px 10px; border-radius:999px;
+    font-size:.84em; white-space:normal; overflow-wrap:anywhere; cursor:pointer;
+}
+.gym-ejercicios-limpiar-filtros {
+    box-sizing:border-box; max-width:100%; min-height:38px; padding:6px 10px;
+    white-space:normal; overflow-wrap:anywhere;
 }
 .gym-ejercicios-fila {
-    padding: 12px 14px; border-bottom: 1px solid var(--background-modifier-border);
+    box-sizing:border-box; min-width:0; padding:0;
 }
-.gym-ejercicios-fila-cab { display: flex; align-items: center; gap: 12px; }
-.gym-ejercicios-fila .gym-ej-nombre { font-size: .96em; font-weight: 600; }
-.gym-ejercicios-fila .gym-ej-sub { font-size: .78em; }
-.gym-ejercicio-editar { flex: none; min-width: 40px; min-height: 40px; font-size: 1em; }
+.gym-ejercicios-fila.editando {
+    padding:4px; border:1px solid color-mix(in srgb, #F99624 65%, var(--background-modifier-border));
+    border-radius:12px; background:color-mix(in srgb, #F99624 5%, var(--background-primary));
+}
+.gym-ejercicios-fila-cab { display:flex; align-items:center; gap:10px; min-width:0; }
+.gym-ejercicios-fila-info {
+    box-sizing:border-box; flex:1 1 0; width:100%; min-width:0; max-width:100%;
+    display:flex; align-items:center; text-align:left; margin:0; padding:5px 12px;
+    min-height:44px;
+    border:0; border-radius:10px;
+    background:var(--background-secondary); color:inherit; font:inherit;
+    line-height:1.2; white-space:normal; overflow-wrap:anywhere; cursor:pointer;
+    transition:background-color .12s, border-color .12s;
+}
+.gym-ejercicios-fila-info:hover {
+    background:var(--background-modifier-hover); border-color:color-mix(in srgb, #F99624 45%, var(--background-modifier-border));
+}
+.gym-ejercicios-fila-info:focus-visible { outline: 2px solid #F99624; outline-offset: 2px; }
+.gym-ejercicios-fila-info > .gym-flex1 { flex:1 1 auto; width:100%; min-width:0; overflow-wrap:anywhere; }
+.gym-ejercicios-fila .gym-ej-nombre,
+.gym-ejercicios-fila .gym-ej-sub { max-width:100%; white-space:normal; overflow-wrap:anywhere; }
+.gym-ejercicios-fila .gym-ej-nombre { font-size:.96em; font-weight:600; line-height:1.2; }
+.gym-ejercicios-fila .gym-ej-sub { font-size:.78em; line-height:1.15; }
+.gym-ejercicios-estadisticas-intro { margin: 4px 0 14px; color: var(--text-muted); }
+.gym-ejercicios-estadisticas-tipo { margin-top: 20px; }
+.gym-ejercicios-estadisticas-tipo > .gym-tit { margin-bottom: 10px; }
+.gym-ejercicios-estadisticas-tipo .gym-graf-env { margin: 8px 0 16px; }
+.gym-ejercicios-estadisticas-tipo .gym-tabla-wrap { margin-top: 12px; }
+.gym-ejercicios-estadisticas-tipo .gym-tabla { min-width: 560px; }
+.gym-ejercicio-editar {
+    box-sizing:border-box; flex:none; width:44px; min-width:44px; height:44px; min-height:44px;
+    border-radius:12px; font-size:1em;
+}
 .gym-ejercicios-editor {
     display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-    margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--background-modifier-border);
+    margin-top: 4px; padding:8px; border:0; border-radius:8px;
+    background:color-mix(in srgb, #F99624 7%, var(--background-primary));
+}
+.gym-ejercicios-editor-titulo {
+    flex:1 0 100%; min-width:0; color:var(--text-muted);
+    font-size:.82em; font-weight:700; overflow-wrap:anywhere;
+}
+.gym-ejercicios-grupo-select {
+    box-sizing:border-box; flex:1 1 150px; min-width:140px; max-width:100%; min-height:44px;
+    padding:6px 10px; border:1px solid var(--background-modifier-border); border-radius:8px;
+    background:var(--background-secondary); color:var(--text-normal); font:inherit;
+}
+.gym-ejercicios-crear-grupo, .gym-ejercicios-quitar-grupo {
+    box-sizing:border-box; min-height:44px; padding:6px 10px;
 }
 
-/* ── Selector de unidad de peso (kg | lb) ───────────────────────────────── */
 .gym-selector-um { display: inline-flex; gap: 6px; align-items: center; }
 
-/* ── Sesión guiada ───────────────────────────────────────────────────────── */
 .gym-btn-pausa { font-size: .95em; padding: 8px 12px; white-space: nowrap; }
-.gym-x54 { --x: 54px; }   /* ✕ cuadrada de 54 px, a la altura de Pausa */
-.gym-btn-anadir0 { width: 100%; min-height: 64px; font-size: 1.05em; margin-top: 16px; }
-.gym-btn-mini-g { min-height: 44px; font-size: .88em; }   /* pisa .gym-btn-g (va después) */
+.gym-x44 { --x: 44px; }
+.gym-modo-reloj { box-sizing:border-box; height:44px; min-height:44px; padding:0 10px;
+  display:inline-flex; align-items:center; font-size:1em; font-weight:800;
+  font-variant-numeric:tabular-nums; white-space:nowrap; cursor:default; }
+.gym-btn-anadir0 { width: 100%; height:44px; min-height:44px; font-size: 1.05em; margin-top: 16px; }
+.gym-btn-mini-g { min-height: 44px; font-size: .88em; }
 .gym-btn-accion { flex: 1 1 auto; min-height: 60px; font-size: 1.02em; }
-/* Deslizamiento lateral entre ejercicios: salida con transición → salto
-   instantáneo al lado contrario → entrada animada. .gym-slide-sin DEBE IR
-   DESPUÉS de .gym-slide para pisarle la transición. */
+.gym-modo-acciones-series > .gym-btn-g,
+.gym-modo-accion > .gym-btn-accion,
+.gym-modo-pie > .gym-btn-g { box-sizing:border-box; height:44px; min-height:44px; padding:6px 10px; }
+
 .gym-slide { transition: transform .18s ease, opacity .18s ease; }
 .gym-slide-sin { transition: none; }
 .gym-slide-izq { transform: translateX(-100%); }
 .gym-slide-der { transform: translateX(100%); }
 .gym-slide-fuera { opacity: 0; }
 
-/* ── Gráfica SVG ─────────────────────────────────────────────────────────── */
 .gym-graf-env { position: relative; }
 .gym-graf-svg { width: 100%; height: auto; display: block; margin: 6px 0; touch-action: none; }
 .gym-graf-tip {
@@ -592,11 +664,8 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-graf-ley { font-size: .8em; display: flex; gap: 14px; flex-wrap: wrap; margin-top: 2px; opacity: .85; }
 .gym-graf-cuadro { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
 
-/* ── Hoja superpuesta: el título ocupa el hueco de la izquierda ─────────── */
 .gym-hoja-tit { flex: 1; min-width: 0; }
 
-/* ── Temporizador libre (modal con anillo, presets y controles) ─────────── */
-/* Modal más estrecho que el genérico: es una columna, no una tabla. */
 .gym-temp-caja {
     box-sizing: border-box; display: flex; flex-direction: column;
     width: min(430px, calc(100vw - 32px));
@@ -625,9 +694,9 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-temp-cronometro-activo .gym-temp-t {
     font-size: clamp(2.8em, 12vw, 4em); color: var(--text-normal);
 }
-.gym-temp-anillo .pista { fill: none; stroke: color-mix(in srgb, var(--text-faint) 45%, transparent); stroke-width: 3; }
+.gym-temp-anillo .pista { fill: none; stroke: color-mix(in srgb, var(--text-faint) 45%, transparent); stroke-width: 2.6; }
 .gym-temp-anillo .barra {
-    fill: none; stroke: #F99624; stroke-width: 7; stroke-linecap: round;
+    fill: none; stroke: #F99624; stroke-width: 6; stroke-linecap: round;
     transition: stroke-dashoffset .25s linear, stroke .3s;
 }
 .gym-temp-cen {
@@ -675,12 +744,12 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-temp-pie-cronometro { justify-content: flex-end; }
 .gym-temp-pie-cronometro.gym-oculto { display: none; }
 .gym-temp-cronometro-controles {
-    display: flex; flex: 0 0 50px; gap: 8px; margin-top: auto;
+    display: flex; flex: 0 0 44px; gap: 8px; margin-top: auto;
 }
 .gym-temp-cronometro-controles.gym-oculto { display: none; }
 .gym-temp-cronometro-controles > button {
-    box-sizing: border-box; flex: 1 1 0; width: 0; min-width: 0; height: 50px;
-    min-height: 50px; margin: 0; white-space: nowrap;
+    box-sizing: border-box; flex: 1 1 0; width: 0; min-width: 0; height: 44px;
+    min-height: 44px; margin: 0; white-space: nowrap;
 }
 .gym-temp-fila {
     display: flex; flex-direction: column; gap: 8px; padding: 10px;
@@ -719,8 +788,8 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 }
 .gym-temp-acciones-circulares.gym-oculto { display: none; }
 .gym-temp-herramientas { display: flex; align-items: center; gap: 8px; margin: 6px 0 12px; }
-.gym-temp-modo { flex: 1 1 auto; min-width: 0; min-height: 42px; }
-.gym-temp-herramienta { flex: 0 0 42px; width: 42px; height: 42px; min-height: 42px; padding: 0; font-size: 1.35em; }
+.gym-temp-modo { flex: 1 1 auto; min-width: 0; height: 44px; min-height: 44px; }
+.gym-temp-herramienta { box-sizing:border-box; flex: 0 0 44px; width: 44px; height: 44px; min-height: 44px; padding: 0; font-size: 1.35em; }
 .gym-temp-icono-lista { position: relative; display: flex; flex-direction: column; gap: 3px; width: 19px; margin: auto; }
 .gym-temp-icono-linea { display: block; height: 2px; border-radius: 2px; background: currentColor; }
 .gym-temp-icono-lista::after { position: absolute; right: -5px; bottom: -3px; width: 5px; height: 5px; border-radius: 50%; background: #F99624; content: ""; }
@@ -739,11 +808,11 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-temp-config-abierta .gym-temp-puntos,
 .gym-temp-config-abierta .gym-temp-estado,
 .gym-temp-config-abierta .gym-temp-lista-sec { display: none; }
-.gym-temp-controles { display: flex; flex: 0 0 50px; gap: 8px; margin: 0; }
+.gym-temp-controles { display: flex; flex: 0 0 44px; gap: 8px; margin: 0; }
 .gym-temp-controles .gym-btn-g {
-    box-sizing: border-box; flex: 1 1 0; min-width: 0; height: 50px; min-height: 50px; margin: 0;
+    box-sizing: border-box; flex: 1 1 0; min-width: 0; height: 44px; min-height: 44px; margin: 0;
 }
-.gym-temp-iniciar { box-sizing: border-box; flex: 0 0 50px; height: 50px; min-height: 50px; margin: 0; }
+.gym-temp-iniciar { box-sizing: border-box; flex: 0 0 44px; height: 44px; min-height: 44px; margin: 0; }
 .gym-temp-puntos.gym-oculto { display: none; }
 .gym-temp-estado.gym-oculto { display: none; }
 .gym-temp-punto { width: 8px; height: 8px; min-height: 0; padding: 0; border: 0; border-radius: 50%; background: var(--text-faint); cursor: pointer; }
@@ -770,18 +839,15 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
     .gym-temp-anillo .barra,
     .gym-temp-fila-progreso-relleno { transition: none; }
 }
-/* Rápidos: CARRUSEL lateral. Los chips no se encogen (flex:none) y la fila se
-   desliza en horizontal; el desbordamiento lateral se sale de la caja del
-   modal para que el scroll llegue hasta el borde (márgenes negativos). La
-   barra de desplazamiento NO se ve: solo se intuye por posición y gesto. */
+
 .gym-temp-presets {
-    display: flex; gap: 8px; overflow-x: auto; padding: 2px 14px 6px;
-    margin: 0 -14px; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity;
-    scrollbar-width: none;   /* Firefox */
+    display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 6px;
+    margin: 0; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity;
+    scrollbar-width: none;
 }
-.gym-temp-presets::-webkit-scrollbar { display: none; }   /* Chromium/WebKit */
+.gym-temp-presets::-webkit-scrollbar { display: none; }
 .gym-temp-chip {
-    position: relative; flex: none; min-height: 42px; padding: 8px 20px 8px 14px; font-size: .88em;
+    box-sizing:border-box; position: relative; flex: none; height: 44px; min-height: 44px; padding: 6px 20px 6px 14px; font-size: .88em;
     cursor: pointer; scroll-snap-align: start;
 }
 .gym-temp-chip.enfocado {
@@ -797,7 +863,7 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
     color: var(--text-muted); pointer-events: none;
 }
 .gym-temp-chip.marcado-eliminar .gym-temp-chip-x { color: #e74c3c; }
-.gym-temp-editar { min-width: 42px; padding-inline: 10px; }
+.gym-temp-editar { min-width: 44px; padding-inline: 10px; }
 .gym-temporizador-indicador { position: relative; }
 .gym-temporizador-indicador.gym-temporizador-activo::after {
     position: absolute; top: 5px; right: 5px; width: 8px; height: 8px;
@@ -807,32 +873,17 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-temp-ajuste { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
 .gym-temp-campo { flex: 1 1 84px; display: flex; flex-direction: column; gap: 3px; }
 .gym-temp-campo .gym-et { text-align: center; margin-bottom: 0; }
-/* (0,2,1): empata con .gym-modal input[type=number] y va después en el
-   fichero → gana, sin necesidad de !important. */
-.gym-temp-caja .gym-temp-campo input { min-height: 46px; text-align: center; font-size: 1em; }
-/* El botón principal ocupa el ancho entero: es arrancar Y pausa/reanudar. */
-.gym-temp-iniciar { width: 100%; height: 50px; min-height: 50px; font-size: 1em; margin: 0; }
+
+.gym-temp-caja .gym-temp-campo input { box-sizing:border-box; height:34px; min-height:34px; padding:4px 8px; text-align: center; font-size: 1em; }
+
+.gym-temp-iniciar { width: 100%; height: 44px; min-height: 44px; font-size: 1em; margin: 0; }
 .gym-temp-iniciar.pausa { background: color-mix(in srgb, #e74c3c 16%, transparent);
     border-color: #e74c3c; color: #e74c3c; }
-/* «Eliminar» va debajo, en su propia fila y más discreta. */
-.gym-temp-eliminar { width: 100%; min-height: 46px; font-size: .92em; opacity: .85; }
+
+.gym-temp-eliminar { width: 100%; height: 44px; min-height: 44px; font-size: .92em; opacity: .85; }
 .gym-temp-controles { display: flex; gap: 8px; flex-wrap: nowrap; justify-content: center; margin: 0; }
 .gym-temp-controles .gym-btn-g { flex: 1 1 0; min-width: 0; }
 
-/* ── Cabecera de las vistas: solo el ⋮, sin navegación ni título ────────── */
-/* El framework dibuja en .view-header tres zonas: a la izquierda las flechas
-   ← → (.view-header-nav-buttons) y el título o ruta del archivo
-   (.view-header-title-container); a la derecha .view-actions, que es donde
-   viven los iconos propios añadidos con addAction() Y el ⋮ de «Más opciones».
-   Al ser hermanas, se oculta la izquierda sin tocar el ⋮ (a diferencia del
-   plugin real-fruit-snacks, que vacía containerEl entero y pierde el ⋮). */
-/* data-type = getViewType(): cubre gym-stone-lista/-rutina/-form (y las
-   legadas), sin pisar la cabecera de vistas de otros plugins. */
-/* OJO: en escritorio el título-container lleva `flex: 1 1 auto`, así que él
-   era el que empujaba .view-actions al borde derecho. Ocultarlo con
-   display:none hizo que los iconos cayeran a la izquierda → se les devuelve
-   el empuje con margin-inline-start:auto (lo mismo que Obsidian hace en
-   .is-phone .view-header .view-actions). */
 .workspace-leaf-content[data-type^="gym-stone-"] .view-header-nav-buttons,
 .workspace-leaf-content[data-type^="gym-stone-"] .view-header-title-container { display: none; }
 .workspace-leaf-content[data-type^="gym-stone-"] .view-actions { margin-inline-start: auto; }

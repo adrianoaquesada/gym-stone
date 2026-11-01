@@ -1,21 +1,166 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   Ejercicios: catálogo, selector con buscador y descanso entre series.
-
-   El descanso vive en SEGUNDOS (igual que el campo del creador de rutinas).
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-import { catalogoEjercicios, catalogoEjerciciosTodas, descansoDe, idEjercicioLibre, ultimosValores } from "../datos/calculos";
+import { CONFIG } from "../config";
+import {
+    catalogoEjercicios, catalogoEjerciciosTodas, descansoDe, historialEjercicioGlobal,
+    idEjercicioLibre, ultimosValores, type EntradaHistorialGlobal,
+} from "../datos/calculos";
 import { catalogoGestion, renombrarEjercicio, type EjercicioGestion } from "../datos/ejercicios";
 import { cargarGrupos, fijarGrupo, gruposEnMemoria, purgarGruposSinUsar } from "../datos/grupos";
-import type { EjercicioCatalogo, Rutina } from "../tipos";
-import { pesoTexto } from "../unidades";
-import { aNumero, fechaLegible, limpiarNombre, msgError, norm } from "../util";
-import { confirmar, modal, pedirTexto, ponerX, toast, el } from "./componentes";
+import type { EjercicioCatalogo, Rutina, TipoEjercicio } from "../tipos";
+import { pesoActual, pesoMostrar, pesoTexto } from "../unidades";
+import { aNumero, fechaLegible, limpiarNombre, msgError, norm, tsDe } from "../util";
+import { confirmar, KPI, modal, pedirTexto, ponerX, toast, el } from "./componentes";
+import { grafica } from "./grafica";
 
-/* Traduce un nombre escrito a mano a un { id, nombre } ESTABLE.
-   Si ya existe en el catálogo (aunque esté escrito con otras mayúsculas,
-   tildes o espacios) se usa ESE id: si no, «Press banca» y «press banca»
-   serían dos ejercicios distintos con el historial partido en dos mitades. */
+const tiempoEstadistica = (segundos: number): string => {
+    const s = Math.max(0, Math.round(segundos));
+    if (s < 60) return `${s} s`;
+    const min = Math.floor(s / 60), resto = s % 60;
+    return resto ? `${min} min ${resto} s` : `${min} min`;
+};
+
+const tipoEjercicioTexto = (tipo: TipoEjercicio): string =>
+    tipo === "peso" ? "Peso" : tipo === "tiempo" ? "Tiempo" : "Intervalo";
+
+const tablaHistorialEjercicio = (
+    raiz: HTMLElement,
+    historial: EntradaHistorialGlobal[],
+    tipo: TipoEjercicio,
+): void => {
+    const tabla = el("table", "gym-tabla");
+    const cab = el("thead");
+    const filaCab = el("tr");
+    const peso = tipo === "peso";
+    const columnas = peso
+        ? ["Fecha", "Rutina · día", "Series", "Mejor serie", "1RM", "Volumen"]
+        : ["Fecha", "Rutina · día", "Series", "Mejor duración", "Tiempo"];
+    for (const texto of columnas) filaCab.appendChild(el("th", "", texto));
+    cab.appendChild(filaCab);
+    tabla.appendChild(cab);
+
+    const cuerpo = el("tbody");
+    for (const entrada of [...historial].reverse()) {
+        const fila = el("tr");
+        const serieTexto = peso
+            ? entrada.series.map(s => `${s.reps ?? "–"}×${pesoTexto(s.peso)}`).join(" · ")
+            : entrada.series.map(s => `${s.duracionSeg ?? "–"} s`).join(" · ");
+        const mejor = peso
+            ? `${entrada.mejor.reps ?? "–"} × ${pesoTexto(entrada.mejor.peso)}`
+            : tiempoEstadistica(entrada.mejorSeg);
+        const celdas = [
+            fechaLegible(entrada.fecha),
+            `${entrada.rutinaNombre} · ${entrada.diaNombre || entrada.diaId}`,
+            serieTexto,
+            mejor,
+        ];
+        if (peso) celdas.push(pesoTexto(entrada.oneRM || null), pesoTexto(entrada.volumen));
+        else celdas.push(tiempoEstadistica(entrada.series.reduce((t, s) => t + (Number(s.duracionSeg) || 0), 0)));
+        for (const [i, texto] of celdas.entries()) {
+            fila.appendChild(el("td", i === 0 ? "gym-nowrap" : "", texto));
+        }
+        cuerpo.appendChild(fila);
+    }
+    tabla.appendChild(cuerpo);
+    const envoltorio = el("div", "gym-tabla-wrap gym-tabla-vista");
+    envoltorio.appendChild(tabla);
+    raiz.appendChild(envoltorio);
+};
+
+const pintarEstadisticasGlobales = (
+    raiz: HTMLElement,
+    nombre: string,
+    historial: EntradaHistorialGlobal[],
+): void => {
+    raiz.empty();
+    raiz.appendChild(el("div", "gym-ejercicios-estadisticas-intro",
+        `Historial global de «${nombre}» en todas las rutinas guardadas.`));
+    if (!historial.length) {
+        raiz.appendChild(el("div", "gym-resumen-sin-record", "Todavía no hay sesiones registradas para este ejercicio."));
+        return;
+    }
+
+    const tipos: TipoEjercicio[] = ["peso", "tiempo", "intervalo"];
+    for (const tipo of tipos) {
+        const entradas = historial.filter(h => h.tipoEjercicio === tipo);
+        if (!entradas.length) continue;
+        const seccion = el("section", "gym-ejercicios-estadisticas-tipo");
+        seccion.appendChild(el("div", "gym-tit", `${tipoEjercicioTexto(tipo)} · ${entradas.length} sesiones`));
+
+        const kpis = el("div", "gym-kpis");
+        if (tipo === "peso") {
+            const series = entradas.flatMap(h => h.series.map(s => ({ serie: s, fecha: h.fecha })));
+            const mejorPeso = Math.max(0, ...series.map(x => Number(x.serie.peso) || 0));
+            const mejorSerie = [...series].sort((a, b) =>
+                (Number(b.serie.peso) || 0) - (Number(a.serie.peso) || 0)
+                || (Number(b.serie.reps) || 0) - (Number(a.serie.reps) || 0))[0];
+            const mejorRM = Math.max(0, ...entradas.map(h => h.oneRM));
+            const volumen = entradas.reduce((t, h) => t + h.volumen, 0);
+            kpis.append(
+                KPI("Mejor peso", pesoTexto(mejorPeso || null), CONFIG.NARANJA),
+                KPI("Mejor serie", mejorSerie ? `${mejorSerie.serie.reps ?? "–"} × ${pesoTexto(mejorSerie.serie.peso)}` : "–",
+                    CONFIG.VERDE, mejorSerie ? fechaLegible(mejorSerie.fecha) : undefined),
+                KPI("1RM estimado", pesoTexto(mejorRM || null), CONFIG.AZUL),
+                KPI("Volumen acumulado", pesoTexto(volumen), "var(--text-muted)", "en este ejercicio"),
+            );
+            seccion.appendChild(kpis);
+            grafica(seccion, [
+                {
+                    nombre: `1RM estimado (${pesoActual()})`, color: CONFIG.AZUL,
+                    puntos: entradas.map(h => ({
+                        ts: tsDe(h.fecha), v: pesoMostrar(h.oneRM) ?? 0,
+                        titulo: `${pesoTexto(h.oneRM)} · ${h.rutinaNombre}`,
+                    })),
+                },
+                {
+                    nombre: `Mejor peso (${pesoActual()})`, color: CONFIG.NARANJA,
+                    puntos: entradas.map(h => ({
+                        ts: tsDe(h.fecha), v: pesoMostrar(h.mejorPeso) ?? 0,
+                        titulo: `${pesoTexto(h.mejorPeso)} · ${h.rutinaNombre}`,
+                    })),
+                },
+            ]);
+        } else {
+            const mejor = Math.max(0, ...entradas.map(h => h.mejorSeg));
+            const segundos = entradas.reduce((t, h) =>
+                t + h.series.reduce((a, s) => a + (Number(s.duracionSeg) || 0), 0), 0);
+            const nSeries = entradas.reduce((t, h) => t + h.series.length, 0);
+            kpis.append(
+                KPI("Mejor duración", tiempoEstadistica(mejor), CONFIG.NARANJA),
+                KPI("Tiempo acumulado", tiempoEstadistica(segundos), CONFIG.AZUL, "en este ejercicio"),
+                KPI("Series registradas", String(nSeries), CONFIG.VERDE),
+            );
+            seccion.appendChild(kpis);
+            grafica(seccion, [{
+                nombre: "Mejor duración (s)", color: CONFIG.NARANJA,
+                puntos: entradas.map(h => ({
+                    ts: tsDe(h.fecha), v: h.mejorSeg,
+                    titulo: `${tiempoEstadistica(h.mejorSeg)} · ${h.rutinaNombre}`,
+                })),
+            }], { fmt: v => `${Math.round(v)} s` });
+        }
+        tablaHistorialEjercicio(seccion, entradas, tipo);
+        raiz.appendChild(seccion);
+    }
+};
+
+const abrirEstadisticasEjercicio = async (ejercicio: EjercicioGestion): Promise<void> => {
+    const m = modal(`📊 ${ejercicio.nombre}`, "estadísticas globales");
+    ponerX(m);
+    const contenido = el("div");
+    contenido.appendChild(el("div", "gym-ejercicios-estadisticas-intro", "Cargando historial…"));
+    m.caja.appendChild(contenido);
+    try {
+        const historial = await historialEjercicioGlobal(ejercicio.id);
+        if (!m.overlay.isConnected) return;
+        pintarEstadisticasGlobales(contenido, ejercicio.nombre, historial);
+    } catch (err: unknown) {
+        console.error("[Gym Stone estadísticas globales de ejercicio]", err);
+        if (!m.overlay.isConnected) return;
+        contenido.empty();
+        contenido.appendChild(el("div", "gym-error-vista",
+            `⚠️ No pude cargar el historial de «${ejercicio.nombre}»: ${msgError(err)}`));
+    }
+};
+
 export const resolverEjercicio = (
     catalogo: EjercicioCatalogo[], nombre: string,
 ): { id: string; nombre: string } | null => {
@@ -25,14 +170,10 @@ export const resolverEjercicio = (
     const existente = catalogo.find(x => norm(x.nombre) === q);
     if (existente) return { id: existente.id, nombre: existente.nombre };
     let id = idEjercicioLibre(limpio), n = 2;
-    while (catalogo.some(x => x.id === id)) id = `${idEjercicioLibre(limpio)}-${n++}`;   // choque con otro nombre: se desambigua
+    while (catalogo.some(x => x.id === id)) id = `${idEjercicioLibre(limpio)}-${n++}`;
     return { id, nombre: limpio };
 };
 
-/* ── Descanso entre series ────────────────────────────────────────────────
-   Control compartido: lo usa el selector de ejercicios (al añadirlo) y el
-   propio cambio de descanso dentro de la sesión. `tocar` avisa cuando el
-   usuario lo toca a mano, para que quien lo monte no pise su elección. */
 export interface ControlDescanso {
     raiz: HTMLDivElement;
     seg: () => number;
@@ -41,15 +182,15 @@ export interface ControlDescanso {
 
 export const controlDescanso = (
     segInicial: number | null,
-    { etiqueta = "Descanso entre series (segundos)", tocar = () => { /* nada */ } }: { etiqueta?: string; tocar?: () => void } = {},
+    { etiqueta = "Descanso entre series (segundos)", tocar = () => undefined }: { etiqueta?: string; tocar?: () => void } = {},
 ): ControlDescanso => {
     const raiz = el("div", "display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;");
     raiz.appendChild(el("div", "gym-et", etiqueta));
     const inDesc = el("input");
     inDesc.type = "number"; inDesc.min = "0"; inDesc.step = "15"; inDesc.inputMode = "numeric";
     inDesc.value = String(Math.round(Number(segInicial) || 0));
-    inDesc.placeholder = "90";   // el mismo por defecto que el plan
-    inDesc.style.cssText = "width:96px;min-height:44px;padding:8px 10px;border-radius:8px;" +
+    inDesc.placeholder = "90";
+    inDesc.style.cssText = "box-sizing:border-box;width:96px;height:34px;min-height:34px;padding:4px 8px;border-radius:8px;" +
         "border:1px solid var(--background-modifier-border);background:var(--background-secondary);" +
         "color:var(--text-normal);font-size:1em;box-sizing:border-box;";
     inDesc.oninput = tocar;
@@ -64,24 +205,18 @@ export const controlDescanso = (
     raiz.appendChild(chips);
     return {
         raiz,
-        // Vacío o 0 = «sin descanso fijado»: quien llama decide si eso es el
-        // por defecto de 90 s o simplemente no guardar el campo.
+
         seg: () => { const s = aNumero(inDesc.value); return s != null && s > 0 ? Math.round(s) : 0; },
-        // Recarga el valor sin marcarlo como «puesto a mano» (no dispara oninput).
+
         aplicar: s => { inDesc.value = String(Math.round(Number(s) || 0)); },
     };
 };
 
-// Texto del descanso en la interfaz: siempre en segundos, igual que el
-// campo del creador de rutinas. 0 = «sin descanso fijado».
 export const textoDescanso = (n: number | null | undefined): string =>
     (Number(n) > 0 ? `descanso ${Math.round(Number(n))} s` : `＋ descanso`);
 
-// Cambiar el descanso desde el propio sitio donde se usa (cabecera de la
-// sesión guiada, chip del formulario de registro). Devuelve los segundos
-// elegidos o null si se cierra sin tocar nada.
 export const pedirDescanso = (segActual: number | null): Promise<number | null> => new Promise(resolve => {
-    const m = modal("⏳ Descanso", "segundos entre series de este ejercicio", true);   // anidado: no cierra la sesión
+    const m = modal("⏳ Descanso", "segundos entre series de este ejercicio", true);
     let resuelto = false;
     const listo = (v: number | null) => {
         if (resuelto) return;
@@ -113,19 +248,13 @@ export interface EleccionEjercicio {
     descansoSeg: number;
 }
 
-/* Selector de ejercicio con buscador: lista TODO lo que se ha usado —en ESTA
-   rutina y en las demás, con la última marca de cada uno— y permite escribir uno
-   nuevo. Devuelve { id, nombre, descansoSeg } —con el descanso elegido aquí, en
-   segundos— o null. */
 export const elegirEjercicio = (
     rutina: Rutina, { excluir = [] }: { excluir?: string[] } = {},
 ): Promise<EleccionEjercicio | null> => new Promise(resolve => {
-    // Lo de ESTA rutina se pinta ya (es síncrono); el de TODAS las rutinas del
-    // vault llega en segundo plano y repinta la lista entera (al final de esta
-    // función). Así el modal no espera a leer los archivos.
+
     let catalogo = catalogoEjercicios(rutina).filter(x => !excluir.includes(x.id));
     const m = modal("＋ Añadir ejercicio", "elige de TODAS tus rutinas o escribe uno nuevo",
-        true);   // anidado: se abre SOBRE el formulario de sesión, que se queda abierto
+        true);
 
     let resuelto = false;
     const listo = (r: { id: string; nombre: string } | null) => {
@@ -133,22 +262,14 @@ export const elegirEjercicio = (
         resuelto = true;
         document.removeEventListener("keydown", onKey);
         m.cerrar();
-        // Devuelve también el descanso elegido: en la rutina libre no hay plan
-        // del que traerlo y aquí es donde se puede fijar.
+
         resolve(r && { id: r.id, nombre: r.nombre, descansoSeg: segDescanso() });
     };
-    // Escape y clic en el fondo también cierran: modal() cierra por su cuenta,
-    // pero como no sabe que esto es una promesa, hay que resolverla desde aquí.
-    // Como en modal(): solo si SOMOS el de arriba del todo (puede haber un
-    // diálogo encima, p. ej. el de asignar grupo muscular).
+
     const onKey = (e: KeyboardEvent) => {
         if (e.key !== "Escape") return;
         if (document.getElementById("gym-confirm-activo")) return;
-        // Como en modal(): solo si SOMOS el de arriba del todo (puede haber un
-        // diálogo encima, p. ej. el de asignar grupo muscular). Ojo: el listener
-        // de modal() va el primero y puede haber cerrado ya ESTE overlay — si ya
-        // no está en pantalla se resuelve igualmente, o la promesa quedaría
-        // colgada aunque el diálogo se vea cerrado.
+
         if (m.overlay.isConnected) {
             const modales = [...document.body.children].filter(n => /^gym-modal/.test(n.className || ""));
             if (modales.length && modales[modales.length - 1] !== m.overlay) return;
@@ -162,57 +283,47 @@ export const elegirEjercicio = (
     const inNombre = el("input");
     inNombre.type = "text";
     inNombre.placeholder = "Busca (por ejemplo, «press») o escribe uno nuevo";
-    inNombre.style.cssText = "width:100%;min-height:46px;padding:10px 12px;border-radius:8px;" +
+    inNombre.style.cssText = "box-sizing:border-box;width:100%;height:34px;min-height:34px;padding:4px 8px;border-radius:8px;" +
         "border:1px solid var(--background-modifier-border);background:var(--background-secondary);" +
         "color:var(--text-normal);font-size:1em;box-sizing:border-box;";
     m.caja.appendChild(el("div", "gym-et", "Ejercicio"));
     m.caja.appendChild(inNombre);
 
-    // Filtro por grupo muscular: chips con los grupos que hay en el catálogo
-    // (el 🏷 de cada fila los asigna). «Todos» es el estado inicial.
     const cajaGrupos = el("div", "display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;");
     m.caja.appendChild(cajaGrupos);
     let grupoActivo = "";
-    let soloSinGrupo = false;   // chip «Sin grupo»: filtra los ejercicios sin clasificar
+    let soloSinGrupo = false;
 
     const lista = el("div", "max-height:250px;overflow:auto;margin-top:8px;" +
         "border:1px solid var(--background-modifier-border);border-radius:8px;");
     m.caja.appendChild(lista);
 
-    // Recuento de lo que hay en pantalla: deja claro que la lista sale COMPLETA
-    // (y cuánto se ha filtrado al teclear).
     const cuenta = el("div", "font-size:.74em;opacity:.6;margin-top:5px;");
     m.caja.appendChild(cuenta);
 
-    // Descanso entre series: en la rutina libre no hay plan del que traerlo (y en la
-    // planificada puede que el ejercicio ni esté en el día), así que se fija aquí.
-    // Se recuerda por ejercicio: si cambias de fila se recarga con su último descanso.
-    let descansoAMano = false;   // quien ya lo ha puesto a mano no lo pisa el cambio de fila
+    let descansoAMano = false;
     const ctrlDesc = controlDescanso(90, { tocar: () => { descansoAMano = true; } });
     m.caja.appendChild(ctrlDesc.raiz);
     const segDescanso = () => ctrlDesc.seg();
     const sugiereDescanso = (id: string) => {
         if (descansoAMano) return;
-        ctrlDesc.aplicar(descansoDe(rutina, id) ?? 90);   // 90 s si nunca constó
+        ctrlDesc.aplicar(descansoDe(rutina, id) ?? 90);
     };
 
     const btnUsar = el("button", "gym-btn primario gym-btn-ancho gym-mt8");
     btnUsar.type = "button";
     m.caja.appendChild(btnUsar);
 
-    let pendiente: { id: string; nombre: string } | null = null;   // qué hace el botón en este momento
+    let pendiente: { id: string; nombre: string } | null = null;
     const pintar = () => {
         const q = norm(inNombre.value);
         const grupos = gruposEnMemoria();
         const grupoDe = (id: string) => grupos[id] ?? "";
 
-        // Chips: los grupos que hay AHORA en el catálogo (al abrir llegan los
-        // del fichero en segundo plano y los chips salen solos). «Sin grupo»
-        // avisa de los que aún no estás clasificados y deja filtrarlos.
         const enUso = [...new Set(catalogo.map(x => grupoDe(x.id)).filter(Boolean))]
             .sort((a, b) => a.localeCompare(b, "es"));
         const sinGrupo = catalogo.filter(x => !grupoDe(x.id)).length;
-        if (grupoActivo && !enUso.includes(grupoActivo)) grupoActivo = "";   // el grupo dejó de existir
+        if (grupoActivo && !enUso.includes(grupoActivo)) grupoActivo = "";
         cajaGrupos.empty();
         if (enUso.length || sinGrupo) {
             const chip = (texto: string, valor: string, especial = ""): void => {
@@ -227,9 +338,6 @@ export const elegirEjercicio = (
             if (sinGrupo) chip(`Sin grupo (${sinGrupo})`, "", "sin");
         }
 
-        // Lista COMPLETA: se filtra lo que no encaje, pero NUNCA se corta.
-        // La búsqueda alcanza también el grupo muscular: «hombros» saca los
-        // ejercicios de hombros aunque no lo lleven en el nombre.
         const visibles = catalogo.filter(x =>
             (!grupoActivo || grupoDe(x.id) === grupoActivo) &&
             (!soloSinGrupo || !grupoDe(x.id)) &&
@@ -249,8 +357,7 @@ export const elegirEjercicio = (
                 "border-bottom:1px solid var(--background-modifier-border);" +
                 "display:flex;align-items:center;gap:8px;");
             const txt = el("div", "flex:1;min-width:0;");
-            // Última marca en ESTA rutina; si el ejercicio solo existe en otra, se
-            // dice de qué rutina viene en vez de prometer «sin registros todavía».
+
             const nomFila = el("div", "gym-ej-nombre");
             nomFila.append(x.nombre, " ");
             const chipGrupo = el("span", g ? "gym-chip gym-chip-mini gym-grupo" : "gym-chip gym-chip-mini gym-sin-grupo",
@@ -265,18 +372,18 @@ export const elegirEjercicio = (
                                : "sin registros todavía");
             txt.append(nomFila, subFila);
             fila.appendChild(txt);
-            // 🏷: clasificar el ejercicio por grupo muscular (para filtrar y buscar)
+
             const btnG = el("button", "gym-chip gym-chip-btn", g || "🏷");
             btnG.type = "button";
             btnG.title = g
                 ? `Grupo muscular: ${g} — clic para cambiar o quitar`
                 : "Asignar grupo muscular (para filtrar y buscar por él)";
             btnG.onclick = async e => {
-                e.stopPropagation();   // NO elegir el ejercicio al clasificarlo
+                e.stopPropagation();
                 const sugeridos = [...new Set(Object.values(gruposEnMemoria()))]
                     .sort((a, b) => a.localeCompare(b, "es"));
                 const r = await pedirTexto(`🏷 Grupo muscular · ${x.nombre}`, g, sugeridos, true);
-                if (r === null) return;   // cancelado
+                if (r === null) return;
                 await fijarGrupo(x.id, r);
                 pintar();
             };
@@ -305,8 +412,8 @@ export const elegirEjercicio = (
         const unico = (!exacto && visibles.length === 1) ? visibles[0] : null;
         pendiente = exacto ? { id: exacto.id, nombre: exacto.nombre }
             : unico ? { id: unico.id, nombre: unico.nombre }
-            : resolverEjercicio(catalogo, texto);   // o cae en uno existente, o crea el nuevo
-        if (pendiente) sugiereDescanso(pendiente.id);   // recarga su último descanso (si no lo tocaste a mano)
+            : resolverEjercicio(catalogo, texto);
+        if (pendiente) sugiereDescanso(pendiente.id);
         btnUsar.hidden = false;
         btnUsar.textContent = exacto ? `✔ Usar «${exacto.nombre}»`
             : unico ? `✔ Usar «${unico.nombre}» (único resultado)`
@@ -319,37 +426,19 @@ export const elegirEjercicio = (
     pintar();
     inNombre.focus();
 
-    // En segundo plano llega el catálogo de TODAS las rutinas del vault: al llegar
-    // se repinta la lista entera (sigue sin cortes) para que el buscador encuentre
-    // también los ejercicios que solo has hecho en otras rutinas. Si falla la
-    // lectura, se queda lo local: el selector sigue funcionando igual que antes.
     void (async () => {
         let total: EjercicioCatalogo[] | null = null;
         try { total = await catalogoEjerciciosTodas(rutina); }
         catch { total = null; }
-        if (resuelto || !Array.isArray(total)) return;   // el modal ya se cerró
+        if (resuelto || !Array.isArray(total)) return;
         catalogo = total.filter(x => !excluir.includes(x.id));
-        pintar();   // respeta lo tecleado: recalcula filtros, botón y recuento
+        pintar();
     })();
 
-    // Y en segundo plano llegan los grupos musculares asignados: al llegar
-    // repintan chips y filas. Si el fichero falla, se queda sin clasificar
-    // (igual que antes: el buscador funciona igual que siempre).
     cargarGrupos()
         .then(() => { if (!resuelto) pintar(); })
-        .catch(() => { /* sin grupos: se sigue sin clasificar */ });
+        .catch((err: unknown) => { console.warn("[Gym Stone] No se pudieron cargar los grupos musculares", err); });
 });
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   Gestor del catálogo global: renombrar ejercicios y fijar su grupo muscular
-   para el buscador. Una fila = un ejercicio CONCRETO (id estable) con su
-   nombre y su grupo; guardar renombra en todas las rutinas y plantillas donde
-   aparezca.
-
-   Se pinta dentro de un contenedor que decide quien llama: en Inicio ocupa la
-   sección «🗂 Ejercicios» a pantalla completa (ya no hay popup de catálogo).
-   ═══════════════════════════════════════════════════════════════════════════ */
-let dlGestionN = 0;
 
 export const pintarGestionEjercicios = (cont: HTMLElement): void => {
     cont.appendChild(el("div", "opacity:.75;font-size:.82em;",
@@ -359,16 +448,11 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
     const inBusca = el("input", "gym-ejercicios-busca");
     inBusca.type = "text";
     inBusca.placeholder = "Busca por nombre o grupo";
+    inBusca.setAttribute("aria-label", "Buscar por nombre o grupo");
     cont.appendChild(inBusca);
 
     const categorias = el("div", "gym-ejercicios-categorias");
     cont.appendChild(categorias);
-
-    // Un solo datalist compartido por todos los inputs de grupo (sugerencias),
-    // con id único por instancia
-    const dl = createEl("datalist");
-    dl.id = `gym-grupos-dl-${++dlGestionN}`;
-    cont.appendChild(dl);
 
     const lista = el("div", "gym-ejercicios-lista");
     cont.appendChild(lista);
@@ -377,13 +461,11 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
 
     let cat: EjercicioGestion[] = [];
     let cargando = true;
-    let huerfanos: string[] = [];   // ids del fichero de grupos que ya no se usan
-    let grupoActivo: string | null = null;
+    let huerfanos: string[] = [];
+    const gruposActivos = new Set<string>();
+    let incluirSinGrupo = false;
     const editando = new Set<string>();
 
-    // Purga de entradas huérfanas: solo aparece si el fichero de grupos guarda
-    // ejercicios que ya no están en ninguna rutina ni plantilla (p. ej. tras
-    // borrar una rutina entera). Nunca toca rutinas ni plantillas.
     const btnPurga = el("button", "gym-btn gym-btn-purga");
     btnPurga.type = "button";
     btnPurga.hidden = true;
@@ -403,27 +485,21 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
             toast("⚠️ No pude purgar: " + msgError(err), false);
         }
         btnPurga.disabled = false;
-        try { cat = await catalogoGestion(); } catch { /* se queda lo leído */ }
+        try { cat = await catalogoGestion(); }
+        catch (err: unknown) { console.warn("[Gym Stone] No se pudo actualizar el catálogo de ejercicios", err); }
         pintar();
     };
     cont.appendChild(btnPurga);
 
-    const estInput = "flex:1 1 170px;min-width:0;min-height:38px;padding:7px 10px;border-radius:8px;" +
+    const estInput = "box-sizing:border-box;flex:1 1 170px;min-width:0;height:34px;min-height:34px;padding:4px 8px;border-radius:8px;" +
         "border:1px solid var(--background-modifier-border);background:var(--background-secondary);" +
         "color:var(--text-normal);font-size:.92em;box-sizing:border-box;";
 
     const pintar = () => {
-        // Sugerencias del datalist: los grupos ya usados (memoria + catálogo)
+
         const sugeridos = new Set<string>(Object.values(gruposEnMemoria()));
         for (const e of cat) if (e.grupo) sugeridos.add(e.grupo);
-        dl.empty();
-        for (const g of [...sugeridos].sort((a, b) => a.localeCompare(b, "es"))) {
-            const o = createEl("option"); o.value = g;
-            dl.appendChild(o);
-        }
 
-        // Huérfanos del fichero: ids clasificados que ya no aparecen en NINGUNA
-        // rutina ni plantilla (el catálogo del vault acaba de escanearlas todas)
         const usados = new Set(cat.map(x => x.id));
         huerfanos = Object.keys(gruposEnMemoria()).filter(id => !usados.has(id)).sort();
         btnPurga.hidden = cargando || !huerfanos.length;
@@ -433,24 +509,53 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
         const grupos = [...new Set(cat.map(x => x.grupo).filter(Boolean))]
             .sort((a, b) => a.localeCompare(b, "es"));
         const nSinGrupo = cat.filter(x => !x.grupo).length;
-        if (grupoActivo && grupoActivo !== "" && !grupos.includes(grupoActivo)) grupoActivo = null;
-        if (grupoActivo === "" && !nSinGrupo) grupoActivo = null;
+        for (const grupo of gruposActivos) {
+            if (!grupos.includes(grupo)) gruposActivos.delete(grupo);
+        }
+        if (!nSinGrupo) incluirSinGrupo = false;
         categorias.empty();
         const chipCategoria = (texto: string, grupo: string | null): void => {
-            const b = el("button", "gym-chip gym-puntero" + (grupoActivo === grupo ? " on" : ""), texto);
+            const activo = grupo === null ? gruposActivos.size === 0 && !incluirSinGrupo
+                : grupo === "" ? incluirSinGrupo : gruposActivos.has(grupo);
+            const b = el("button", "gym-chip gym-puntero" + (activo ? " on" : ""), texto);
             b.type = "button";
-            b.setAttribute("aria-pressed", String(grupoActivo === grupo));
-            b.onclick = () => { grupoActivo = grupo; pintar(); };
+            b.setAttribute("aria-pressed", String(activo));
+            b.onclick = () => {
+                if (grupo === null) {
+                    gruposActivos.clear();
+                    incluirSinGrupo = false;
+                } else if (grupo === "") {
+                    incluirSinGrupo = !incluirSinGrupo;
+                } else if (gruposActivos.has(grupo)) {
+                    gruposActivos.delete(grupo);
+                } else {
+                    gruposActivos.add(grupo);
+                }
+                pintar();
+            };
             categorias.appendChild(b);
         };
-        chipCategoria("Todos", null);
-        for (const grupo of grupos) chipCategoria(grupo, grupo);
+        for (const grupo of grupos) {
+            chipCategoria(`${grupo} (${cat.filter(x => x.grupo === grupo).length})`, grupo);
+        }
         if (nSinGrupo) chipCategoria(`Sin grupo (${nSinGrupo})`, "");
 
+        const filtrosActivos = gruposActivos.size > 0 || incluirSinGrupo || !!inBusca.value.trim();
+        const limpiarFiltros = el("button", "gym-btn gym-ejercicios-limpiar-filtros", "Limpiar filtros");
+        limpiarFiltros.type = "button";
+        limpiarFiltros.disabled = !filtrosActivos;
+        limpiarFiltros.onclick = () => {
+            gruposActivos.clear();
+            incluirSinGrupo = false;
+            inBusca.value = "";
+            pintar();
+        };
+        categorias.appendChild(limpiarFiltros);
+
         const q = norm(inBusca.value);
-        // La búsqueda alcanza también el grupo, igual que en el buscador de sesión
+
         const visibles = cat.filter(x =>
-            (grupoActivo === null || (grupoActivo === "" ? !x.grupo : x.grupo === grupoActivo)) &&
+            (!(gruposActivos.size || incluirSinGrupo) || gruposActivos.has(x.grupo) || (incluirSinGrupo && !x.grupo)) &&
             (!q || norm(x.nombre).includes(q) || norm(x.grupo).includes(q)));
 
         lista.empty();
@@ -464,7 +569,8 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
                            : "Sin ejercicios todavía en ninguna rutina."));
         }
         for (const e of visibles) {
-            const fila = el("div", "gym-ejercicios-fila");
+            const estaEditando = editando.has(e.id);
+            const fila = el("div", "gym-ejercicios-fila" + (estaEditando ? " editando" : ""));
             const cabecera = el("div", "gym-ejercicios-fila-cab");
             const detalle = el("div", "gym-flex1");
             detalle.appendChild(el("div", "gym-ej-nombre", e.nombre));
@@ -475,37 +581,80 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
                 `${e.apariciones} aparicion${e.apariciones === 1 ? "" : "es"}`,
             ].filter(Boolean).join(" · ");
             detalle.appendChild(el("div", "gym-ej-sub", sitio));
-            cabecera.appendChild(detalle);
+            const abrir = el("div", "gym-ejercicios-fila-info");
+            abrir.setAttribute("role", "button");
+            abrir.tabIndex = 0;
+            abrir.title = `Ver estadísticas de ${e.nombre}`;
+            abrir.setAttribute("aria-label", `Ver estadísticas de ${e.nombre}`);
+            abrir.onclick = () => { void abrirEstadisticasEjercicio(e); };
+            abrir.onkeydown = evento => {
+                if (evento.key !== "Enter" && evento.key !== " ") return;
+                evento.preventDefault();
+                abrir.click();
+            };
+            abrir.appendChild(detalle);
+            cabecera.appendChild(abrir);
 
-            const editar = el("button", "gym-mini gym-ejercicio-editar", editando.has(e.id) ? "✕" : "✎");
+            const editar = el("button", "gym-mini gym-ejercicio-editar", estaEditando ? "✕" : "✎");
             editar.type = "button";
-            editar.title = editando.has(e.id) ? "Cancelar edición" : "Editar nombre o grupo";
+            editar.title = estaEditando ? "Cancelar edición" : "Editar nombre o grupo";
             editar.setAttribute("aria-label", `${editar.title}: ${e.nombre}`);
             editar.onclick = () => {
-                if (editando.has(e.id)) editando.delete(e.id);
+                if (estaEditando) editando.delete(e.id);
                 else editando.add(e.id);
                 pintar();
             };
             cabecera.appendChild(editar);
             fila.appendChild(cabecera);
 
-            if (editando.has(e.id)) {
+            if (estaEditando) {
                 const controles = el("div", "gym-ejercicios-editor");
+                controles.appendChild(el("div", "gym-ejercicios-editor-titulo", `Editando: ${e.nombre}`));
 
                 const inN = el("input");
                 inN.type = "text"; inN.value = e.nombre;
                 inN.setAttribute("aria-label", "Nombre del ejercicio");
                 inN.style.cssText = estInput;
-                const inG = el("input");
-                inG.type = "text"; inG.value = e.grupo; inG.placeholder = "Grupo (por ejemplo: Pecho)";
+                const inG = el("select", "gym-ejercicios-grupo-select");
                 inG.setAttribute("aria-label", "Grupo muscular");
-                inG.setAttribute("list", dl.id);
-                inG.style.cssText = "flex:0 1 130px;" + estInput;
-
-                const chipSin = el("span", "gym-chip", "sin grupo");
-                chipSin.style.cssText = "font-size:.7em;font-weight:700;opacity:.5;flex:none;" +
-                    (e.grupo ? "display:none;" : "");
-                inG.oninput = () => { chipSin.hidden = !!inG.value.trim(); };
+                inG.appendChild(el("option", null, "Sin grupo"));
+                inG.options[0].value = "";
+                const gruposOrdenados = [...sugeridos].sort((a, b) => a.localeCompare(b, "es"));
+                for (const grupo of gruposOrdenados) {
+                    const opcion = el("option", null, grupo);
+                    opcion.value = grupo;
+                    inG.appendChild(opcion);
+                }
+                inG.value = e.grupo;
+                const crearGrupo = el("button", "gym-btn gym-ejercicios-crear-grupo", "＋ Crear grupo");
+                crearGrupo.type = "button";
+                crearGrupo.onclick = async () => {
+                    const sugerencias = [...sugeridos].sort((a, b) => a.localeCompare(b, "es"));
+                    const escrito = await pedirTexto("Crear grupo muscular", "", sugerencias);
+                    if (escrito === null) return;
+                    const limpio = escrito.trim();
+                    if (!limpio) {
+                        toast("⚠️ El nombre del grupo no puede quedar vacío.", false);
+                        return;
+                    }
+                    const existente = sugerencias.find(grupo => norm(grupo) === norm(limpio));
+                    const grupo = existente ?? limpio;
+                    if (!existente) {
+                        const opcion = el("option", null, grupo);
+                        opcion.value = grupo;
+                        inG.appendChild(opcion);
+                    }
+                    inG.value = grupo;
+                    quitarGrupo.disabled = false;
+                };
+                const quitarGrupo = el("button", "gym-btn gym-ejercicios-quitar-grupo", "Quitar grupo");
+                quitarGrupo.type = "button";
+                quitarGrupo.disabled = !inG.value;
+                quitarGrupo.onclick = () => {
+                    inG.value = "";
+                    quitarGrupo.disabled = true;
+                };
+                inG.onchange = () => { quitarGrupo.disabled = !inG.value; };
                 const guardar = el("button", "gym-btn gym-btn-guardar-ej", "Guardar");
                 guardar.type = "button";
                 guardar.title = "Guardar nombre y grupo de este ejercicio";
@@ -536,14 +685,14 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
                     try {
                         guardar.disabled = true;
                         const res = cambioNombre ? await renombrarEjercicio(e.id, nuevoNombre) : null;
-                        await fijarGrupo(e.id, nuevoGrupo);   // vacío = sin grupo
+                        await fijarGrupo(e.id, nuevoGrupo);
                         toast(cambioNombre
                             ? `✅ «${nuevoNombre}» actualizado: ${res?.rutinas ?? 0} rutina(s)` +
                               (res?.plantillas ? `, ${res.plantillas} plantilla(s)` : "")
                             : nuevoGrupo ? `🏷 «${nuevoNombre}»: grupo «${nuevoGrupo}»`
                                          : `🏷 «${nuevoNombre}»: sin grupo`);
                         editando.delete(e.id);
-                        cat = await catalogoGestion();   // refrescar nombres, grupos y orden
+                        cat = await catalogoGestion();
                         pintar();
                     } catch (err: unknown) {
                         guardar.disabled = false;
@@ -552,7 +701,7 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
                     }
                 };
 
-                controles.append(inN, inG, chipSin, guardar);
+                controles.append(inN, inG, crearGrupo, quitarGrupo, guardar);
                 fila.appendChild(controles);
             }
             lista.appendChild(fila);

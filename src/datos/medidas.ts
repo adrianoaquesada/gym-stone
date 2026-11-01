@@ -1,7 +1,3 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   Medidas corporales: peso y talla, globales para todo el vault.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
 import { rutaMedidas } from "../ajustes";
 import { contenidoNotaDatos, escribirSeguro, leerNotaDatos } from "./archivos";
 import type { LecturaNota, MedidasDatos } from "../tipos";
@@ -12,7 +8,7 @@ export const leerMedidas = async (): Promise<LecturaNota<MedidasDatos>> => {
     const ruta = rutaMedidas();
     const r = await leerNotaDatos<MedidasDatos>(ruta);
     if (r.error) {
-        // Archivo ausente = sin medidas todavía; roto = se avisa y no se toca
+
         if (r.error.includes("No existe")) return { datos: medidasVacias(), ruta };
         return r;
     }
@@ -27,8 +23,6 @@ export const escribirMedidas = async (datos: MedidasDatos): Promise<string> => {
     return ruta;
 };
 
-// Último peso y última talla (la talla no se repite: se hereda de la última
-// medida). El IMC se calcula SIEMPRE en kg, sin importar la unidad mostrada.
 export const ultimaMedida = (datos?: MedidasDatos): {
     pesoKg: number | null; tallaCm: number | null; fecha: string | null; imc: number | null;
 } => {

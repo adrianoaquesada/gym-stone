@@ -1,5 +1,3 @@
-/* Sonidos sintetizados para temporizadores, descansos y avisos previos. */
-
 import { conf } from "../estado";
 
 type TipoAviso = "temporizador" | "descanso";
@@ -112,11 +110,9 @@ export const sonarCuentaAtras = (clave: string, tipo: TipoAviso, restanteMs: num
 
 export const reiniciarCuentaAtras = (clave: string): void => { segundosAvisados.delete(clave); };
 
-/* Vibración en móvil (en escritorio no existe y no hace nada): dos pulsos,
-   igual que siempre en el temporizador. No depende de ningún interruptor. */
 export const vibrar = (): void => {
     try { if (typeof navigator.vibrate === "function") navigator.vibrate([300, 120, 300]); }
-    catch { /* sin vibración */ }
+    catch (err: unknown) { console.warn("[Gym Stone] No se pudo activar la vibración", err); }
 };
 
 export const probarSonido = (): void => { void sintetizar(true, notasAviso()); };

@@ -1,14 +1,3 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   La hoja de crear/editar (propuesta E).
-
-   El formulario deja de ser una pantalla: se abre HOJA superpuesta sobre lo
-   que estés mirando, a casi todo el ancho. «✕» o Esc la cierran y vuelves
-   exactamente a donde estabas (el borrador que estuvieras escribiendo se
-   conserva: el estado del formulario vive en ui/creador.ts).
-   Al guardar, el formulario navega a la ficha de la rutina y la hoja se cierra
-   encima de esa misma pestaña.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
 import { leerRutina } from "../datos";
 import type { Rutina } from "../tipos";
 import { el, toast } from "./componentes";
@@ -36,7 +25,7 @@ export const hojaFormulario = async ({ modo, rutinaId = null }: OpcionesHoja): P
     btnCerrar.type = "button";
     btnCerrar.title = "Cerrar (esc)";
 
-    const tit = el("div", "gym-hoja-tit");   // flex:1 en CSS: el título a la izquierda, la ✕ a la derecha
+    const tit = el("div", "gym-hoja-tit");
     tit.append(
         el("span", "gym-naranja", modo === "editar" ? "✏️ Editar rutina" : "🏋️ Nueva rutina"),
         " ",
@@ -55,7 +44,7 @@ export const hojaFormulario = async ({ modo, rutinaId = null }: OpcionesHoja): P
         document.removeEventListener("keydown", onKey, true);
         overlay.remove();
     };
-    // El Escape lo cede a los confirmar() que se abran encima (limpiar…)
+
     const onKey = (e: KeyboardEvent) => {
         if (e.key === "Escape" && !document.getElementById("gym-confirm-activo")) {
             e.stopPropagation();
@@ -65,8 +54,6 @@ export const hojaFormulario = async ({ modo, rutinaId = null }: OpcionesHoja): P
     document.addEventListener("keydown", onKey, true);
     btnCerrar.onclick = cerrar;
 
-    // Al guardar, el propio formulario ya navega a la ficha de la rutina;
-    // aquí solo hacemos que la hoja desaparezca por encima.
     const alGuardar = () => cerrar();
 
     if (modo === "editar" && inicial) await editar(cuerpo, inicial, alGuardar, true);

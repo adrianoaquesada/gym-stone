@@ -1,16 +1,3 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   4 · Estadísticas de la rutina (popup 📈 de la fila de navegación): KPIs,
-   volumen y tiempo de trabajo por sesión/semana/mes, progresión por ejercicio,
-   peso corporal e IMC y récords personales.
-
-   Puerto fiel de la sección 4 del motor original (_gym-gestor.js). Las
-   sub-secciones 4b-4d (progresión, medidas y récords) se pintan desde aquí:
-   el gestor llama a seccionEstadisticas, que la abre entera dentro de un
-   modal (sin caja colapsable). EXCEPCIÓN: 4c (peso corporal e IMC) está
-   exportada porque Inicio la pinta también, a pantalla completa, en su
-   sección «Medidas e IMC».
-   ═══════════════════════════════════════════════════════════════════════════ */
-
 import { CONFIG } from "../config";
 import {
     adherencia, ejerciciosConDatos, esLibre, historialEjercicio, nombreDia,
@@ -23,7 +10,6 @@ import type { LecturaNota, MedidasDatos, Rutina, Sesion } from "../tipos";
 import { el, KPI, limitaAlto, tablaEn } from "./componentes";
 import { grafica } from "./grafica";
 
-/* Segundos en texto corto: «45 s», «3 min 20 s». */
 const tiempoTexto = (seg: number): string => {
     const s = Math.max(0, Math.round(seg));
     if (s < 60) return `${s} s`;
@@ -31,13 +17,10 @@ const tiempoTexto = (seg: number): string => {
     return r ? `${m} min ${r} s` : `${m} min`;
 };
 
-/* ══════════════════ 4 · Estadísticas ══════════════════ */
-
 export function seccionEstadisticas(
     c: HTMLElement, rutina: Rutina, medidas: LecturaNota<MedidasDatos>,
 ): void {
-    // En popup (gestor.ts): sin caja colapsable — el título y el ✕ los pone
-    // el modal, y el cuerpo va directo al contenedor.
+
     const c2 = c;
     const sesiones = [...(rutina.sesiones ?? [])].filter(s => esFechaValida(s.fecha));
     const adher = adherencia(rutina);
@@ -51,10 +34,9 @@ export function seccionEstadisticas(
     const mediaMin = minutos.length ? minutos.reduce((a, b) => a + b, 0) / minutos.length : NaN;
 
     if (esLibre(rutina)) {
-        // Sin días programados no existe «adherencia» (daría 0/0): lo que hay que
-        // medir es cuántos días has ido y si mantienes la racha de semanas.
+
         const res = resumenLibre(rutina);
-        const semana = Math.max(1, semanaActual(rutina));   // 0 = la rutina aún no empezó
+        const semana = Math.max(1, semanaActual(rutina));
         const totalSem = semanasTotales(rutina) || "?";
         fila.appendChild(KPI("Sesiones", String(sesiones.length), CONFIG.VERDE,
             sesiones.length
@@ -73,7 +55,7 @@ export function seccionEstadisticas(
             "días programados con sesión registrada"));
         fila.appendChild(KPI("Racha", String(adher.racha || 0), CONFIG.NARANJA, `mejor: ${adher.mejorRacha || 0} seguidas`));
     }
-    // El volumen solo existe en «peso»; el trabajo de tiempo/intervalo va aparte
+
     if (volumenTotal > 0 || !hayTiempo) {
         fila.appendChild(KPI("Volumen total", pesoTexto(volumenTotal), CONFIG.AZUL, "Σ series × reps × peso (solo ejercicios de peso)"));
     }
@@ -83,7 +65,6 @@ export function seccionEstadisticas(
     fila.appendChild(KPI("Duración media", Number.isFinite(mediaMin) ? `${Math.round(mediaMin)} min` : "–", "var(--text-muted)",
         `${minutos.length} sesiones con duración`));
 
-    // Volumen por sesión (gráfica): solo si hay kilos que enseñar
     if (volumenTotal > 0 || !hayTiempo) {
         const titSes = el("div", "gym-tit");
         titSes.append(el("span", null, "Volumen por sesión"),
@@ -92,14 +73,13 @@ export function seccionEstadisticas(
         grafica(c2, [{
             nombre: "Volumen", color: CONFIG.NARANJA,
             puntos: sesiones.map(s => ({
-                // el eje Y se pinta en la unidad activa, igual que el tooltip
+
                 ts: tsDe(s.fecha), v: pesoMostrar(volumenSesion(s)) ?? 0,
                 titulo: `${pesoTexto(volumenSesion(s))} · ${nombreDia(rutina, s.diaId)}`,
             })),
         }]);
     }
 
-    // Tiempo de trabajo por sesión (gráfica): tiempo e intervalo, sin 1RM
     if (hayTiempo) {
         const titTiempo = el("div", "gym-tit");
         titTiempo.append(el("span", null, "Tiempo por sesión"),
@@ -114,7 +94,6 @@ export function seccionEstadisticas(
         }], { fmt: v => `${Math.round(v)} s` });
     }
 
-    // Tabla de volumen y tiempo por semana y mes
     const porClave = (extraer: (f: string) => string): { clave: string; sesiones: number; vol: number; seg: number; min: number }[] => {
         const mapa = new Map<string, { clave: string; sesiones: number; vol: number; seg: number; min: number }>();
         for (const s of sesiones) {
@@ -140,7 +119,7 @@ export function seccionEstadisticas(
         ? ["Periodo", "Sesiones", "Volumen", "Tiempo", "Minutos"]
         : ["Periodo", "Sesiones", "Volumen", "Minutos"];
     const filaPeriodo = (etiqueta: string, w: { sesiones: number; vol: number; seg: number; min: number }): string[] => {
-        // Sin kilos pero con tiempo: la columna «Volumen» queda vacía («–»)
+
         const vol = w.vol > 0 ? pesoTexto(w.vol) : w.seg > 0 ? "–" : pesoTexto(0);
         const celdas = [etiqueta, String(w.sesiones), vol];
         if (hayTiempo) celdas.push(w.seg > 0 ? tiempoTexto(w.seg) : "–");
@@ -159,7 +138,6 @@ export function seccionEstadisticas(
     seccionRecords(c2, rutina, sesiones);
 }
 
-/* ── 4b · Progresión por ejercicio ── */
 function seccionProgresion(c: HTMLElement, rutina: Rutina): void {
     const ejercicios = ejerciciosConDatos(rutina);
     const conHistorial = ejercicios.filter(e => historialEjercicio(rutina, e.id).length);
@@ -175,7 +153,7 @@ function seccionProgresion(c: HTMLElement, rutina: Rutina): void {
 
     const cont = el("div");
     c.appendChild(cont);
-    const sel = el("select", "max-width:100%;min-width:220px;padding:8px 10px;border-radius:8px;border:1px solid var(--background-modifier-border);background:var(--background-secondary);color:var(--text-normal);font-size:.9em;");
+    const sel = el("select", "box-sizing:border-box;max-width:100%;min-width:220px;height:34px;min-height:34px;padding:4px 8px;border-radius:8px;border:1px solid var(--background-modifier-border);background:var(--background-secondary);color:var(--text-normal);font-size:.9em;");
     for (const e of conHistorial) {
         const o = createEl("option");
         o.value = e.id; o.textContent = e.nombre;
@@ -190,9 +168,7 @@ function seccionProgresion(c: HTMLElement, rutina: Rutina): void {
         cont.empty();
         const info = ejercicios.find(e => e.id === sel.value) ?? conHistorial[0];
         const hist = historialEjercicio(rutina, info.id);
-        // El tipo de la última sesión es el actual del ejercicio. Si el
-        // ejercicio cambió de tipo, las sesiones antiguas se pintan en su
-        // propia unidad (mixto) y los KPIs usan las del tipo actual.
+
         const tipo = hist[hist.length - 1]?.tipoEjercicio ?? "peso";
         const esPeso = tipo === "peso";
         const histTipo = hist.filter(h => h.tipoEjercicio === tipo);
@@ -220,7 +196,6 @@ function seccionProgresion(c: HTMLElement, rutina: Rutina): void {
         }
         cont.appendChild(kpis);
 
-        // Gráfica: en peso, 1RM estimado y mejor peso por sesión; en el resto, mejor tiempo
         if (esPeso) {
             grafica(cont, [
                 { nombre: `1RM estimado (${pesoActual()})`, color: CONFIG.AZUL, puntos: histTipo.map(h => ({ ts: tsDe(h.fecha), v: pesoMostrar(h.oneRM) ?? 0, titulo: `${pesoTexto(h.oneRM)} (1RM)` })) },
@@ -233,7 +208,6 @@ function seccionProgresion(c: HTMLElement, rutina: Rutina): void {
             }], { fmt: v => `${Math.round(v)} s` });
         }
 
-        // Historial completo del ejercicio
         const tabla = createEl("table");
         tabla.className = "gym-tabla";
         const thead = createEl("thead");
@@ -296,16 +270,12 @@ function seccionProgresion(c: HTMLElement, rutina: Rutina): void {
         const scrollHist = el("div", "gym-tabla-wrap gym-tabla-vista");
         scrollHist.appendChild(tabla);
         cont.appendChild(scrollHist);
-        limitaAlto(scrollHist, tabla, 10);   // igual que el historial: 10 filas visibles y el resto con scroll
+        limitaAlto(scrollHist, tabla, 10);
     };
     sel.onchange = pintarEjercicio;
     pintarEjercicio();
 }
 
-/* ── 4c · Peso corporal e IMC ──
-   También la usa Inicio (sección «Medidas e IMC»), así que va exportada: ahí
-   el encabezado lo pone la propia sección, y con { titulo: false } se omiten
-   tanto el texto «Peso corporal — evolución e IMC» como su línea punteada. */
 export function seccionMedidas(
     c: HTMLElement, medidas: LecturaNota<MedidasDatos>, { titulo = true }: { titulo?: boolean } = {},
 ): void {
@@ -321,9 +291,9 @@ export function seccionMedidas(
         return;
     }
     const kpis = el("div", "display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px;");
-    // (lib ES2020: no hay Array.at, así que el último se toma por índice)
+
     const deltaKg = regs.length > 1 ? Number(regs[regs.length - 1].pesoKg) - Number(regs[0].pesoKg) : 0;
-    // Δ mostrado en la unidad activa, conservando el signo (kg → lb lo agranda)
+
     const delta = (deltaKg < 0 ? -1 : 1) * (pesoMostrar(Math.abs(deltaKg)) ?? 0);
     kpis.appendChild(KPI("Peso actual", pesoTexto(u.pesoKg), CONFIG.NARANJA, u.fecha ? `medida el ${fechaLegible(u.fecha)}` : ""));
     kpis.appendChild(KPI("Talla", tallaTexto(u.tallaCm), CONFIG.AZUL, "se hereda si no se repite"));
@@ -338,7 +308,6 @@ export function seccionMedidas(
     }], { alto: 160, fmt: v => decimal(v, 1) });
 }
 
-/* ── 4d · Récords personales ── */
 function seccionRecords(c: HTMLElement, rutina: Rutina, sesiones: Sesion[]): void {
     const tit = el("div", "gym-tit");
     tit.append(el("span", null, "🏆 Récords personales"));
@@ -366,9 +335,7 @@ function seccionRecords(c: HTMLElement, rutina: Rutina, sesiones: Sesion[]): voi
     for (const e of ejerciciosConDatos(rutina)) {
         const hist = historialEjercicio(rutina, e.id);
         if (!hist.length) continue;
-        // Cada récord mira lo suyo: kilos y 1RM en series de peso, tiempo en
-        // las de tiempo/intervalo. Así un ejercicio que cambió de tipo conserva
-        // los récords de ambas etapas.
+
         const mejorPeso = Math.max(0, ...hist.flatMap(h => h.series.map(s => Number(s.peso) || 0)));
         const mejorRM = Math.max(0, ...hist.map(h => h.oneRM));
         const mejorSeg = Math.max(0, ...hist.map(h => h.mejorSeg));

@@ -1,15 +1,3 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   Creador de rutinas — formulario de creación y de edición.
-
-   Se dibuja en la pestaña del formulario (ui/vista-form.ts); al guardar, esa
-   misma pestaña pasa al dashboard de la rutina (no se abren pestañas nuevas).
-
-     1 · archivo de datos (siempre primero: los datos nunca se pierden)
-     2 · plantilla opcional (solo estructura, sin fechas ni registros)
-     3 · esta misma pestaña pasa al dashboard de la rutina
-   No hay notas-dashboard ni frontmatter: el plugin es el dueño de los archivos.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
 import { CONFIG, DIAS, DIAS_LARGO } from "../config";
 import { carpetaPlantillas, rutaIndice } from "../ajustes";
 import {
@@ -23,8 +11,6 @@ import type { DiaRutina, EjercicioDef, EstadoRutina, Rutina } from "../tipos";
 import { confirmar, el, selectorUnidad, toast } from "./componentes";
 import { abrirRutina } from "./vistas";
 
-/* ══════════════════ Estado (sobrevive a los re-renders de la nota) ══════════════════ */
-
 interface EstadoForm {
     modo: "crear" | "editar";
     id: string;
@@ -37,22 +23,20 @@ interface EstadoForm {
     plantilla: string;
     comoPlantilla: boolean;
     nombrePlantilla: string;
-    plantillaEditada: boolean;   // el usuario ha tecleado un nombre de plantilla distinto a mano
-    estadoRutina: EstadoRutina;  // al editar: activa | pausada | finalizada
+    plantillaEditada: boolean;
+    estadoRutina: EstadoRutina;
     guardado: boolean;
     guardandoPlantilla: boolean;
 }
 
 const almacen: Record<string, EstadoForm> = {};
 
-/* ══════════════════ El formulario ══════════════════ */
-
 interface OpcionesMontar {
-    cont: HTMLElement;    // contenido de la pestaña o del cuerpo de la hoja
+    cont: HTMLElement;
     inicial: Rutina | null;
     esEdicion: boolean;
     onGuardado?: (rutina: Rutina) => void;
-    enHoja?: boolean;     // true: la hoja superpuesta ya lleva su propia cabecera
+    enHoja?: boolean;
 }
 
 export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = false }: OpcionesMontar): Promise<void> => {
@@ -60,7 +44,6 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
     const claveEstado = esEdicion ? `edit:${inicial?.id ?? ""}` : "crear";
     let estado = almacen[claveEstado];
 
-    // ── Estado inicial ──
     if (!estado) {
         const base: Rutina = inicial ? clonarJSON(inicial) : rutinaVacia();
         if (!base.inicio) base.inicio = hoy();
@@ -85,8 +68,6 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         };
     }
 
-    // ══════════════════ Montaje del panel ══════════════════
-    // Sin marco: el formulario va suelto en la pestaña (igual que el dashboard)
     const raiz = el("div", "margin:12px 0;line-height:1.45;");
     raiz.className = "gym-form";
     cont.appendChild(raiz);
@@ -119,16 +100,11 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         return f;
     };
 
-    // ── Tipo de rutina: decide qué más se le pide ──
-    //   planificada → la clásica: días de la semana con ejercicios y objetivos
-    //   libre       → sin nada fijo: cada día anotas lo que haces de verdad
-    // Los tres bloques de abajo se ocultan en la libre (no hay estructura que
-    // rellenar ni plantilla que guardar); se declaran aquí para poder tocarlos.
     let campoOrigen: HTMLDivElement | null = null, campoEstructura: HTMLDivElement | null = null;
     let campoPlantilla: HTMLDivElement | null = null, refPintaPlantilla: (() => void) | null = null;
     const aplicaTipo = () => {
         const libre = estado.tipo === "libre";
-        if (libre) estado.comoPlantilla = false;   // una rutina libre no tiene estructura que plantillear
+        if (libre) estado.comoPlantilla = false;
         if (campoOrigen) campoOrigen.style.display = libre ? "none" : "";
         if (campoEstructura) campoEstructura.style.display = libre ? "none" : "";
         if (campoPlantilla) campoPlantilla.style.display = libre ? "none" : "";
@@ -147,8 +123,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             b.type = "button";
             b.setAttribute("aria-pressed", String(activo));
             if (estado.modo === "editar") {
-                // El tipo no se puede cambiar al editar: cambiarlo reescribiría
-                // la estructura de la rutina (días y ejercicios) y sus sesiones
+
                 b.disabled = true;
                 b.title = "El tipo de rutina no se puede cambiar al editar.";
             } else {
@@ -168,7 +143,6 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         : "Planificada = días de la semana con ejercicios fijos. Libre = sin plan: cada día anotas lo que haces.");
     pintarTipo();
 
-    // ── Origen: plantilla o en blanco ──
     const selPlantilla = el("select");
     const plantillas = listarPlantillas();
     const opBlanco = createEl("option");
@@ -201,8 +175,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             return;
         }
         const p = r.datos!;
-        // Una plantilla ES una estructura: al cargarla la rutina pasa a planificada
-        // (si estaba en libre, el usuario está pidiendo cambiar de modelo).
+
         estado.tipo = "planificada";
         estado.nombre = estado.nombre || p.nombre || "";
         estado.objetivo = p.objetivo || estado.objetivo;
@@ -215,12 +188,9 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         }));
         if (!estado.dias.length) estado.dias = [nuevoDia("A")];
         estado.nombrePlantilla = estado.nombrePlantilla || p.nombre || "";
-        // El nombre viene de la plantilla cargada: no lo debe pisar el de la rutina
+
         estado.plantillaEditada = true;
 
-        // El estado ya tiene los datos de la plantilla, pero los controles
-        // visibles no se redibujan solos: aquí se sincronizan todos
-        // (chips de objetivo, nombre, semanas y fecha de fin calculada).
         inNombre.value = estado.nombre;
         pintarObjetivos();
         inSemanas.value = String(estado.semanas);
@@ -228,19 +198,17 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         inPlantillaNombre.value = estado.nombrePlantilla;
         revisaConflicto();
         limpiarError();
-        pintarTipo();   // la plantilla la cambió a planificada: los chips tienen que verse
+        pintarTipo();
         repintar();
     };
 
-    // ── Nombre ──
     const inNombre = el("input");
     inNombre.type = "text";
     inNombre.placeholder = "Ejemplo: PPL 12 semanas";
     inNombre.value = estado.nombre;
     inNombre.oninput = () => {
         estado.nombre = inNombre.value;
-        // El nombre de la plantilla sigue al de la rutina mientras no lo cambies a mano
-        // (antes se congelaba con la primera letra tecleada)
+
         if (!esEdicion && !estado.plantillaEditada) {
             estado.nombrePlantilla = inNombre.value;
             inPlantillaNombre.value = estado.nombrePlantilla;
@@ -250,7 +218,6 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
     };
     campo("Nombre de la rutina", inNombre, "Obligatorio. Es el nombre del dashboard y del archivo de datos.");
 
-    // ── Objetivo ──
     const filaObj = el("div", "gym-dias-semana");
     const pintarObjetivos = () => {
         filaObj.empty();
@@ -265,7 +232,6 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
     pintarObjetivos();
     campo("Objetivo (opcional)", filaObj);
 
-    // ── Estado (SOLO al editar): lo que se muestra en la lista de Rutinas ──
     if (esEdicion) {
         const filaEst = el("div", "gym-dias-semana");
         const estados: { v: EstadoRutina; txt: string }[] = [
@@ -287,7 +253,6 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             "Cómo aparece la rutina en la lista: 🟢 activa, ⏸ pausada o 🏁 finalizada. No borra ni pausa nada: es solo su etiqueta.");
     }
 
-    // ── Duración: inicio + semanas → fin en vivo ──
     const dur = el("div", "display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;");
     const cajaIni = el("div", "flex:1;min-width:150px;");
     const inInicio = el("input"); inInicio.type = "date"; inInicio.value = estado.inicio;
@@ -313,16 +278,13 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
     campo("Duración", dur, "La rutina se usará durante ese tiempo; se puede extender más adelante desde el dashboard.");
     pintaFin();
 
-    // ── Unidad de peso: kg | lb (lo mismo que en la rutina) ──
     campo("Peso en", selectorUnidad(() => { repintar(); }),
         "Se muestra y se teclea solo en esa unidad; el archivo de datos siempre guarda kg.");
 
-    // ══════════════════ Estructura: días y ejercicios ══════════════════
     const contDias = el("div");
     campoEstructura = campo("Estructura por día de rutina", contDias,
         "Cada día declara SUS días de la semana (p. ej. «Push» el lunes y el jueves). Los ejercicios se precargan con los objetivos que pongas aquí.");
 
-    // Día vacío con letra (A, B, C…) usada tanto en el id como en el nombre
     function nuevoDia(letra: string): DiaRutina {
         const l = String(letra || "A").toUpperCase();
         return { id: `dia-${slug(l)}`, nombre: `Día ${l}`, diasSemana: [], ejercicios: [] };
@@ -346,7 +308,6 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
     const tarjetaDia = (dia: DiaRutina, i: number): HTMLDivElement => {
         const cajaDia = el("div", "gym-dia");
 
-        // Cabecera del día: nombre + días de la semana + borrar
         const cab = el("div", "gym-dia-cab");
         const inNombreDia = el("input", "flex:1;min-width:140px;");
         inNombreDia.type = "text";
@@ -370,8 +331,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
                     const p = dia.diasSemana.indexOf(n);
                     if (p >= 0) dia.diasSemana.splice(p, 1);
                     else {
-                        // Exclusivo: si ese día de la semana ya lo tenía OTRO día
-                        // de la rutina, se lo "roba" (así el clic siempre se ve)
+
                         dia.diasSemana.push(n);
                         for (const otro of estado.dias) {
                             if (otro === dia) continue;
@@ -403,14 +363,12 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         cab.appendChild(btnBorrarDia);
         cajaDia.appendChild(cab);
 
-        // Ejercicios
         const contEj = el("div");
         cajaDia.appendChild(contEj);
 
         const filaEjercicio = (ej: EjercicioDef): HTMLDivElement => {
             const fila = el("div", "gym-ej");
-            // Devuelve también la etiqueta: la fila la renombra u oculta según
-            // el tipo de ejercicio elegido (pintaCampos)
+
             const celda = (etiqueta: string, control: HTMLElement) => {
                 const c = el("div");
                 const l = el("label", null, etiqueta);
@@ -422,8 +380,6 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             inEj.oninput = () => { ej.nombre = inEj.value; limpiarError(); };
             celda("Ejercicio", inEj);
 
-            // Tipo de ejercicio: decide qué objetivos se planifican en esta fila
-            // (reps y peso, duración de un hold, o ciclos de trabajo y transición)
             const selTipo = el("select", "gym-mini");
             for (const [v, t] of [["peso", "Peso"], ["tiempo", "Tiempo"], ["intervalo", "Intervalo"]] as const) {
                 const o = el("option", null, t); o.value = v; selTipo.appendChild(o);
@@ -445,8 +401,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
 
             const inReps = num(ej.repsObjetivo, 1, 1, "Repeticiones objetivo");
             inReps.oninput = () => { ej.repsObjetivo = Math.max(1, Number(inReps.value) || 1); };
-            // Tipo de serie de las series del plan: en «fallo» el número se
-            // oculta (no hay objetivo de reps que fijar)
+
             const selSerie = el("select", "gym-mini");
             for (const [v, t] of [["", "Trabajo"], ["calentamiento", "Calentamiento"], ["descenso", "Descenso"], ["fallo", "Fallo"]] as const) {
                 const o = el("option", null, t); o.value = v; selSerie.appendChild(o);
@@ -457,8 +412,6 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             cReps.append(selSerie, inReps);
             const etqReps = celda("Tipo · Reps", cReps).l;
 
-            // Tiempo del ejercicio: la duración del hold («tiempo») o el trabajo
-            // y la transición de cada ciclo («intervalo»); en «peso» no se usa
             const inDur = num(ej.duracionObjetivo, 1, 1, "Duración del hold (segundos)");
             inDur.oninput = () => { ej.duracionObjetivo = aNumero(inDur.value); };
             const inTrabajo = num(ej.trabajoSeg, 1, 1, "Trabajo de cada ciclo (segundos)");
@@ -471,7 +424,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
 
             const inPeso = num(pesoACampo(ej.pesoObjetivo), 0, 0.5, `Peso objetivo (${pesoActual()}, opcional)`);
             const etqPeso = celda(`Peso (${pesoActual()})`, inPeso).l;
-            // El valor se teclea en la unidad activa y se guarda SIEMPRE en kg
+
             inPeso.oninput = () => { ej.pesoObjetivo = pesoAKg(inPeso.value); };
 
             const inDesc = num(ej.descansoSeg, 0, 15, "Descanso entre series (segundos)");
@@ -483,26 +436,25 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             inNotas.oninput = () => { ej.notas = inNotas.value; };
             celda("Notas", inNotas);
 
-            // Lo que se ve en la fila lo decide el tipo de ejercicio elegido
             const pintaCampos = () => {
                 const t = tipoEjercicioDe(ej);
-                // En «intervalo» el plan fija ciclos, no series
+
                 etqSeries.textContent = t === "intervalo" ? "Ciclos" : "Series";
                 inSeries.title = t === "intervalo" ? "Ciclos objetivo (cada ciclo es una serie)" : "Series objetivo";
-                // Sin reps que fijar en «tiempo», ni en «intervalo», ni en «fallo»
+
                 etqReps.style.display = selSerie.style.display = t === "tiempo" ? "none" : "";
                 inReps.style.display = t !== "peso" || tipoSerieDe(ej) === "fallo" ? "none" : "";
                 inReps.placeholder = "Reps";
                 inReps.title = tipoSerieDe(ej) === "fallo"
                     ? "Al fallo no hay reps objetivo: se anota lo hecho en cada serie"
                     : "Repeticiones objetivo";
-                // El peso solo aplica a los ejercicios de tipo «peso»
+
                 etqPeso.style.display = inPeso.style.display = t === "peso" ? "" : "none";
-                // En «intervalo» el descanso es el de dentro del ciclo
+
                 inDesc.title = t === "intervalo"
                     ? "Descanso dentro de cada ciclo (segundos)"
                     : "Descanso entre series (segundos)";
-                // Tiempo: duración del hold («tiempo») o trabajo y transición («intervalo»)
+
                 etqTiempo.textContent = t === "intervalo" ? "Trabajo · transición (s)" : "Duración (s)";
                 etqTiempo.style.display = t === "peso" ? "none" : "";
                 inDur.style.display = t === "tiempo" ? "" : "none";
@@ -547,7 +499,6 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         return cajaDia;
     };
 
-    // Un día de la semana solo puede pertenecer a un día de la rutina
     const unificaDiasSemana = () => {
         const visto = new Set<number>();
         for (const d of estado.dias) {
@@ -555,15 +506,12 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         }
     };
 
-    // ── Guardar como plantilla: toggle estilo chip (misma pinta que Objetivo,
-    //    para que se note que es un botón y no texto plano) ──
     const contPlantilla = el("div", null);
     const inPlantillaNombre = el("input", "margin-top:8px;");
     inPlantillaNombre.type = "text";
     inPlantillaNombre.placeholder = "Nombre de la plantilla";
     inPlantillaNombre.value = estado.nombrePlantilla || estado.nombre || "";
 
-    // Aviso en vivo: si el nombre ya existe, NO se dejará guardar (no se pisa)
     const hintPlantilla = el("div", `font-size:.7em;color:var(--text-error, ${CONFIG.ROJO});margin-top:5px;`);
     contPlantilla.appendChild(hintPlantilla);
     const revisaConflicto = () => {
@@ -575,7 +523,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
     };
     inPlantillaNombre.oninput = () => {
         estado.nombrePlantilla = inPlantillaNombre.value;
-        // Si lo dejas igual que el nombre de la rutina (o lo vacías), vuelve a seguirle
+
         estado.plantillaEditada = Boolean(inPlantillaNombre.value.trim()) &&
             inPlantillaNombre.value.trim() !== (estado.nombre ?? "").trim();
         revisaConflicto(); limpiarError();
@@ -588,13 +536,12 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         const on = Boolean(estado.comoPlantilla);
         btnPlantilla.classList.toggle("on", on);
         btnPlantilla.setAttribute("aria-pressed", String(on));
-        inPlantillaNombre.style.display = on ? "" : "none";   // el nombre solo se pide si está activo
+        inPlantillaNombre.style.display = on ? "" : "none";
     };
     refPintaPlantilla = pintaPlantilla;
     btnPlantilla.onclick = () => {
         estado.comoPlantilla = !estado.comoPlantilla;
-        // Al activarlo se propone el mismo nombre que el de la rutina
-        // (si no lo has cambiado a mano)
+
         if (estado.comoPlantilla && !estado.plantillaEditada) {
             estado.nombrePlantilla = estado.nombre;
             inPlantillaNombre.value = estado.nombrePlantilla;
@@ -612,7 +559,6 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         "Se guarda solo la estructura (días y ejercicios), sin fechas ni registros, en " + carpetaPlantillas() +
         ". Pulsa el botón para activarlo: se rellenará el nombre con el de la rutina y podrás cambiarlo.");
 
-    // ── Ruta en vivo: el archivo de datos de la rutina ──
     const rutaVista = el("div", "gym-ruta");
     raiz.appendChild(rutaVista);
     const idPropuesto = (): string => {
@@ -630,15 +576,12 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
     };
     actualizaRuta();
 
-    // ══════════════════ Guardar ══════════════════
     const btnGuardar = el("button", "gym-guardar", estado.modo === "editar" ? "💾 Guardar cambios" : "💾 Guardar rutina");
     btnGuardar.type = "button";
 
     const filaGuardar = el("div", "gym-fila-guardar");
     filaGuardar.appendChild(btnGuardar);
 
-    // 🧹 Limpiar: vacía el formulario para empezar de cero. Solo en modo
-    // CREAR (en edición vaciaría la estructura de una rutina existente).
     if (estado.modo !== "editar") {
         const btnLimpiar = el("button", "gym-limpiar", "🧹 Limpiar");
         btnLimpiar.type = "button";
@@ -647,7 +590,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             if (!(await confirmar("🧹 Limpiar formulario",
                 "¿Vaciar el formulario? Se borra todo lo escrito aquí (nombre, objetivo, fechas, días y ejercicios) para empezar de cero. No se toca ninguna rutina ya guardada.",
                 "Vaciar", "Cancelar"))) return;
-            // Estado → valores por defecto
+
             estado.nombre = "";
             estado.objetivo = "";
             estado.tipo = "planificada";
@@ -661,15 +604,15 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             estado.estadoRutina = "activa";
             estado.id = "";
             estado.guardado = false;
-            // Controles ligados → lo mismo
+
             inNombre.value = "";
             selPlantilla.value = "";
             pintarObjetivos();
-            pintarTipo();          // vuelve a planificada y se re-habilita la estructura
+            pintarTipo();
             inInicio.value = estado.inicio;
             inSemanas.value = String(estado.semanas);
             pintaFin();
-            pintaPlantilla();          // toggle de plantilla → apagado y nombre oculto
+            pintaPlantilla();
             revisaConflicto();
             inPlantillaNombre.value = "";
             limpiarError();
@@ -694,8 +637,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             nombre: limpiarNombre(d.nombre) || `Día ${String.fromCharCode(65 + i)}`,
             diasSemana: [...(d.diasSemana ?? [])],
             ejercicios: d.ejercicios.map((e, j) => {
-                // Solo se guardan los objetivos del tipo elegido: los campos de
-                // los demás tipos quedan a null (no se arrastran residuos)
+
                 const t = tipoEjercicioDe(e);
                 return {
                     id: e.id || `${slug(d.nombre || "dia")}-${slug(e.nombre || `ej-${j}`)}`,
@@ -725,8 +667,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             inicio: estado.inicio,
             fin,
             semanas: estado.semanas,
-            // La libre NO guarda días: cada sesión lleva su diaId vacío y los
-            // ejercicios se anotan dentro de la sesión, no en un plan previo.
+
             diasSemana: libre ? [] : union,
             dias: libre ? [] : dias,
             sesiones: esEdicion ? (inicial!.sesiones ?? []) : [],
@@ -742,7 +683,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         if (!esFechaValida(rutina.inicio)) return "La fecha de inicio no es válida (formato YYYY-MM-DD).";
         if (!Number.isFinite(tsDe(rutina.fin)) || tsDe(rutina.fin) < tsDe(rutina.inicio))
             return "Las fechas no cuadran: el fin tiene que ser posterior al inicio.";
-        // La rutina libre no tiene estructura: aquí no hay nada más que comprobar
+
         if (rutina.tipo === "libre") return null;
         if (!rutina.dias.length) return "La rutina necesita al menos un día.";
         const sinEjercicios = rutina.dias.filter(d => !d.ejercicios.length);
@@ -785,11 +726,9 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         btnGuardar.textContent = "Guardando…";
 
         try {
-            // 1 · Archivo de datos (siempre primero: los datos nunca se pierden)
-            //     escribirRutina también deja su fila al día en el índice
+
             await escribirRutina(rutina);
 
-            // 2 · Plantilla opcional (solo estructura, sin fechas ni registros)
             if (estado.comoPlantilla) {
                 try {
                     await escribirPlantilla(limpiarNombre(estado.nombrePlantilla), plantillaDeRutina(rutina));
@@ -802,7 +741,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             guardando = false;
             delete almacen[claveEstado];
             toast(`✅ Rutina guardada → ${rutaDatosDe(rutina.id)}`);
-            // 3 · Se abre el dashboard de la rutina en su pestaña
+
             await abrirRutina(rutina.id);
             if (typeof onGuardado === "function") onGuardado(rutina);
         } catch (e: unknown) {
@@ -815,22 +754,16 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
     };
     btnGuardar.onclick = guardar;
 
-    // Los tres bloques ocultos se ocultan al FINAL: al montar, aplicaTipo()
-    // todavía no conocía los controles (aún no existían).
     aplicaTipo();
     repintar();
 };
 
-/* ══════════════════ Punto de entrada ══════════════════ */
-
-// Nueva rutina: el formulario vacío (pestaña o hoja superpuesta)
 export const crear = async (
     cont: HTMLElement, onGuardado?: (r: Rutina) => void, enHoja = false,
 ): Promise<void> => {
     await montar({ cont, inicial: null, esEdicion: false, onGuardado, enHoja });
 };
 
-// Edición: el mismo formulario, pero partiendo de una rutina existente
 export const editar = async (
     cont: HTMLElement, rutina: Rutina,
     onGuardado?: (r: Rutina) => void, enHoja = false,

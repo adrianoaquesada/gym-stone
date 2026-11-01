@@ -1,7 +1,3 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   Ajustes → Gym Stone
-   ═══════════════════════════════════════════════════════════════════════════ */
-
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type { SettingDefinitionItem } from "obsidian";
 import type GymStone from "../main";
@@ -43,6 +39,7 @@ export class GymStoneTab extends PluginSettingTab {
     display(): void {
         const { containerEl } = this;
         containerEl.empty();
+        containerEl.addClass("gym-ajustes");
 
         new Setting(containerEl)
             .setName("Carpeta raíz")
@@ -281,12 +278,6 @@ export class GymStoneTab extends PluginSettingTab {
         return ms >= 1000 && ms <= 99 * 3600000 ? ms : null;
     }
 
-    /* Ajustes declarativos (Obsidian 1.13+): display() de arriba sigue
-       pintando la pestaña en versiones antiguas, y con estas definiciones la
-       pestaña entra además en el buscador de ajustes de 1.13 en adelante.
-       Los valores van al mismo conf()/guardar() de display() —y el de
-       «unidadPeso» a fijarPeso(), que no es un ajuste de data.json—, así que
-       las dos vías siempre cuadran. */
     override getSettingDefinitions(): SettingDefinitionItem[] {
         return [
             {
@@ -443,10 +434,6 @@ export class GymStoneTab extends PluginSettingTab {
         });
     }
 
-    // La fuente de verdad no es plugin.settings sino conf(): se leen y se
-    // escriben los ajustes del plugin desde ahí. Excepción: la unidad de peso
-    // NO es un ajuste de data.json —va al almacén propio del vault (ver
-    // unidades.ts)—, así que se desvía a su propio camino.
     override getControlValue(key: string): unknown {
         if (key === "unidadPeso") return pesoActual();
         if (key === "avisosCuentaAtras") return String(conf().avisosCuentaAtras);
@@ -462,15 +449,12 @@ export class GymStoneTab extends PluginSettingTab {
             }
             throw new Error(`Opción de cuenta atrás no válida: ${String(value)}`);
         }
-        // normalizarAjustes (dentro de guardar) valida y rellena el resto
+
         return this.guardar(key as keyof AjustesGym, value as never);
     }
 
-    /* Mismo cambio que el selector kg | lb del panel y que «Alternar pesos»
-       del menú ⋮: fijarUnidadPeso (que se recuerda por vault) y repintar las
-       vistas para que todo el plugin pase a la nueva unidad al instante. */
     private fijarPeso(u: string): void {
-        if (!fijarUnidadPeso(u)) return;   // unidad inválida o ya vigente
+        if (!fijarUnidadPeso(u)) return;
         this.pluginRef.repintarVistasGym();
     }
 
@@ -478,7 +462,7 @@ export class GymStoneTab extends PluginSettingTab {
         const actual = normalizarAjustes({ ...conf(), [clave]: valor });
         actualizarAjustes(actual);
         await this.pluginRef.guardarAjustes(actual);
-        if (clave === "mantenerDespierta") refrescarDespierta();   // efecto inmediato, sin esperar al siguiente temporizador
+        if (clave === "mantenerDespierta") refrescarDespierta();
         this.pluginRef.repintarVistasGym();
     }
 }

@@ -49,10 +49,15 @@ pantalla. La navegación no toca archivos: los `.md` son solo consulta y guardad
   su ficha. Las otras dos secciones son **⚖️ Medidas e IMC** (peso corporal, evolución e IMC,
   con **＋ Registrar medidas** como acción principal cuando estás en ella) y **🗂 Ejercicios**
   (el gestor del catálogo a pantalla completa, ya no como popup: renombra con ids estables
-  —**el historial se conserva**—, les asigna grupo muscular para el buscador y purga 🧹, con
-  confirmación, las entradas que ya no usan ni rutinas ni plantillas). El carrusel cierra la
-  acción principal (**＋ Nueva rutina**, **＋ Registrar medidas** en Medidas e IMC y NINGUNA en
-  Ejercicios) y, al final a la derecha, **⏱ Temporizador**.
+  —**el historial se conserva**—, abre estadísticas globales al tocar una tarjeta, filtra por
+  varios grupos musculares a la vez o por **Sin grupo**, y ofrece **Limpiar filtros** para
+  restablecer la búsqueda y la lista. En las estadísticas se muestra el resumen, la progresión
+  y las sesiones del mismo ejercicio en todas las rutinas guardadas, con métricas según su tipo.
+  Al editar un ejercicio puedes elegir un grupo existente, crear uno nuevo o quitar el grupo;
+  cada ejercicio conserva un solo grupo. También permite purgar 🧹, con confirmación, las
+  entradas que ya no usan ni rutinas ni plantillas). El carrusel cierra la acción principal
+  (**＋ Nueva rutina**, **＋ Registrar medidas** en Medidas e IMC y NINGUNA en Ejercicios) y,
+  al final a la derecha, **⏱ Temporizador**.
 - **🏋️ Rutina**: el dashboard de la rutina a todo el ancho, con su carrusel: **← Inicio**,
   **✏️ Editar**, **🎯 Empezar sesión guiada** (naranja), **＋ Registrar sesión**,
   **📝 Anotación**, **⚖️ Registrar medidas**, **📈 Estadísticas** y **🗓 Historial**

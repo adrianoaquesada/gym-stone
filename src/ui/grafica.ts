@@ -1,10 +1,3 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   Gráfica ligera en SVG (hover con tooltip, sin dependencias).
-
-   Mismo dibujo que el engine original: rejilla, eje X con pocas fechas,
-   series con línea + puntos y una leyenda debajo.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
 import { CONFIG, DIA_MS } from "../config";
 import { dos } from "../util/fechas";
 import { decimal } from "../util/texto";
@@ -42,7 +35,7 @@ export const grafica = (
     const W = 760, H = alto, mg = { t: 14, r: 18, b: 26, l: 48 };
     const iw = W - mg.l - mg.r, ih = H - mg.t - mg.b;
     const tMin = Math.min(...pts.map(p => p.ts)), tMax = Math.max(...pts.map(p => p.ts));
-    // Ventana temporal: con una sola fecha (o casi) el punto se centra en una ventana de 2 días
+
     const hayVentanaCorta = tMax - tMin < DIA_MS;
     const t0 = hayVentanaCorta ? (tMin + tMax) / 2 - DIA_MS : tMin;
     const t1 = hayVentanaCorta ? (tMin + tMax) / 2 + DIA_MS : tMax;
@@ -59,7 +52,6 @@ export const grafica = (
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     svg.setAttribute("class", "gym-graf-svg");
 
-    // Rejilla + eje Y
     const paso = (vMax - vMin) / 4;
     for (let i = 0; i <= 4; i++) {
         const v = vMin + paso * i, py = y(v);
@@ -74,8 +66,7 @@ export const grafica = (
         texto.textContent = fmt(v);
         svg.appendChild(texto);
     }
-    // Eje X: 4-5 fechas (sin repetir la misma etiqueta seguida, que pasa
-    // cuando la ventana es de 1-2 días)
+
     const nTicks = 4;
     let etiquetaPrev = "";
     for (let i = 0; i <= nTicks; i++) {
@@ -91,7 +82,7 @@ export const grafica = (
         etiqueta.textContent = txt;
         svg.appendChild(etiqueta);
     }
-    // Series
+
     for (const s of series) {
         const ordenados = [...s.puntos].sort((a, b) => a.ts - b.ts);
         if (ordenados.length > 1) {
@@ -109,8 +100,6 @@ export const grafica = (
         }
     }
 
-    // El marco, la posición y la transición del tooltip viven en CSS
-    // (.gym-graf-tip); aquí no se escribe ningún estilo fijo.
     const tip = el("div", "gym-graf-tip");
     envoltorio.appendChild(svg);
     envoltorio.appendChild(tip);
@@ -130,7 +119,7 @@ export const grafica = (
             const d = new Date(mejor.p.ts);
             tip.empty();
             const nom = el("b", null, mejor.s.nombre);
-            nom.style.color = mejor.s.color;   // color de la serie: dato en tiempo de ejecución
+            nom.style.color = mejor.s.color;
             tip.append(nom, el("br"));
             tip.append(`${dos(d.getDate())}/${dos(d.getMonth() + 1)} — ${mejor.p.titulo ?? fmt(mejor.p.v)}`);
             const rc = envoltorio.getBoundingClientRect();
@@ -141,12 +130,11 @@ export const grafica = (
     });
     svg.addEventListener("pointerleave", () => { tip.classList.remove("on"); });
 
-    // Leyenda
     const ley = el("div", "gym-graf-ley");
     for (const s of series) {
         const it = el("span");
         const cuadro = el("span", "gym-graf-cuadro");
-        cuadro.style.background = s.color;   // color de la serie: dato en tiempo de ejecución
+        cuadro.style.background = s.color;
         it.append(cuadro, s.nombre);
         ley.appendChild(it);
     }

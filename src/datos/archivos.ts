@@ -1,28 +1,8 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   Bloques JSON dentro de las notas de datos + escritura segura.
-
-   Cada nota de datos es un bloque ```json``` puro: sin frontmatter y sin
-   texto que acompañe. Así la nota es legible en el editor, git-friendly y,
-   si alguien la toca a mano y rompe el JSON, el motor AVISA y no sobrescribe.
-
-   Escritura segura (nunca se pierden datos):
-     · archivo nuevo   → se escribe en un temporal y se renombra (atómico)
-     · archivo existente → antes de sobrescribir se guarda la copia previa en
-       <archivo>.bak, y solo se escribe si el contenido cambia
-     · lectura fallida → se devuelve { error } y NO se escribe nada
-   ═══════════════════════════════════════════════════════════════════════════ */
-
 import { TFile, TFolder } from "obsidian";
 import { aplicacion } from "../estado";
 import type { LecturaNota } from "../tipos";
 import { aTexto, msgError } from "../util/texto";
 
-/* Todos los .md de UNA carpeta (y sus subcarpetas), sin mirar el resto del
-   vault: el plugin solo lista lo que hay en sus propias carpetas de datos.
-   Ojo: NO vault.getMarkdownFiles()/getFiles(), que devuelven la ruta de TODOS
-   los archivos del vault aunque luego se filtre (la revisión de la comunidad
-   lo marca como «Vault Enumeration»); aquí se baja solo por el árbol de la
-   carpeta pedida y, si no existe, no hay nada que listar. */
 export const archivosMdEnCarpeta = (carpeta: string): TFile[] => {
     if (!carpeta) return [];
     const raiz = aplicacion().vault.getFolderByPath(carpeta);
@@ -30,7 +10,7 @@ export const archivosMdEnCarpeta = (carpeta: string): TFile[] => {
     const fuera: TFile[] = [];
     const recorrer = (nodo: TFolder): void => {
         for (const h of nodo.children) {
-            // Los .bak y .tmp quedan fuera: solo .md (con cualquier mayúscula)
+
             if (h instanceof TFile) { if (h.extension.toLowerCase() === "md") fuera.push(h); }
             else if (h instanceof TFolder) recorrer(h);
         }
@@ -39,13 +19,11 @@ export const archivosMdEnCarpeta = (carpeta: string): TFile[] => {
     return fuera;
 };
 
-// Extrae el contenido del primer bloque ```json``` de una nota
 export const bloqueJson = (txt: unknown): string | null => {
     const m = /```json\s*\n?([\s\S]*?)```/.exec(aTexto(txt));
     return m ? m[1].trim() : null;
 };
 
-// Nota de datos completa: un único bloque ```json``` (sin frontmatter)
 export const contenidoNotaDatos = (datos: unknown): string =>
     "```json\n" + JSON.stringify(datos, null, 2) + "\n```\n";
 
@@ -62,26 +40,23 @@ export const asegurarCarpeta = async (ruta: string): Promise<void> => {
     }
 };
 
-// Escribe `contenido` en `ruta` sin riesgo de perder lo que había.
-// Si la lectura previa falla, lanza (el aviso lo da quien llama): no se
-// sobrescribe nunca un archivo que no se puede leer.
 export const escribirSeguro = async (ruta: string, contenido: string): Promise<void> => {
     await asegurarCarpeta(ruta);
     const vault = aplicacion().vault;
     const existente = vault.getAbstractFileByPath(ruta);
     if (!existente) {
-        // Nuevo: temporal + rename (atómico a nivel de sistema de archivos)
+
         const tmp = `${ruta.replace(/\.md$/, "")}.tmp.md`;
         const previo = vault.getAbstractFileByPath(tmp);
-        if (previo) await aplicacion().fileManager.trashFile(previo);   // restos de un corte anterior (respeta la papelera del usuario)
+        if (previo) await aplicacion().fileManager.trashFile(previo);
         const f = await vault.create(tmp, contenido);
         await aplicacion().fileManager.renameFile(f, ruta);
         return;
     }
     if (!(existente instanceof TFile)) return;
     const previo = await vault.read(existente);
-    if (previo === contenido) return;                   // nada que tocar
-    // Copia de seguridad del contenido anterior, y solo después se escribe
+    if (previo === contenido) return;
+
     const bak = `${ruta}.bak`;
     const fb = vault.getAbstractFileByPath(bak);
     if (fb instanceof TFile) await vault.modify(fb, previo);
@@ -89,7 +64,6 @@ export const escribirSeguro = async (ruta: string, contenido: string): Promise<v
     await vault.modify(existente, contenido);
 };
 
-// Lee y parsea una nota de datos. Nunca lanza: devuelve { error } en su lugar.
 export const leerNotaDatos = async <T>(ruta: string): Promise<LecturaNota<T>> => {
     const vault = aplicacion().vault;
     const f = vault.getAbstractFileByPath(ruta);

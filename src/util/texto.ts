@@ -1,20 +1,17 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   Texto: escapado, nombres, ids y números tecleados a mano.
-   ═══════════════════════════════════════════════════════════════════════════ */
+export const aTexto = (v: unknown): string => {
+    if (v === null || v === undefined) return "";
+    if (typeof v === "string") return v;
+    if (typeof v === "symbol") return v.toString();
+    if (typeof v === "number" || typeof v === "boolean" || typeof v === "bigint") return String(v);
+    if (Array.isArray(v)) return v.map(aTexto).join(",");
+    if (v instanceof Date) return v.toString();
+    if (typeof v === "object") return "[object Object]";
+    return "";
+};
 
-/* Los datos llegan de JSON, notas o del usuario: se reciben como `unknown` y
-   aquí se convierten sin recurrir a `any` en el resto del código. */
-
-// String() defensivo para una entrada desconocida: la trata como texto plano.
-export const aTexto = (v: unknown): string =>
-    // eslint-disable-next-line @typescript-eslint/no-base-to-string -- unknown a propósito
-    String(v ?? "");
-
-// Mensaje legible de un error capturado (los `catch` se tipan como unknown).
 export const msgError = (e: unknown): string =>
     e instanceof Error ? e.message : typeof e === "string" ? e : "error desconocido";
 
-// Copia profunda de datos JSON que van a mutarse antes de guardarse.
 export const clonarJSON = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
 export const esc = (txt: unknown): string =>
@@ -23,7 +20,6 @@ export const esc = (txt: unknown): string =>
 export const limpiarNombre = (txt: unknown): string =>
     aTexto(txt).replace(/[\\/:*?"<>|#^[\]]/g, "").replace(/\s+/g, " ").trim();
 
-// "Press banca plano" → "press-banca-plano"
 export const slug = (txt: unknown): string =>
     limpiarNombre(txt).toLowerCase()
         .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -32,8 +28,6 @@ export const slug = (txt: unknown): string =>
 export const uid = (prefijo: string): string =>
     `${prefijo}-${Math.random().toString(36).slice(2, 7)}`;
 
-// Normaliza un número escrito a mano:
-//   "" → ""   ·  "8" → "8"  ·  "8,5" → "8.5"  ·  "87.239,5" → "87239.5"  ·  "peso" → null
 export const numero = (txt: unknown): string | null => {
     const s = aTexto(txt).trim().replace(/\s+/g, "");
     if (!s) return "";
@@ -54,6 +48,5 @@ export const aNumero = (txt: unknown): number | null => {
 export const decimal = (n: number, dec = 1): string =>
     Number.isFinite(n) ? n.toFixed(dec).replace(".", ",") : "–";
 
-// Normaliza un nombre para compararlo: sin tildes, minúsculas y espacios seguidos.
 export const norm = (s: unknown): string =>
     aTexto(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();

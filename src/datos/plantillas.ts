@@ -1,7 +1,3 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   Plantillas de rutina: estructura reutilizable sin fechas ni registros.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
 import { TFile } from "obsidian";
 import { aplicacion } from "../estado";
 import { carpetaPlantillas } from "../ajustes";
@@ -20,7 +16,6 @@ export const listarPlantillas = (): string[] => {
 export const leerPlantilla = (nombre: string): Promise<LecturaNota<PlantillaRutina>> =>
     leerNotaDatos<PlantillaRutina>(`${carpetaPlantillas()}/${nombre}.md`);
 
-// ¿Ya existe una plantilla con este nombre? (nunca se pisa sin permiso)
 export const plantillaExiste = (nombre: string): boolean => Boolean(
     typeof nombre === "string" && limpiarNombre(nombre) &&
     aplicacion().vault.getAbstractFileByPath(`${carpetaPlantillas()}/${limpiarNombre(nombre)}.md`));
@@ -34,15 +29,12 @@ export const escribirPlantilla = async (nombre: string, plantilla: PlantillaRuti
     return ruta;
 };
 
-// Actualiza en su sitio una plantilla YA existente (gestor de ejercicios):
-// la ruta sale del nombre que devuelve listarPlantillas (el basename).
 export const actualizarPlantilla = async (nombre: string, plantilla: PlantillaRutina): Promise<string> => {
     const ruta = `${carpetaPlantillas()}/${nombre}.md`;
     await escribirSeguro(ruta, contenidoNotaDatos(plantilla));
     return ruta;
 };
 
-// De una rutina completa se queda solo con lo que sirve para plantillear
 export const plantillaDeRutina = (rutina: Rutina): PlantillaRutina => ({
     nombre: rutina.nombre,
     objetivo: rutina.objetivo,
