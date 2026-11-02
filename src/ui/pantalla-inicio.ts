@@ -9,11 +9,12 @@ import { pintarCabecera, pintarNavegacion, pintarTituloSeccion, type BotonNav } 
 import { pintarGestionEjercicios } from "./ejercicios-ui";
 import { formularioMedidas } from "./registro";
 import { seccionMedidas } from "./estadisticas";
+import { pintarResumenProgresion } from "./progresion";
 import { elegirDiaGuiada } from "./sesion-guiada";
 import { abrirTemporizador } from "./temporizador";
 import { abrirFormulario, abrirRutina } from "./vistas";
 
-type SeccionInicio = "rutinas" | "medidas" | "ejercicios";
+type SeccionInicio = "rutinas" | "progresion" | "medidas" | "ejercicios";
 
 export class PantallaInicio {
 
@@ -33,6 +34,8 @@ export class PantallaInicio {
         const botones: BotonNav[] = [
             { texto: "📋 Rutinas", activo: this.seccion === "rutinas",
               alPulsar: () => this.irA("rutinas") },
+            { texto: "📈 Progresión", activo: this.seccion === "progresion",
+              alPulsar: () => this.irA("progresion") },
             { texto: "⚖️ Medidas e IMC", activo: this.seccion === "medidas",
               alPulsar: () => this.irA("medidas") },
             { texto: "🗂 Ejercicios", activo: this.seccion === "ejercicios",
@@ -41,7 +44,7 @@ export class PantallaInicio {
 
         if (this.seccion === "medidas") {
             botones.push({ texto: "＋ Registrar medidas", principal: true, alPulsar: () => void this.abrirMedidas() });
-        } else if (this.seccion !== "ejercicios") {
+        } else if (this.seccion === "rutinas") {
             botones.push({ texto: "＋ Nueva rutina", principal: true, alPulsar: () => void abrirFormulario({ modo: "crear" }) });
         }
         botones.push({ texto: "⏱ Temporizador", alPulsar: () => void abrirTemporizador(), derecha: true });
@@ -49,6 +52,11 @@ export class PantallaInicio {
 
         if (this.seccion === "medidas") return this.pintarMedidas(cont);
         if (this.seccion === "ejercicios") return this.pintarEjercicios(cont);
+        if (this.seccion === "progresion") {
+            const contenido = el("div", "gym-inicio-contenido");
+            cont.appendChild(contenido);
+            return pintarResumenProgresion(contenido);
+        }
         return this.pintarRutinas(cont);
     }
 

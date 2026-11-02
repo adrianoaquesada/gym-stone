@@ -367,7 +367,9 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
     let barraCiclo: HTMLDivElement | null = null;
     let confirmarCancelarCiclo = false;
     let cajaHold: HTMLDivElement | null = null, tHold: HTMLDivElement | null = null;
+    let valorHold: HTMLSpanElement | null = null;
     let barraHold: HTMLDivElement | null = null;
+    let diferenciaHold: HTMLSpanElement | null = null;
     let confirmarCancelarHold = false;
 
     const pintarDescanso = () => {
@@ -390,11 +392,23 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
     };
 
     const pintarHold = () => {
-        if (!cajaHold || !tHold) return;
-        tHold.textContent = relojTexto(hold?.ms ?? 0);
-        if (barraHold && hold) {
+        if (!cajaHold || !tHold || !valorHold) return;
+        valorHold.textContent = relojTexto(hold?.ms ?? 0);
+        if (hold) {
             const obj = Math.round(Number(defs[hold.ej]?.objetivo.duracionObjetivo) || 0);
-            barraHold.style.width = obj > 0 ? Math.min(100, hold.ms / (obj * 1000) * 100).toFixed(1) + "%" : "100%";
+            if (barraHold) {
+                barraHold.style.width = obj > 0 ? Math.min(100, hold.ms / (obj * 1000) * 100).toFixed(1) + "%" : "100%";
+                barraHold.classList.toggle("superado", obj > 0 && hold.ms > obj * 1000);
+            }
+            if (diferenciaHold && obj > 0) {
+                const delta = Math.floor(hold.ms / 1000) - obj;
+                diferenciaHold.textContent = delta < 0 ? `faltan ${Math.abs(delta)} s`
+                    : delta > 0 ? `+${delta} s` : "objetivo";
+                diferenciaHold.classList.toggle("superado", delta > 0);
+                diferenciaHold.title = delta < 0
+                    ? `Faltan ${Math.abs(delta)} segundos para el objetivo`
+                    : delta > 0 ? `${delta} segundos por encima del objetivo` : "Objetivo alcanzado";
+            }
         }
         if (hold && hold.ej === idx) {
             const inp = inReps[defs[idx].series.length];
@@ -767,6 +781,10 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         cabeceraEj.appendChild(el("div", "gym-modo-ej", ej.nombre));
         const cMeta = el("div", "gym-modo-ej-meta");
         const tipo = tipoEjercicioDe(ej.objetivo);
+        const controlesIntervalo = tipo === "intervalo"
+            ? el("div", "gym-modo-intervalo-controles")
+            : null;
+        if (controlesIntervalo) cMeta.classList.add("gym-modo-ej-meta-intervalo");
 
         let meta: string;
         if (tipo === "peso") {
@@ -780,17 +798,15 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         } else {
             const trab = Math.round(Number(ej.objetivo.trabajoSeg) || 0);
             const trans = Math.round(Number(ej.objetivo.transicionSeg) || 0);
-            const descC = Math.round(Number(ej.objetivo.descansoSeg) || 0);
             meta = `${ej.plan} ciclos × ${trab} s de trabajo` +
-                (trans > 0 ? ` · ${trans} s de transición` : "") +
-                (descC > 0 ? ` · ${descC} s de descanso` : " · sin descanso");
+                (trans > 0 ? ` · ${trans} s de transición` : "");
         }
         cMeta.appendChild(el("span", "", meta));
 
         const dSeg = tipo === "intervalo"
             ? Math.max(0, Math.round(Number(ej.objetivo.descansoSeg) || 0))
             : Number(ej.objetivo.descansoSeg) || 90;
-        const bDesc = el("button", "", ` · descanso ${dSeg} s`);
+        const bDesc = el("button", "", tipo === "intervalo" ? `Descanso ${dSeg} s` : ` · descanso ${dSeg} s`);
         bDesc.type = "button";
         bDesc.title = tipo === "intervalo" ? "Tocar para cambiar el descanso de cada ciclo"
                                            : "Tocar para cambiar el descanso entre series";
@@ -805,12 +821,12 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                                                            : (v > 0 ? Math.round(v) : 90);
             pintarEjercicio();
         };
-        cMeta.appendChild(bDesc);
+        (controlesIntervalo ?? cMeta).appendChild(bDesc);
 
         if (tipo === "intervalo" && !enPlanDe(rutina, ej.id)) {
             const trab = Math.round(Number(ej.objetivo.trabajoSeg) || 0);
             const trans = Math.round(Number(ej.objetivo.transicionSeg) || 0);
-            const bCiclo = el("button", "", ` · ciclo ${trab > 0 ? `${trab} s` : "＋"}`);
+            const bCiclo = el("button", "", `Ciclo ${trab > 0 ? `${trab} s` : "＋"}`);
             bCiclo.type = "button";
             bCiclo.title = `Tocar para fijar los ciclos: trabajo${trans > 0 ? ` y transición (${trans} s)` : ""}`;
             bCiclo.style.cssText = estiloEnlace;
@@ -821,7 +837,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                 ej.objetivo.transicionSeg = v.transicion > 0 ? Math.round(v.transicion) : null;
                 pintarEjercicio();
             };
-            cMeta.appendChild(bCiclo);
+            controlesIntervalo?.appendChild(bCiclo);
         }
 
         const selTipo = el("select");
@@ -832,7 +848,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         selTipo.title = "Tipo de serie del plan: cómo se leen las reps (en «fallo» se anotan al fallo, sin número objetivo).";
         selTipo.style.cssText = "font-size:.95em;font-family:inherit;background:var(--background-secondary);" +
             "border:1px solid var(--background-modifier-border);border-radius:6px;padding:1px 5px;" +
-            "cursor:pointer;color:inherit;margin-left:6px;max-width:140px;";
+            `cursor:pointer;color:inherit;margin-left:${controlesIntervalo ? "0" : "6px"};max-width:140px;`;
         selTipo.onchange = () => {
             const v = selTipo.value;
             ej.objetivo.tipoSerie = v === "calentamiento" || v === "descenso" || v === "fallo" ? v : null;
@@ -840,12 +856,12 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             inReps.forEach(i => { if (i) i.value = ""; });
             pintarEjercicio();
         };
-        cMeta.appendChild(selTipo);
+        (controlesIntervalo ?? cMeta).appendChild(selTipo);
 
         if (!enPlanDe(rutina, ej.id)) {
             const selTipoEj = el("select", "font-size:.95em;font-family:inherit;background:var(--background-secondary);" +
                 "border:1px solid var(--background-modifier-border);border-radius:6px;padding:1px 5px;" +
-                "cursor:pointer;color:inherit;margin-left:6px;max-width:120px;");
+                `cursor:pointer;color:inherit;margin-left:${controlesIntervalo ? "0" : "6px"};max-width:120px;`);
             for (const [v, t] of [["peso", "Peso"], ["tiempo", "Tiempo"], ["intervalo", "Intervalo"]] as const) {
                 const o = el("option", null, t); o.value = v; selTipoEj.appendChild(o);
             }
@@ -869,10 +885,11 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                 inPeso.forEach(i => { if (i) i.value = ""; });
                 pintarEjercicio();
             };
-            cMeta.appendChild(selTipoEj);
+            (controlesIntervalo ?? cMeta).appendChild(selTipoEj);
         }
         cabeceraEj.appendChild(cMeta);
         contEj.appendChild(cabeceraEj);
+        if (controlesIntervalo) contEj.appendChild(controlesIntervalo);
         if (ej.objetivo.notas) contEj.appendChild(el("div", "font-size:.82em;opacity:.65;font-style:italic;", `💡 ${ej.objetivo.notas}`));
         if (ej.notas) contEj.appendChild(el("div", "font-size:.85em;margin-top:4px;", `📝 ${esc(ej.notas)}`));
 
@@ -880,7 +897,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
 
         cajaDescanso = null; tDescanso = null; barraDescanso = null;
         cajaCiclo = null; tCiclo = null; barraCiclo = null;
-        cajaHold = null; tHold = null; barraHold = null;
+        cajaHold = null; tHold = null; valorHold = null; barraHold = null; diferenciaHold = null;
         if (descanso) {
             cajaDescanso = el("div", "gym-descanso gym-descanso-compacto");
             tDescanso = el("div", "t");
@@ -992,8 +1009,16 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             const hEj = defs[hold.ej];
             const objH = Math.max(0, Math.round(Number(hEj.objetivo.duracionObjetivo) || 0));
             cajaHold = el("div", "gym-timer-serie");
-            tHold = el("div", "gym-timer-serie-tiempo");
-            cajaHold.appendChild(el("div", "gym-timer-serie-etiqueta", objH > 0 ? `⏱ ${objH} s` : "⏱ Hold"));
+            const etiquetaHold = el("div", "gym-timer-serie-etiqueta",
+                objH > 0 ? `⏱ Objetivo ${objH} s` : "⏱ Hold");
+            tHold = el("div", "gym-timer-serie-tiempo gym-hold-lectura");
+            valorHold = el("span", "gym-hold-valor");
+            tHold.appendChild(valorHold);
+            if (objH > 0) {
+                diferenciaHold = el("span", "gym-hold-diferencia");
+                tHold.appendChild(diferenciaHold);
+            }
+            cajaHold.appendChild(etiquetaHold);
             cajaHold.appendChild(tHold);
             if (objH > 0) {
                 const barraWrapH = el("div", "gym-timer-serie-barra");

@@ -23,6 +23,19 @@ let idColaAvisos: number | null = null;
 let alPintar: (() => void) | null = null;
 const colaAvisos: string[] = [];
 const CLAVE_PARCIALES = "gym-stone-parciales-cronometro";
+const CLAVE_ESTADO_TEMPORIZADOR = "gym-stone-estado-temporizador";
+
+interface EstadoTemporizadoresPersistido {
+    version: 1;
+    temporizadores: TemporizadorLibre[];
+    temporizadorEnAnilloId: string | null;
+    vistaTemporizadores: "circular" | "lista";
+    modo: "cuenta-atras" | "cronometro";
+    cronometro: CronometroLibre;
+    cronometroSesionId: string;
+}
+
+let estadoTemporizadoresInicializado = false;
 
 const esParcialCronometro = (dato: unknown): dato is ParcialCronometro => {
     if (typeof dato !== "object" || dato === null) return false;
@@ -31,6 +44,96 @@ const esParcialCronometro = (dato: unknown): dato is ParcialCronometro => {
         && typeof parcial.sesionId === "string"
         && typeof parcial.parcialMs === "number" && Number.isFinite(parcial.parcialMs) && parcial.parcialMs >= 0
         && typeof parcial.acumuladoMs === "number" && Number.isFinite(parcial.acumuladoMs) && parcial.acumuladoMs >= 0;
+};
+
+const esTemporizadorLibre = (dato: unknown): dato is TemporizadorLibre => {
+    if (typeof dato !== "object" || dato === null) return false;
+    const temporizador = dato as Record<string, unknown>;
+    return typeof temporizador.id === "string"
+        && typeof temporizador.duracionMs === "number" && Number.isFinite(temporizador.duracionMs) && temporizador.duracionMs > 0
+        && typeof temporizador.restanteMs === "number" && Number.isFinite(temporizador.restanteMs) && temporizador.restanteMs >= 0
+        && (temporizador.finEn === null
+            || (typeof temporizador.finEn === "number" && Number.isFinite(temporizador.finEn)))
+        && (temporizador.estado === "en-marcha" || temporizador.estado === "pausado" || temporizador.estado === "terminado")
+        && (temporizador.estado === "en-marcha" ? typeof temporizador.finEn === "number" : temporizador.finEn === null);
+};
+
+const esCronometroLibre = (dato: unknown): dato is CronometroLibre => {
+    if (typeof dato !== "object" || dato === null) return false;
+    const cronometro = dato as Record<string, unknown>;
+    return typeof cronometro.tiempoAcumuladoMs === "number"
+        && Number.isFinite(cronometro.tiempoAcumuladoMs) && cronometro.tiempoAcumuladoMs >= 0
+        && (cronometro.iniciadoEn === null
+            || (typeof cronometro.iniciadoEn === "number" && Number.isFinite(cronometro.iniciadoEn)))
+        && (cronometro.estado === "en-marcha" ? typeof cronometro.iniciadoEn === "number" : cronometro.iniciadoEn === null);
+};
+
+const esEstadoTemporizadoresPersistido = (dato: unknown): dato is EstadoTemporizadoresPersistido => {
+    if (typeof dato !== "object" || dato === null) return false;
+    const estado = dato as Record<string, unknown>;
+    return estado.version === 1
+        && Array.isArray(estado.temporizadores) && estado.temporizadores.every(esTemporizadorLibre)
+        && (estado.temporizadorEnAnilloId === null || typeof estado.temporizadorEnAnilloId === "string")
+        && (estado.vistaTemporizadores === "circular" || estado.vistaTemporizadores === "lista")
+        && (estado.modo === "cuenta-atras" || estado.modo === "cronometro")
+        && esCronometroLibre(estado.cronometro)
+        && typeof estado.cronometroSesionId === "string";
+};
+
+const guardarEstadoTemporizadores = (): void => {
+    const estado: EstadoTemporizadoresPersistido = {
+        version: 1,
+        temporizadores,
+        temporizadorEnAnilloId,
+        vistaTemporizadores,
+        modo,
+        cronometro,
+        cronometroSesionId,
+    };
+    try {
+        aplicacion().saveLocalStorage(CLAVE_ESTADO_TEMPORIZADOR, estado);
+    } catch (error) {
+        console.error("Gym Stone: no se pudo guardar el estado del temporizador.", error);
+        toast("⚠️ No se pudo guardar el progreso del temporizador.", false);
+    }
+};
+
+export const restaurarEstadoTemporizadores = (): void => {
+    if (estadoTemporizadoresInicializado) return;
+    estadoTemporizadoresInicializado = true;
+    try {
+        const guardado: unknown = aplicacion().loadLocalStorage(CLAVE_ESTADO_TEMPORIZADOR);
+        if (guardado == null) return;
+        if (!esEstadoTemporizadoresPersistido(guardado)) {
+            throw new Error("El formato guardado de los temporizadores no es válido.");
+        }
+
+        const ahora = Date.now();
+        const vencidos = guardado.temporizadores.filter(temporizador =>
+            temporizador.estado === "en-marcha" && temporizador.finEn != null && temporizador.finEn <= ahora);
+        temporizadores = guardado.temporizadores.filter(temporizador => !vencidos.includes(temporizador));
+        temporizadorEnAnilloId = temporizadores.some(t => t.id === guardado.temporizadorEnAnilloId)
+            ? guardado.temporizadorEnAnilloId : temporizadores[0]?.id ?? null;
+        vistaTemporizadores = guardado.vistaTemporizadores;
+        modo = guardado.modo;
+        cronometro = guardado.cronometro;
+        cronometroSesionId = guardado.cronometroSesionId;
+
+        for (const temporizador of temporizadores) {
+            if (temporizador.estado === "en-marcha") pantallaDe(temporizador.id).poner();
+        }
+        actualizarReloj();
+        if (vencidos.length > 0) {
+            const detalle = vencidos.map(t => fmt(t.duracionMs)).join(", ");
+            toast(vencidos.length === 1
+                ? `⏰ La cuenta atrás de ${detalle} terminó mientras Gym Stone estaba cerrada.`
+                : `⏰ Terminaron ${vencidos.length} cuentas atrás mientras Gym Stone estaba cerrada: ${detalle}.`);
+        }
+        guardarEstadoTemporizadores();
+    } catch (error) {
+        console.error("Gym Stone: no se pudo restaurar el estado del temporizador.", error);
+        toast("⚠️ No se pudo restaurar el progreso de los temporizadores.", false);
+    }
 };
 
 const fmtReloj = (ms: number, redondearArriba = true): string => {
@@ -88,7 +191,7 @@ const restante = (temporizador: TemporizadorLibre): number =>
 
 const tiempoCronometro = (): number => cronometro.tiempoAcumuladoMs
     + (cronometro.estado === "en-marcha" && cronometro.iniciadoEn != null
-        ? Date.now() - cronometro.iniciadoEn
+        ? Math.max(0, Date.now() - cronometro.iniciadoEn)
         : 0);
 
 const pantallaDe = (id: string): ReclamoDespierta => {
@@ -185,6 +288,7 @@ const arrancar = (ms: number): void => {
     temporizadorEnAnilloId = temporizador.id;
     configuracionTemporizadorAbierta = false;
     pantallaDe(temporizador.id).poner();
+    guardarEstadoTemporizadores();
     actualizarReloj();
     notificar();
 };
@@ -208,6 +312,7 @@ const alternarPausa = (temporizador: TemporizadorLibre): void => {
         temporizador.estado = "en-marcha";
         pantallaDe(temporizador.id).poner();
     }
+    guardarEstadoTemporizadores();
     actualizarReloj();
     notificar();
 };
@@ -220,11 +325,13 @@ const eliminarTemporizador = (temporizador: TemporizadorLibre): void => {
     if (temporizadorEnAnilloId === temporizador.id) {
         temporizadorEnAnilloId = temporizadores[0]?.id ?? null;
     }
+    guardarEstadoTemporizadores();
     actualizarReloj();
     notificar();
 };
 
 export const pararTemporizador = (): void => {
+    guardarEstadoTemporizadores();
     if (idReloj != null) window.clearInterval(idReloj);
     if (idColaAvisos != null) window.clearTimeout(idColaAvisos);
     idReloj = null;
@@ -240,6 +347,7 @@ export const pararTemporizador = (): void => {
     cronometro = { tiempoAcumuladoMs: 0, iniciadoEn: null, estado: "pausado" };
     modo = "cuenta-atras";
     alPintar = null;
+    estadoTemporizadoresInicializado = false;
 };
 
 const fmt = (ms: number, redondearArriba = true): string => {
@@ -338,6 +446,7 @@ export function abrirTemporizador(): void {
         } else {
             modo = "cuenta-atras";
         }
+        guardarEstadoTemporizadores();
         actualizarReloj();
         notificar();
     };
@@ -362,6 +471,7 @@ export function abrirTemporizador(): void {
     bVista.appendChild(iconoLista);
     bVista.onclick = () => {
         vistaTemporizadores = vistaTemporizadores === "circular" ? "lista" : "circular";
+        guardarEstadoTemporizadores();
         notificar();
     };
     barraHerramientas.appendChild(bVista);
@@ -378,6 +488,7 @@ export function abrirTemporizador(): void {
             cronometro.iniciadoEn = Date.now();
             cronometro.estado = "en-marcha";
         }
+        guardarEstadoTemporizadores();
         actualizarReloj();
         notificar();
     };
@@ -408,6 +519,7 @@ export function abrirTemporizador(): void {
         if (parcialesCronometro.length > 0 && !guardarParcialesCronometro([])) return;
         cronometro = { tiempoAcumuladoMs: 0, iniciadoEn: null, estado: "pausado" };
         cronometroSesionId = `cronometro-${Date.now()}-${++secuenciaCronometro}`;
+        guardarEstadoTemporizadores();
         notificar();
     };
     const listaParciales = el("div", "gym-temp-lista");

@@ -370,6 +370,59 @@ export interface EntradaHistorialGlobal extends EntradaHistorial {
     diaNombre: string;
 }
 
+export interface ProgresionEjercicioGlobal {
+    ejercicioId: string;
+    nombre: string;
+    tipoEjercicio: TipoEjercicio;
+    historial: (EntradaHistorialGlobal & { rutinaId: string })[];
+}
+
+export const progresionGlobal = async (): Promise<ProgresionEjercicioGlobal[]> => {
+    const archivos = archivosMdEnCarpeta(carpetaDatos())
+        .filter(f => f.path.endsWith(SUFIJO_MD));
+    const porEjercicio = new Map<string, ProgresionEjercicioGlobal>();
+    for (const archivo of archivos) {
+        const lectura = await leerNotaDatos<Rutina>(archivo.path);
+        if (lectura.error) throw new Error(lectura.error);
+        const rutina = lectura.datos;
+        if (!rutina?.id) throw new Error(`El archivo ${archivo.path} no contiene una rutina válida.`);
+        const completa: Rutina = {
+            ...rutina,
+            sesiones: (rutina.sesiones ?? []).filter(s => !s.enCurso),
+        };
+        for (const ejercicio of ejerciciosConDatos(completa)) {
+            for (const entrada of historialEjercicio(completa, ejercicio.id)) {
+                if (!esFechaValida(entrada.fecha)) continue;
+                const clave = `${ejercicio.id}\u0000${entrada.tipoEjercicio}`;
+                let progresion = porEjercicio.get(clave);
+                if (!progresion) {
+                    progresion = {
+                        ejercicioId: ejercicio.id,
+                        nombre: ejercicio.nombre,
+                        tipoEjercicio: entrada.tipoEjercicio,
+                        historial: [],
+                    };
+                    porEjercicio.set(clave, progresion);
+                }
+                progresion.historial.push({
+                    ...entrada,
+                    rutinaId: rutina.id,
+                    rutinaNombre: rutina.nombre || archivo.basename,
+                    diaNombre: rutina.dias?.find(d => d.id === entrada.diaId)?.nombre ?? entrada.diaId,
+                });
+            }
+        }
+    }
+    return [...porEjercicio.values()]
+        .map(p => ({
+            ...p,
+            historial: p.historial.sort((a, b) =>
+                a.fecha.localeCompare(b.fecha) || a.rutinaNombre.localeCompare(b.rutinaNombre, "es")),
+        }))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, "es")
+            || a.tipoEjercicio.localeCompare(b.tipoEjercicio, "es"));
+};
+
 export const historialEjercicioGlobal = async (ejercicioId: string): Promise<EntradaHistorialGlobal[]> => {
     const archivos = archivosMdEnCarpeta(carpetaDatos())
         .filter(f => f.path.endsWith(SUFIJO_MD));

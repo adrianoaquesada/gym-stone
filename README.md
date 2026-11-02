@@ -119,7 +119,11 @@ desplazable. **Detener** pausa el cronómetro y permite reanudarlo;
 **Parcial** registra el tiempo desde el parcial anterior y el acumulado.
 Al detenerlo, el segundo botón permite restablecerlo para empezar otra sesión.
 Los parciales se conservan por vault en el almacenamiento local propio de
-Obsidian.
+Obsidian. El progreso del temporizador y del cronómetro también se guarda: al
+cerrar y volver a abrir Obsidian, los tiempos en marcha incluyen el tiempo
+transcurrido durante el cierre y los que estaban pausados siguen en pausa. Si
+una cuenta atrás vence mientras la app está cerrada, se avisa al volver a abrirla;
+no se puede emitir una alarma mientras Obsidian está completamente cerrado.
 
 Las cuentas atrás se pueden ver en modo circular —con gestos laterales y puntos
 para alternar entre temporizadores— o en una lista completa con su hora de

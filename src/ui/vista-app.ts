@@ -6,14 +6,16 @@ import type { Rutina } from "../tipos";
 import { el } from "./componentes";
 import { pintarDashboard } from "./gestor";
 import { PantallaInicio, esRutaDeInicio } from "./pantalla-inicio";
-import { VISTA_APP, VISTA_LISTA, VISTA_RUTINA, abrirLista } from "./vistas";
+import { pintarResumenProgresion } from "./progresion";
+import { VISTA_APP, VISTA_LISTA, VISTA_RUTINA, abrirLista, abrirRutina } from "./vistas";
 
-type Pantalla = "lista" | "rutina";
+type Pantalla = "lista" | "rutina" | "progresion";
 
 interface EstadoApp {
     [k: string]: unknown;
     pantalla?: Pantalla;
     rutinaId?: string | null;
+    seccionRutina?: "rutina" | "progresion" | "estadisticas" | "historial";
 }
 
 export class VistaApp extends ItemView {
@@ -21,6 +23,7 @@ export class VistaApp extends ItemView {
     protected pantallaPorDefecto: Pantalla = "lista";
 
     private pantalla: Pantalla = "lista";
+    private seccionRutina: "rutina" | "progresion" | "estadisticas" | "historial" = "rutina";
     private rutinaId: string | null = null;
     private nombre = "";
     private pintadaEn: Pantalla | null = null;
@@ -35,17 +38,24 @@ export class VistaApp extends ItemView {
     getViewType(): string { return VISTA_APP; }
     getDisplayText(): string {
         if (this.pantalla === "rutina") return this.nombre || (this.rutinaId ? `Gym stone · ${this.rutinaId}` : "Gym stone");
+        if (this.pantalla === "progresion") return "Progresión";
         return "Gym stone";
     }
     getIcon(): string { return "dumbbell"; }
 
-    getState(): EstadoApp { return { pantalla: this.pantalla, rutinaId: this.rutinaId }; }
+    getState(): EstadoApp {
+        return { pantalla: this.pantalla, rutinaId: this.rutinaId, seccionRutina: this.seccionRutina };
+    }
 
     async setState(state: EstadoApp, result: ViewStateResult): Promise<void> {
         await super.setState(state, result);
         const p = state?.pantalla;
-        this.pantalla = p === "lista" || p === "rutina" ? p : this.pantallaPorDefecto;
+        this.pantalla = p === "lista" || p === "rutina" || p === "progresion"
+            ? p : this.pantallaPorDefecto;
         this.rutinaId = state?.rutinaId ?? null;
+        const seccion = state?.seccionRutina;
+        this.seccionRutina = seccion === "progresion" || seccion === "estadisticas" || seccion === "historial"
+            ? seccion : "rutina";
 
         if (this.pantalla === "lista") this.inicio.seccion = "rutinas";
         await this.pintar();
@@ -81,7 +91,7 @@ export class VistaApp extends ItemView {
     rutaMarkdown(): string | null {
         return this.pantalla === "rutina"
             ? (this.rutinaId ? rutaDatosDe(this.rutinaId) : null)
-            : rutaIndice();
+            : this.pantalla === "lista" ? rutaIndice() : null;
     }
 
     async pintar(): Promise<void> {
@@ -107,9 +117,22 @@ export class VistaApp extends ItemView {
 
                 await pintarDashboard(cont, this.rutinaId, {
                     rutina: r.datos as Rutina,
+                    seccion: this.seccionRutina,
+                    alCambiarSeccion: seccion => {
+                        this.seccionRutina = seccion;
+                        void this.pintar();
+                    },
                     alRepintar: () => void this.pintar(),
                 });
             }
+        } else if (pantalla === "progresion") {
+            await pintarResumenProgresion(cont, {
+                rutinaId: this.rutinaId,
+                alVolver: () => {
+                    if (this.rutinaId) void abrirRutina(this.rutinaId);
+                    else void abrirLista();
+                },
+            });
         } else {
             await this.inicio.pintar(cont);
         }

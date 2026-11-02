@@ -14,7 +14,7 @@ const TODOS_LOS_TIPOS = [VISTA_APP, VISTA_LISTA, VISTA_RUTINA, VISTA_FORM, VISTA
 
 interface EstadoVista {
     [k: string]: unknown;
-    pantalla?: "lista" | "rutina";
+    pantalla?: "lista" | "rutina" | "progresion";
     rutinaId?: string | null;
 }
 
@@ -33,6 +33,10 @@ export const abrirLista = async (): Promise<void> => {
 
 export const abrirRutina = async (rutinaId: string): Promise<void> => {
     await navegar({ pantalla: "rutina", rutinaId });
+};
+
+export const abrirProgresion = async (rutinaId?: string): Promise<void> => {
+    await navegar({ pantalla: "progresion", rutinaId: rutinaId ?? null });
 };
 
 export const abrirFormulario = async (estado: { modo: "crear" | "editar"; rutinaId?: string }): Promise<void> => {

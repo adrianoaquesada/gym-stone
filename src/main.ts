@@ -3,12 +3,15 @@ import { normalizarAjustes, rutaIndice, type AjustesGym } from "./ajustes";
 import { reiniciarDespierta } from "./despierta";
 import { iniciarEstado, actualizarAjustes } from "./estado";
 import { limpiarOverlays, toast } from "./ui/componentes";
-import { abrirTemporizador, observarTemporizadoresActivos, pararTemporizador } from "./ui/temporizador";
+import {
+    abrirTemporizador, observarTemporizadoresActivos, pararTemporizador, restaurarEstadoTemporizadores,
+} from "./ui/temporizador";
 import { cerrarSesionesAbiertas } from "./ui/sesion-guiada";
 import { GymStoneTab } from "./ui/tabla-ajustes";
 import { VistaApp, VistaLista, VistaRutina } from "./ui/vista-app";
 import { VistaForm } from "./ui/vista-form";
 import { fijarUnidadPeso, pesoActual, unidadContraria } from "./unidades";
+import { abrirProgresion } from "./ui/vistas";
 import {
     VISTA_APP, VISTA_FORM, VISTA_LISTA, VISTA_RUTINA,
     abrirArchivoComoPlugin, abrirFormulario, abrirLista, abrirComoMarkdown,
@@ -25,6 +28,7 @@ export default class GymStone extends Plugin {
     async onload(): Promise<void> {
         this.ajustes = normalizarAjustes(((await this.loadData()) ?? {}) as Record<string, unknown>);
         iniciarEstado(this.app, this.ajustes, ajustes => this.guardarAjustes(ajustes));
+        restaurarEstadoTemporizadores();
 
         this.registerView(VISTA_APP, leaf => new VistaApp(leaf));
 
@@ -97,6 +101,11 @@ export default class GymStone extends Plugin {
             id: "nueva-rutina",
             name: "Crear nueva rutina",
             callback: () => void abrirFormulario({ modo: "crear" }),
+        });
+        this.addCommand({
+            id: "progresion",
+            name: "Abrir el resumen de progresión",
+            callback: () => void abrirProgresion(),
         });
         this.addCommand({
             id: "temporizador",

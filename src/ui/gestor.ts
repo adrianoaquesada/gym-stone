@@ -7,11 +7,12 @@ import {
 } from "../datos";
 import { fechaLegible, hoy, msgError, sumarDias } from "../util";
 import type { LecturaNota, MedidasDatos, Rutina } from "../tipos";
-import { btn, el, KPI, modal, ponerX, toast } from "./componentes";
+import { btn, el, KPI, toast } from "./componentes";
 import { textoObjetivoDe } from "./registro";
 import { pintarCabecera, pintarNavegacion } from "./cabecera";
 import { abrirFormulario, abrirLista } from "./vistas";
 import { abrirTemporizador } from "./temporizador";
+import { pintarResumenProgresion } from "./progresion";
 import { elegirDiaGuiada } from "./sesion-guiada";
 import { fijarPintar, type Pintar } from "./pintar";
 import { seccionCalendario } from "./calendario";
@@ -24,6 +25,10 @@ export interface OpcionesDashboard {
     rutina?: Rutina;
 
     alRepintar?: Pintar;
+
+    seccion?: "rutina" | "progresion" | "estadisticas" | "historial";
+
+    alCambiarSeccion?: (seccion: "rutina" | "progresion" | "estadisticas" | "historial") => void;
 }
 
 export const pintarDashboard = async (
@@ -57,35 +62,62 @@ export const pintarDashboard = async (
     });
 
     const pintar: Pintar = () => (ops.alRepintar ? ops.alRepintar() : pintarDashboard(cont, rutinaId));
+    const cambiarSeccion = (seccion: "rutina" | "progresion" | "estadisticas" | "historial"): void => {
+        if (ops.alCambiarSeccion) {
+            ops.alCambiarSeccion(seccion);
+            return;
+        }
+        void pintarDashboard(cont, rutinaId, { ...ops, rutina, seccion });
+    };
 
     pintarNavegacion(cont2, [
         { texto: "← Inicio", alPulsar: () => void abrirLista() },
+        {
+            texto: "🏋️ Rutina",
+            activo: !ops.seccion || ops.seccion === "rutina",
+            alPulsar: () => cambiarSeccion("rutina"),
+        },
         { texto: "✏️ Editar", alPulsar: () => void abrirFormulario({ modo: "editar", rutinaId }) },
         { texto: "🎯 Empezar sesión guiada", alPulsar: () => elegirDiaGuiada(rutina, pintar), principal: true },
         { texto: "＋ Registrar sesión", alPulsar: () => abrirRegistro(rutina, { fecha: hoy(), diaId: rutina.dias?.[0]?.id }, pintar) },
         { texto: "📝 Anotación", alPulsar: () => formularioAnotacion(rutina, hoy(), pintar) },
         { texto: "⚖️ Registrar medidas", alPulsar: () => formularioMedidas(medidas, pintar) },
-        { texto: "📈 Estadísticas", alPulsar: () => abrirEstadisticas(rutina, medidas) },
-        { texto: "🗓 Historial", alPulsar: () => abrirHistorial(rutina) },
+        {
+            texto: "📈 Estadísticas",
+            activo: ops.seccion === "estadisticas",
+            alPulsar: () => cambiarSeccion("estadisticas"),
+        },
+        {
+            texto: "📈 Progresión",
+            activo: ops.seccion === "progresion",
+            alPulsar: () => cambiarSeccion("progresion"),
+        },
+        {
+            texto: "🗓 Historial",
+            activo: ops.seccion === "historial",
+            alPulsar: () => cambiarSeccion("historial"),
+        },
         { texto: "⏱ Temporizador", alPulsar: () => void abrirTemporizador(), derecha: true },
     ]);
 
-    seccionDetalles(cont2, rutina, pintar);
-    seccionCalendario(cont2, rutina, pintar);
+    if (ops.seccion === "progresion") {
+        const contenido = el("div", "gym-rutina-contenido");
+        cont2.appendChild(contenido);
+        await pintarResumenProgresion(contenido, { rutinaId: rutina.id });
+    } else if (ops.seccion === "estadisticas") {
+        const contenido = el("div", "gym-rutina-contenido");
+        cont2.appendChild(contenido);
+        seccionEstadisticas(contenido, rutina, medidas);
+    } else if (ops.seccion === "historial") {
+        const contenido = el("div", "gym-rutina-contenido");
+        cont2.appendChild(contenido);
+        seccionHistorial(contenido, rutina);
+    } else {
+        seccionDetalles(cont2, rutina, pintar);
+        seccionCalendario(cont2, rutina, pintar);
+    }
 
     fijarPintar(pintar);
-};
-
-const abrirEstadisticas = (rutina: Rutina, medidas: LecturaNota<MedidasDatos>): void => {
-    const m = modal("📈 Estadísticas", rutina.nombre);
-    ponerX(m);
-    seccionEstadisticas(m.caja, rutina, medidas);
-};
-
-const abrirHistorial = (rutina: Rutina): void => {
-    const m = modal("🗓 Historial", rutina.nombre);
-    ponerX(m);
-    seccionHistorial(m.caja, rutina);
 };
 
 const pintarError = (cont: HTMLElement, msg: string): void => {
