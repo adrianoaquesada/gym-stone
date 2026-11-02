@@ -33,12 +33,14 @@ export type TipoSerie = "calentamiento" | "trabajo" | "descenso" | "fallo";
 export interface EjercicioDef {
     id: string;
     nombre: string;
+    grupos?: string[];
     tipoEjercicio?: TipoEjercicio | null;
     series: number;
 
     repsObjetivo: number | null;
     pesoObjetivo: number | null;
     duracionObjetivo?: number | null;
+    repsPesoDuranteTiempo?: boolean;
     descansoSeg: number | null;
     trabajoSeg?: number | null;
     transicionSeg?: number | null;
@@ -52,6 +54,7 @@ export interface DiaRutina {
     nombre: string;
     diasSemana: number[];
     ejercicios: EjercicioDef[];
+    etiquetasPersonalizadas?: string[];
 }
 
 export interface SerieSesion {
@@ -79,6 +82,7 @@ export interface EjercicioSesion {
     tipoEjercicio?: TipoEjercicio | null;
 
     duracionObjetivo?: number | null;
+    repsPesoDuranteTiempo?: boolean;
     trabajoSeg?: number | null;
     transicionSeg?: number | null;
     sinRegistrar?: boolean;
@@ -105,7 +109,10 @@ export interface NotaDia {
 }
 
 export interface Rutina {
+    versionDatos?: 2;
     id: string;
+    /** ID estable de la plantilla de origen. */
+    plantillaOrigen?: string | null;
     nombre: string;
     objetivo: string;
     tipo: TipoRutina;
@@ -122,6 +129,8 @@ export interface Rutina {
 }
 
 export interface PlantillaRutina {
+    versionDatos?: 2;
+    id?: string;
     nombre: string;
     objetivo: string;
     semanas: number;
@@ -149,7 +158,8 @@ export interface MedidasDatos {
 }
 
 export interface GruposDatos {
-    grupos: Record<string, string>;
+    versionDatos: 3;
+    grupos: Record<string, string[]>;
 }
 
 export type MetaNota = Record<string, unknown>;

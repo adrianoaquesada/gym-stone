@@ -5,11 +5,14 @@ import { carpetaDatos, SUFIJO_MD } from "../ajustes";
 import { hoy, sumarDias, diffDias } from "../util/fechas";
 import { slug } from "../util/texto";
 import { contenidoNotaDatos, escribirSeguro, leerNotaDatos } from "./archivos";
+import { normalizarGrupos } from "./grupos";
 import { guardarEnIndice, quitarDeIndice } from "./indice";
 import type { DiaRutina, EjercicioDef, LecturaNota, Rutina, SerieSesion, TipoEjercicio, TipoSerie } from "../tipos";
 
 export const rutinaVacia = (): Rutina => ({
+    versionDatos: 2,
     id: "", nombre: "", objetivo: "",
+    plantillaOrigen: null,
     tipo: "planificada",
     inicio: hoy(), fin: "", semanas: CONFIG.SEMANAS_POR_DEFECTO,
     diasSemana: [],
@@ -21,7 +24,7 @@ export const rutinaVacia = (): Rutina => ({
 });
 
 export const ejercicioVacio = (): EjercicioDef =>
-    ({ id: "", nombre: "", tipoEjercicio: null, series: 3, repsObjetivo: 8, pesoObjetivo: null,
+    ({ id: "", nombre: "", grupos: [], tipoEjercicio: null, series: 3, repsObjetivo: 8, pesoObjetivo: null,
        duracionObjetivo: null, descansoSeg: 90, trabajoSeg: null, transicionSeg: null,
        notas: "", tipoSerie: null });
 
@@ -32,7 +35,8 @@ export const textoRepsObjetivo =
         return ej.repsObjetivo != null ? String(ej.repsObjetivo) : "–";
     };
 
-export const diaVacio = (): DiaRutina => ({ id: "", nombre: "", diasSemana: [], ejercicios: [] });
+export const diaVacio = (): DiaRutina =>
+    ({ id: "", nombre: "", diasSemana: [], ejercicios: [], etiquetasPersonalizadas: [] });
 
 export const tipoEjercicioDe =
     (ej: Pick<EjercicioDef, "tipoEjercicio"> | undefined | null): TipoEjercicio =>
@@ -57,19 +61,45 @@ export const semanasTotales = (rutina: Rutina): number => {
 
 export const rutaDatosDe = (id: string): string => `${carpetaDatos()}/${id}${SUFIJO_MD}`;
 
+export const esRutinaFormatoActual = (
+    rutina: Rutina | null | undefined,
+): rutina is Rutina => rutina?.versionDatos === 2;
+
 export const leerRutina = async (id: string): Promise<LecturaNota<Rutina>> => {
     const limp = String(id ?? "").trim();
     if (!limp) return { error: "No tengo el id de la rutina.", ruta: "" };
     const r = await leerNotaDatos<Rutina>(rutaDatosDe(limp));
     if (r.error) return r;
+    if (!esRutinaFormatoActual(r.datos)) {
+        return { error: `El archivo ${r.ruta} usa un formato anterior; se ignora y no se modifica.`, ruta: r.ruta };
+    }
     if (!r.datos?.id) return { error: `El archivo ${r.ruta} no tiene una rutina dentro.`, ruta: r.ruta };
     return r;
 };
 
 export const escribirRutina = async (rutina: Rutina): Promise<string> => {
     if (!rutina?.id) throw new Error("La rutina no tiene id.");
-    rutina.modificado = hoy();
     const ruta = rutaDatosDe(rutina.id);
+    if (aplicacion().vault.getAbstractFileByPath(ruta)) {
+        const previa = await leerNotaDatos<Rutina>(ruta);
+        if (previa.error) throw new Error(previa.error);
+        if (!esRutinaFormatoActual(previa.datos)) {
+            throw new Error(`El archivo ${ruta} usa un formato anterior; no se modifica.`);
+        }
+        if (rutina.plantillaOrigen === undefined) {
+            rutina.plantillaOrigen = previa.datos.plantillaOrigen ?? null;
+        }
+    }
+    rutina.versionDatos = 2;
+    rutina.dias = (rutina.dias ?? []).map(dia => ({
+        ...dia,
+        etiquetasPersonalizadas: normalizarGrupos(dia.etiquetasPersonalizadas),
+        ejercicios: (dia.ejercicios ?? []).map(ejercicio => ({
+            ...ejercicio,
+            grupos: normalizarGrupos(ejercicio.grupos),
+        })),
+    }));
+    rutina.modificado = hoy();
     await escribirSeguro(ruta, contenidoNotaDatos(rutina));
     await guardarEnIndice(rutina);
     return ruta;
@@ -79,6 +109,11 @@ export const borrarRutina = async (id: string): Promise<void> => {
     const ruta = rutaDatosDe(id);
     const f = aplicacion().vault.getAbstractFileByPath(ruta);
     if (f instanceof TFile) {
+        const lectura = await leerNotaDatos<Rutina>(ruta);
+        if (lectura.error) throw new Error(lectura.error);
+        if (!esRutinaFormatoActual(lectura.datos)) {
+            throw new Error(`El archivo ${ruta} usa un formato anterior; no se modifica.`);
+        }
         const previo = await aplicacion().vault.read(f);
         const bak = aplicacion().vault.getAbstractFileByPath(`${ruta}.bak`);
         if (bak instanceof TFile) await aplicacion().vault.modify(bak, previo);

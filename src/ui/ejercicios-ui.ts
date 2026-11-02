@@ -4,7 +4,7 @@ import {
     idEjercicioLibre, ultimosValores, type EntradaHistorialGlobal,
 } from "../datos/calculos";
 import { catalogoGestion, renombrarEjercicio, type EjercicioGestion } from "../datos/ejercicios";
-import { cargarGrupos, fijarGrupo, gruposEnMemoria, purgarGruposSinUsar } from "../datos/grupos";
+import { fijarGrupos, gruposEnMemoria, purgarGruposSinUsar } from "../datos/grupos";
 import type { EjercicioCatalogo, Rutina, TipoEjercicio } from "../tipos";
 import { pesoActual, pesoMostrar, pesoTexto } from "../unidades";
 import { aNumero, fechaLegible, limpiarNombre, msgError, norm, tsDe } from "../util";
@@ -291,7 +291,7 @@ export const elegirEjercicio = (
 
     const cajaGrupos = el("div", "display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;");
     m.caja.appendChild(cajaGrupos);
-    let grupoActivo = "";
+    const gruposActivos = new Set<string>();
     let soloSinGrupo = false;
 
     const lista = el("div", "max-height:250px;overflow:auto;margin-top:8px;" +
@@ -315,22 +315,41 @@ export const elegirEjercicio = (
     m.caja.appendChild(btnUsar);
 
     let pendiente: { id: string; nombre: string } | null = null;
+    let gruposPorEjercicio = new Map<string, string[]>();
     const pintar = () => {
         const q = norm(inNombre.value);
         const grupos = gruposEnMemoria();
-        const grupoDe = (id: string) => grupos[id] ?? "";
+        const gruposDe = (id: string) => Object.prototype.hasOwnProperty.call(grupos, id)
+            ? grupos[id] : gruposPorEjercicio.get(id) ?? [];
+        const textoGrupos = (id: string) => gruposDe(id).join(", ");
 
-        const enUso = [...new Set(catalogo.map(x => grupoDe(x.id)).filter(Boolean))]
+        const enUso = [...new Set(catalogo.flatMap(x => gruposDe(x.id)))]
             .sort((a, b) => a.localeCompare(b, "es"));
-        const sinGrupo = catalogo.filter(x => !grupoDe(x.id)).length;
-        if (grupoActivo && !enUso.includes(grupoActivo)) grupoActivo = "";
+        const sinGrupo = catalogo.filter(x => !gruposDe(x.id).length).length;
+        for (const grupo of gruposActivos) {
+            if (!enUso.includes(grupo)) gruposActivos.delete(grupo);
+        }
         cajaGrupos.empty();
         if (enUso.length || sinGrupo) {
             const chip = (texto: string, valor: string, especial = ""): void => {
-                const activo = especial === "sin" ? soloSinGrupo : !soloSinGrupo && grupoActivo === valor;
+                const activo = especial === "sin" ? soloSinGrupo
+                    : valor ? gruposActivos.has(valor) : !soloSinGrupo && gruposActivos.size === 0;
                 const c = el("button", "gym-chip gym-puntero" + (activo ? " on" : ""), texto);
                 c.type = "button";
-                c.onclick = () => { grupoActivo = valor; soloSinGrupo = especial === "sin"; pintar(); };
+                c.onclick = () => {
+                    if (especial === "sin") {
+                        soloSinGrupo = !soloSinGrupo;
+                        gruposActivos.clear();
+                    } else if (valor) {
+                        soloSinGrupo = false;
+                        if (gruposActivos.has(valor)) gruposActivos.delete(valor);
+                        else gruposActivos.add(valor);
+                    } else {
+                        soloSinGrupo = false;
+                        gruposActivos.clear();
+                    }
+                    pintar();
+                };
                 cajaGrupos.appendChild(c);
             };
             chip("Todos", "");
@@ -339,20 +358,20 @@ export const elegirEjercicio = (
         }
 
         const visibles = catalogo.filter(x =>
-            (!grupoActivo || grupoDe(x.id) === grupoActivo) &&
-            (!soloSinGrupo || !grupoDe(x.id)) &&
-            (!q || norm(x.nombre).includes(q) || norm(grupoDe(x.id)).includes(q)));
+            (!(gruposActivos.size || soloSinGrupo) ||
+                (soloSinGrupo ? !gruposDe(x.id).length : gruposDe(x.id).some(g => gruposActivos.has(g)))) &&
+            (!q || norm(x.nombre).includes(q) || norm(textoGrupos(x.id)).includes(q)));
 
         lista.empty();
         if (!visibles.length) {
             lista.appendChild(el("div", "padding:12px;opacity:.65;font-size:.86em;",
-                q || grupoActivo
+                q || gruposActivos.size
                     ? "Ningún ejercicio guardado encaja: al guardarlo se creará uno nuevo."
                     : "Sin ejercicios todavía: se creará el primero."));
         }
         for (const x of visibles) {
             const u = ultimosValores(rutina, x.id);
-            const g = grupoDe(x.id);
+            const g = gruposDe(x.id);
             const fila = el("div", "cursor:pointer;padding:9px 12px;" +
                 "border-bottom:1px solid var(--background-modifier-border);" +
                 "display:flex;align-items:center;gap:8px;");
@@ -360,9 +379,11 @@ export const elegirEjercicio = (
 
             const nomFila = el("div", "gym-ej-nombre");
             nomFila.append(x.nombre, " ");
-            const chipGrupo = el("span", g ? "gym-chip gym-chip-mini gym-grupo" : "gym-chip gym-chip-mini gym-sin-grupo",
-                g || "sin grupo");
-            nomFila.appendChild(chipGrupo);
+            for (const grupo of g.length ? g : ["sin grupo"]) {
+                nomFila.appendChild(el("span",
+                    grupo === "sin grupo" ? "gym-chip gym-chip-mini gym-sin-grupo" : "gym-chip gym-chip-mini gym-grupo",
+                    grupo));
+            }
             const subFila = el("div", "gym-ej-sub",
                 u
                     ? u.tipoEjercicio === "peso"
@@ -373,19 +394,31 @@ export const elegirEjercicio = (
             txt.append(nomFila, subFila);
             fila.appendChild(txt);
 
-            const btnG = el("button", "gym-chip gym-chip-btn", g || "🏷");
+            const btnG = el("button", "gym-chip gym-chip-btn", g.length ? "🏷 " + g.join(" · ") : "🏷");
             btnG.type = "button";
-            btnG.title = g
-                ? `Grupo muscular: ${g} — clic para cambiar o quitar`
-                : "Asignar grupo muscular (para filtrar y buscar por él)";
+            btnG.title = "Añadir o quitar un grupo muscular; deja el nombre vacío para quitar todos";
             btnG.onclick = async e => {
                 e.stopPropagation();
-                const sugeridos = [...new Set(Object.values(gruposEnMemoria()))]
+                const sugeridos = [...new Set(Object.values(gruposEnMemoria()).flat())]
                     .sort((a, b) => a.localeCompare(b, "es"));
-                const r = await pedirTexto(`🏷 Grupo muscular · ${x.nombre}`, g, sugeridos, true);
+                const r = await pedirTexto(`🏷 Grupo muscular · ${x.nombre}`, "", sugeridos, true);
                 if (r === null) return;
-                await fijarGrupo(x.id, r);
-                pintar();
+                try {
+                    const escrito = r.trim();
+                    if (!escrito) {
+                        await fijarGrupos(x.id, []);
+                    } else {
+                        const existente = g.find(grupo => norm(grupo) === norm(escrito));
+                        const nuevos = existente
+                            ? g.filter(grupo => norm(grupo) !== norm(existente))
+                            : [...g, escrito];
+                        await fijarGrupos(x.id, nuevos);
+                    }
+                    pintar();
+                } catch (err: unknown) {
+                    console.error("[Gym Stone grupos del ejercicio]", err);
+                    toast("⚠️ No pude guardar los grupos: " + msgError(err), false);
+                }
             };
             fila.appendChild(btnG);
             fila.onclick = () => { sugiereDescanso(x.id); listo({ id: x.id, nombre: x.nombre }); };
@@ -393,13 +426,13 @@ export const elegirEjercicio = (
         }
 
         const nOtras = catalogo.filter(x => x.rutina).length;
-        const sinGrupoVis = visibles.filter(x => !grupoDe(x.id)).length;
+        const sinGrupoVis = visibles.filter(x => !gruposDe(x.id).length).length;
         cuenta.textContent = !catalogo.length
             ? "Sin ejercicios guardados en ninguna rutina."
-            : (q || grupoActivo || soloSinGrupo)
+            : (q || gruposActivos.size || soloSinGrupo)
                 ? `${visibles.length} de ${catalogo.length} ejercicios en pantalla` +
                   (q ? ` con «${inNombre.value.trim()}»` : "") +
-                  (grupoActivo ? ` · grupo «${grupoActivo}»` : "") +
+                  (gruposActivos.size ? ` · grupos: ${[...gruposActivos].join(", ")}` : "") +
                   (soloSinGrupo ? " · solo los sin grupo" : "") +
                   (sinGrupoVis ? ` · ${sinGrupoVis} sin grupo` : "")
                 : `${catalogo.length} ejercicios en total` +
@@ -435,15 +468,20 @@ export const elegirEjercicio = (
         pintar();
     })();
 
-    cargarGrupos()
-        .then(() => { if (!resuelto) pintar(); })
-        .catch((err: unknown) => { console.warn("[Gym Stone] No se pudieron cargar los grupos musculares", err); });
+    void catalogoGestion()
+        .then(ejercicios => {
+            gruposPorEjercicio = new Map(ejercicios.map(ejercicio => [ejercicio.id, ejercicio.grupos]));
+            if (!resuelto) pintar();
+        })
+        .catch((err: unknown) => {
+            console.error("[Gym Stone grupos del selector]", err);
+            toast("⚠️ No pude cargar los grupos del catálogo: " + msgError(err), false);
+        });
 });
 
 export const pintarGestionEjercicios = (cont: HTMLElement): void => {
     cont.appendChild(el("div", "opacity:.75;font-size:.82em;",
-        "Renombrar cambia solo el texto mostrado: el id del ejercicio es estable, " +
-        "así que el historial, las series guardadas y las gráficas se conservan."));
+        "Renombrar actualiza las rutinas y sesiones, pero no las plantillas guardadas. El id estable conserva el historial."));
 
     const inBusca = el("input", "gym-ejercicios-busca");
     inBusca.type = "text";
@@ -497,8 +535,8 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
 
     const pintar = () => {
 
-        const sugeridos = new Set<string>(Object.values(gruposEnMemoria()));
-        for (const e of cat) if (e.grupo) sugeridos.add(e.grupo);
+        const sugeridos = new Set<string>(Object.values(gruposEnMemoria()).flat());
+        for (const e of cat) for (const grupo of e.grupos) sugeridos.add(grupo);
 
         const usados = new Set(cat.map(x => x.id));
         huerfanos = Object.keys(gruposEnMemoria()).filter(id => !usados.has(id)).sort();
@@ -506,9 +544,9 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
         btnPurga.textContent = `🧹 Purgar ${huerfanos.length} entrada${huerfanos.length > 1 ? "s" : ""} sin uso` +
             " (ejercicios que ya no están en ninguna rutina)";
 
-        const grupos = [...new Set(cat.map(x => x.grupo).filter(Boolean))]
+        const grupos = [...new Set(cat.flatMap(x => x.grupos))]
             .sort((a, b) => a.localeCompare(b, "es"));
-        const nSinGrupo = cat.filter(x => !x.grupo).length;
+        const nSinGrupo = cat.filter(x => !x.grupos.length).length;
         for (const grupo of gruposActivos) {
             if (!grupos.includes(grupo)) gruposActivos.delete(grupo);
         }
@@ -536,7 +574,7 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
             categorias.appendChild(b);
         };
         for (const grupo of grupos) {
-            chipCategoria(`${grupo} (${cat.filter(x => x.grupo === grupo).length})`, grupo);
+            chipCategoria(`${grupo} (${cat.filter(x => x.grupos.includes(grupo)).length})`, grupo);
         }
         if (nSinGrupo) chipCategoria(`Sin grupo (${nSinGrupo})`, "");
 
@@ -555,8 +593,9 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
         const q = norm(inBusca.value);
 
         const visibles = cat.filter(x =>
-            (!(gruposActivos.size || incluirSinGrupo) || gruposActivos.has(x.grupo) || (incluirSinGrupo && !x.grupo)) &&
-            (!q || norm(x.nombre).includes(q) || norm(x.grupo).includes(q)));
+            (!(gruposActivos.size || incluirSinGrupo) ||
+                x.grupos.some(grupo => gruposActivos.has(grupo)) || (incluirSinGrupo && !x.grupos.length)) &&
+            (!q || norm(x.nombre).includes(q) || norm(x.grupos.join(", ")).includes(q)));
 
         lista.empty();
         if (cargando) {
@@ -575,7 +614,7 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
             const detalle = el("div", "gym-flex1");
             detalle.appendChild(el("div", "gym-ej-nombre", e.nombre));
             const sitio = [
-                e.grupo || "Sin grupo",
+                e.grupos.length ? e.grupos.join(", ") : "Sin grupo",
                 e.rutinas.length ? `en ${e.rutinas.length} rutina${e.rutinas.length > 1 ? "s" : ""}` : "",
                 e.plantillas.length ? `${e.plantillas.length} plantilla${e.plantillas.length > 1 ? "s" : ""}` : "",
                 `${e.apariciones} aparicion${e.apariciones === 1 ? "" : "es"}`,
@@ -615,17 +654,28 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
                 inN.type = "text"; inN.value = e.nombre;
                 inN.setAttribute("aria-label", "Nombre del ejercicio");
                 inN.style.cssText = estInput;
-                const inG = el("select", "gym-ejercicios-grupo-select");
-                inG.setAttribute("aria-label", "Grupo muscular");
-                inG.appendChild(el("option", null, "Sin grupo"));
-                inG.options[0].value = "";
-                const gruposOrdenados = [...sugeridos].sort((a, b) => a.localeCompare(b, "es"));
-                for (const grupo of gruposOrdenados) {
-                    const opcion = el("option", null, grupo);
-                    opcion.value = grupo;
-                    inG.appendChild(opcion);
-                }
-                inG.value = e.grupo;
+                const seleccionGrupos = new Set(e.grupos);
+                const cajaGrupos = el("div", "display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;");
+                const pintarGrupos = () => {
+                    cajaGrupos.empty();
+                    const gruposOrdenados = [...sugeridos].sort((a, b) => a.localeCompare(b, "es"));
+                    if (!gruposOrdenados.length) cajaGrupos.appendChild(el("div", "gym-ayuda", "Aún no hay grupos; puedes crear el primero."));
+                    for (const grupo of gruposOrdenados) {
+                        const etiqueta = el("label", "gym-chip" + (seleccionGrupos.has(grupo) ? " on" : ""));
+                        const check = el("input");
+                        check.type = "checkbox";
+                        check.checked = seleccionGrupos.has(grupo);
+                        check.setAttribute("aria-label", grupo);
+                        check.onchange = () => {
+                            if (check.checked) seleccionGrupos.add(grupo);
+                            else seleccionGrupos.delete(grupo);
+                            pintarGrupos();
+                        };
+                        etiqueta.append(check, ` ${grupo}`);
+                        cajaGrupos.appendChild(etiqueta);
+                    }
+                };
+                pintarGrupos();
                 const crearGrupo = el("button", "gym-btn gym-ejercicios-crear-grupo", "＋ Crear grupo");
                 crearGrupo.type = "button";
                 crearGrupo.onclick = async () => {
@@ -639,33 +689,25 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
                     }
                     const existente = sugerencias.find(grupo => norm(grupo) === norm(limpio));
                     const grupo = existente ?? limpio;
-                    if (!existente) {
-                        const opcion = el("option", null, grupo);
-                        opcion.value = grupo;
-                        inG.appendChild(opcion);
-                    }
-                    inG.value = grupo;
-                    quitarGrupo.disabled = false;
+                    sugeridos.add(grupo);
+                    seleccionGrupos.add(grupo);
+                    pintarGrupos();
                 };
-                const quitarGrupo = el("button", "gym-btn gym-ejercicios-quitar-grupo", "Quitar grupo");
-                quitarGrupo.type = "button";
-                quitarGrupo.disabled = !inG.value;
-                quitarGrupo.onclick = () => {
-                    inG.value = "";
-                    quitarGrupo.disabled = true;
-                };
-                inG.onchange = () => { quitarGrupo.disabled = !inG.value; };
                 const guardar = el("button", "gym-btn gym-btn-guardar-ej", "Guardar");
                 guardar.type = "button";
-                guardar.title = "Guardar nombre y grupo de este ejercicio";
+                guardar.title = "Guardar nombre y grupos de este ejercicio";
 
                 guardar.onclick = async () => {
                     const nuevoNombre = limpiarNombre(inN.value);
                     if (!nuevoNombre) return toast("⚠️ El nombre no puede quedar vacío.", false);
                     const cambioNombre = nuevoNombre !== e.nombre;
-                    const nuevoGrupo = inG.value.trim();
-                    const cambioGrupo = nuevoGrupo !== e.grupo;
-                    if (!cambioNombre && !cambioGrupo) {
+                    const nuevosGrupos = [...seleccionGrupos];
+                    const cambioGrupos = nuevosGrupos.length !== e.grupos.length ||
+                        nuevosGrupos.some(grupo => !e.grupos.includes(grupo));
+                    if (cambioNombre && !e.rutinas.length) {
+                        return toast("⚠️ Este ejercicio solo aparece en plantillas de solo lectura; no se puede renombrar.", false);
+                    }
+                    if (!cambioNombre && !cambioGrupos) {
                         editando.delete(e.id);
                         pintar();
                         return;
@@ -676,21 +718,19 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
                             ? "\n\n⚠️ Ya existe OTRO ejercicio con ese nombre: convivirán (comparten texto, no historial)."
                             : "";
                         const ok = await confirmar("✏️ Renombrar ejercicio",
-                            `Se pasará «${e.nombre}» → «${nuevoNombre}» en ${e.rutinas.length} rutina(s)` +
-                            (e.plantillas.length ? ` y ${e.plantillas.length} plantilla(s)` : "") + "." +
-                            "\nEl historial NO se pierde: el id del ejercicio es estable." + aviso,
+                            `Se pasará «${e.nombre}» → «${nuevoNombre}» en ${e.rutinas.length} rutina(s).` +
+                            "\nLas plantillas guardadas permanecen intactas y el historial conserva el id del ejercicio." + aviso,
                             "Renombrar", "Cancelar");
                         if (!ok) return;
                     }
                     try {
                         guardar.disabled = true;
                         const res = cambioNombre ? await renombrarEjercicio(e.id, nuevoNombre) : null;
-                        await fijarGrupo(e.id, nuevoGrupo);
+                        if (cambioGrupos) await fijarGrupos(e.id, nuevosGrupos);
                         toast(cambioNombre
-                            ? `✅ «${nuevoNombre}» actualizado: ${res?.rutinas ?? 0} rutina(s)` +
-                              (res?.plantillas ? `, ${res.plantillas} plantilla(s)` : "")
-                            : nuevoGrupo ? `🏷 «${nuevoNombre}»: grupo «${nuevoGrupo}»`
-                                         : `🏷 «${nuevoNombre}»: sin grupo`);
+                            ? `✅ «${nuevoNombre}» actualizado en ${res?.rutinas ?? 0} rutina(s)` +
+                              (cambioGrupos ? ` · grupos: ${nuevosGrupos.join(", ") || "sin grupo"}` : "")
+                            : `🏷 «${nuevoNombre}»: ${nuevosGrupos.join(", ") || "sin grupo"}`);
                         editando.delete(e.id);
                         cat = await catalogoGestion();
                         pintar();
@@ -701,7 +741,7 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
                     }
                 };
 
-                controles.append(inN, inG, crearGrupo, quitarGrupo, guardar);
+                controles.append(inN, cajaGrupos, crearGrupo, guardar);
                 fila.appendChild(controles);
             }
             lista.appendChild(fila);

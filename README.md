@@ -53,15 +53,15 @@ pantalla. La navegación no toca archivos: los `.md` son solo consulta y guardad
   varios grupos musculares a la vez o por **Sin grupo**, y ofrece **Limpiar filtros** para
   restablecer la búsqueda y la lista. En las estadísticas se muestra el resumen, la progresión
   y las sesiones del mismo ejercicio en todas las rutinas guardadas, con métricas según su tipo.
-  Al editar un ejercicio puedes elegir un grupo existente, crear uno nuevo o quitar el grupo;
-  cada ejercicio conserva un solo grupo. También permite purgar 🧹, con confirmación, las
+  Al editar un ejercicio puedes elegir varios grupos existentes, crear uno nuevo o quitar
+  grupos. También permite purgar 🧹, con confirmación, las
   entradas que ya no usan ni rutinas ni plantillas). El carrusel cierra la acción principal
   (**＋ Nueva rutina**, **＋ Registrar medidas** en Medidas e IMC y NINGUNA en Ejercicios) y,
   al final a la derecha, **⏱ Temporizador**.
 - **🏋️ Rutina**: el dashboard de la rutina a todo el ancho, con su carrusel: **← Inicio**,
   **✏️ Editar**, **🎯 Empezar sesión guiada** (naranja), **＋ Registrar sesión**,
   **📝 Anotación**, **⚖️ Registrar medidas**, **📈 Estadísticas** y **🗓 Historial**
-  (las dos últimas se abren como **popup** con ✕ y Esc) y, **al final a la derecha, ⏱
+  (como secciones de la ficha) y, **al final a la derecha, ⏱
   Temporizador**. En el **modo sesión guiada** (pensado para el móvil) entrenas un ejercicio a la vez:
   descansos con **−15 s** / **＋30 s**, **tiempo activo real** (las pausas no cuentan ni en el
   cronómetro ni en los tiempos de las series) y «entre series» desglosado en descanso y
@@ -70,21 +70,31 @@ pantalla. La navegación no toca archivos: los `.md` son solo consulta y guardad
   configura, porque no hay plan), y en la serie que toca se anota la suya; las series hechas
   muestran su etiqueta.
   Cada tipo de ejercicio se registra a su manera: **peso** con reps y kilos como siempre,
-  **tiempo** con un *hold* (cuenta arriba que corre con el reloj y se detiene a mano con ✔) e
-  **intervalo** con ciclos semiautomáticos de trabajo → descanso (cada ciclo es una serie, y la
-  transición sustituye al descanso en los ciclos impares si la definiste).
+  **tiempo** con un *hold* (cuenta arriba que corre con el reloj y se detiene a mano con ✔) o,
+  si se activa en el plan, con repeticiones libres y peso durante un tiempo objetivo; e
+  **intervalo** con trabajo y descanso entre ciclos. Cada ciclo es una serie y el último no
+  añade descanso. La intensidad al correr no se mide ni se guarda. En **Historial** y
+  **Estadísticas**, y también en la ficha de rutina, se distingue el plan base de la plantilla
+  de origen y los ajustes actuales; el historial y las estadísticas incluyen además los
+  resultados registrados. Si la plantilla se elimina, la rutina sigue funcionando, pero ya no
+  puede compararse con su plan base.
   Al pulsar un día del calendario se abre su detalle: KPIs del día, gráficos de
   volumen, tiempo de trabajo y la **🕒 línea de tiempo** de toda la sesión; los días con
   anotación muestran su 📝 siempre a la vista.
 - **✏️ Nueva/Editar**: el formulario se abre en una **hoja superpuesta** sobre lo que estés
   mirando (✕ o Esc la cierran y vuelves exactamente a donde estabas), con estado de la
   rutina (🟢 Activa · ⏸ Pausada · 🏁 Finalizada), selector **kg | lb** y búsqueda de
-  ejercicios por nombre o **grupo muscular** con chips. En cada ejercicio se elige su **tipo**:
-  **peso** (reps y kilos objetivo, como siempre), **tiempo** (segundos del hold, sin reps,
-  peso ni tipo de serie) o **intervalo** (trabajo · transición en segundos, descanso dentro
-  del ciclo y los ciclos planificados en la columna «Ciclos»); en «peso» e «intervalo» se
-  elige además su **tipo de serie** por defecto: **calentamiento**, **trabajo**, **descenso**
-  (drop set) o **fallo** (las reps se leen al fallo, sin objetivo).
+  ejercicios por nombre o grupo con chips. Cada ejercicio puede pertenecer a varios grupos y
+  estos se reflejan como etiquetas derivadas del **tipo de día**, junto a las etiquetas
+  personalizadas que añadas.
+  En cada ejercicio se elige su **tipo**: **peso** (reps y kilos objetivo), **tiempo** (segundos
+  de hold o, opcionalmente, reps y peso durante el tiempo objetivo) o **intervalo** (trabajo y
+  descanso entre ciclos, con ciclos planificados en «Ciclos»). En «peso» e «intervalo» se elige
+  además su **tipo de serie** por defecto: **calentamiento**, **trabajo**, **descenso** (drop
+  set) o **fallo** (las reps se leen al fallo, sin objetivo).
+  Al crear desde una plantilla, esta queda como plan base de solo lectura y la rutina conserva
+  su copia editable; el botón de comparación permite consultar la plantilla junto a los ajustes
+  actuales del formulario sin modificarla.
 
 La **cabecera naranja** muestra el título («🏋️ Inicio» en la lista; el nombre y las fechas de
 la rutina en su ficha), y el menú **⋮** de arriba a la derecha lleva **«Alternar pesos
@@ -155,8 +165,8 @@ siempre en minúsculas):
 | `gym-stone/rutinas.gym-stone.md` | **Índice**: una fila por rutina (fecha, id, nombre, estado) |
 | `gym-stone/datos/rutinas/<id>.gym-stone.md` | Cada rutina con TODO: plan + sesiones + anotaciones |
 | `gym-stone/datos/medidas.gym-stone.md` | Peso y talla (global) |
-| `gym-stone/datos/ejercicios.gym-stone.md` | Grupo muscular de cada ejercicio (global) |
-| `gym-stone/plantillas/<nombre>.md` | Plantillas reutilizables (sin sufijo: se editan a mano) |
+| `gym-stone/datos/ejercicios.gym-stone.md` | Grupos asociados a cada ejercicio (global) |
+| `gym-stone/plantillas/<nombre>.md` | Plantillas reutilizables y de solo lectura en la aplicación |
 
 Los datos llevan el **sufijo `.gym-stone.md`** (siguen siendo `.md` normales): el plugin los
 identifica **por nombre**, no recorriendo el vault, y un `.md` normal que dejes ahí se sigue
@@ -171,6 +181,11 @@ del propio panel o con **«Alternar pesos kg ↔ libras»** del menú ⋮ (es lo
 sitios y se recuerda por vault); la de talla, desde **Unidad de talla** en Ajustes. Antes de
 sobrescribir un archivo de datos se guarda su copia previa en `<archivo>.bak`; si un JSON está
 roto, el motor avisa y **no** sobrescribe.
+
+Las rutinas, plantillas y grupos usan versiones de datos. Los archivos con formatos anteriores
+se ignoran y no se modifican; Gym Stone no migra los datos actuales. Una rutina creada desde una
+plantilla guarda su plan editable y el ID estable de origen en sus propios datos: no se crea un
+tercer archivo de instantánea.
 
 ## Licencia
 

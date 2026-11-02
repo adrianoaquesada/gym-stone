@@ -1,7 +1,7 @@
 import { CONFIG, DIAS_LARGO } from "../config";
 import { rutaMedidas } from "../ajustes";
 import {
-    catalogoEjercicios, escribirRutina, esLibre,
+    catalogoEjercicios, escribirRutina, esLibre, leerPlantillaOrigen,
     leerMedidas, leerRutina, medidasVacias, resumenLibre, rutaDatosDe, semanaActual,
     semanasTotales, tipoEjercicioDe, transcurrida,
 } from "../datos";
@@ -19,6 +19,7 @@ import { seccionCalendario } from "./calendario";
 import { abrirRegistro, formularioAnotacion, formularioMedidas } from "./registro";
 import { seccionEstadisticas } from "./estadisticas";
 import { seccionHistorial } from "./historial";
+import { crearComparacionPlan } from "./comparacion-plan";
 
 export interface OpcionesDashboard {
 
@@ -194,6 +195,32 @@ const seccionDetalles = (c: HTMLElement, rutina: Rutina, pintar: Pintar): void =
             est.appendChild(box);
         }
         c.appendChild(est);
+
+        const comparacion = el("div", "gym-caja");
+        comparacion.appendChild(el("div", "gym-tit-naranja", "Plan base y ajustes actuales"));
+        comparacion.appendChild(el("div", "opacity:.7;font-size:.86em;", "Cargando comparación con la plantilla de origen…"));
+        c.appendChild(comparacion);
+        void leerPlantillaOrigen(rutina).then(resultado => {
+            comparacion.empty();
+            comparacion.appendChild(el("div", "gym-tit-naranja", "Plan base y ajustes actuales"));
+            if (resultado.estado === "disponible") {
+                comparacion.appendChild(crearComparacionPlan(resultado.plantilla, rutina));
+            } else if (resultado.estado === "sin-origen") {
+                comparacion.appendChild(el("div", "gym-caja-vacio", "Esta rutina no tiene una plantilla de origen para comparar."));
+            } else if (resultado.estado === "eliminada") {
+                comparacion.appendChild(el("div", "gym-caja-vacio", "La plantilla de origen ya no existe; la rutina y su plan activo siguen disponibles, pero no se puede comparar el plan base."));
+            } else if ("error" in resultado) {
+                comparacion.appendChild(el("div", "gym-caja-vacio",
+                    `No se pudo leer la plantilla de origen: ${resultado.error}`));
+            }
+        }).catch((e: unknown) => {
+            console.error("[Gym Stone comparación de la rutina]", e);
+            comparacion.empty();
+            comparacion.append(
+                el("div", "gym-tit-naranja", "Plan base y ajustes actuales"),
+                el("div", "gym-caja-vacio", `No se pudo cargar la comparación: ${msgError(e)}`),
+            );
+        });
     }
 
     if (transcurrida(rutina)) {

@@ -1,10 +1,11 @@
 import {
-    diaPorId, ejerciciosConDatos, esSaltada, nombreDia, segundosEjercicio,
-    tipoEjercicioDe, volumenEjercicio,
+    compararPlanes, diaPorId, ejerciciosConDatos, esSaltada, leerPlantillaOrigen,
+    nombreDia, normalizarGrupos, segundosEjercicio, textoRepsObjetivo,
+    tipoEjercicioDe, tipoSerieDe, volumenEjercicio,
 } from "../datos";
-import { esFechaValida, fechaLegible, hoy } from "../util";
+import { esFechaValida, fechaLegible, hoy, msgError } from "../util";
 import { pesoTexto } from "../unidades";
-import type { Rutina } from "../tipos";
+import type { DiaRutina, EjercicioDef, PlantillaRutina, Rutina } from "../tipos";
 import { el, tablaEn } from "./componentes";
 
 let filtroEjercicio = "";
@@ -74,6 +75,86 @@ export function seccionHistorial(c: HTMLElement, rutina: Rutina): void {
     const contTabla = el("div");
     c3.appendChild(contTabla);
 
+    const contComparacion = el("div");
+    c3.appendChild(contComparacion);
+    const textoDiaPlan = (dia: DiaRutina | null): string => {
+        if (!dia) return "—";
+        const partes = [dia.nombre || "Día sin nombre"];
+        if (dia.diasSemana?.length) partes.push(`días ${dia.diasSemana.join(", ")}`);
+        const etiquetas = normalizarGrupos(dia.etiquetasPersonalizadas);
+        if (etiquetas.length) partes.push(`etiquetas: ${etiquetas.join(", ")}`);
+        return partes.join(" · ");
+    };
+    const textoEjercicioPlan = (ejercicio: EjercicioDef | null): string => {
+        if (!ejercicio) return "—";
+        const tipo = tipoEjercicioDe(ejercicio);
+        const grupos = normalizarGrupos(ejercicio.grupos);
+        const prefijo = `${ejercicio.nombre || "Ejercicio"}${grupos.length ? ` · grupos: ${grupos.join(", ")}` : ""}`;
+        let objetivo: string;
+        if (tipo === "peso") {
+            objetivo = `${ejercicio.series}×${textoRepsObjetivo(ejercicio)} reps · ${pesoTexto(ejercicio.pesoObjetivo)}`;
+        } else if (tipo === "tiempo") {
+            const duracion = Math.round(Number(ejercicio.duracionObjetivo) || 0);
+            objetivo = ejercicio.repsPesoDuranteTiempo
+                ? `${ejercicio.series} series · reps y peso durante ${duracion || "?"} s`
+                : `${ejercicio.series}×hold${duracion ? ` de ${duracion} s` : ""}`;
+        } else {
+            const trabajo = Math.round(Number(ejercicio.trabajoSeg) || 0);
+            const descanso = Math.round(Number(ejercicio.transicionSeg ?? ejercicio.descansoSeg) || 0);
+            objetivo = `${ejercicio.series} ciclos · ${trabajo || "?"} s trabajo · ${descanso} s descanso entre ciclos`;
+        }
+        const descanso = Number(ejercicio.descansoSeg) || 0;
+        const extra = [
+            ejercicio.tipoSerie && tipoSerieDe(ejercicio) !== "trabajo" ? `serie: ${tipoSerieDe(ejercicio)}` : "",
+            tipo !== "intervalo" && descanso > 0 ? `descanso: ${descanso} s` : "",
+            ejercicio.notas?.trim() ? `notas: ${ejercicio.notas.trim()}` : "",
+        ].filter(Boolean);
+        return `${prefijo} · ${objetivo}${extra.length ? ` · ${extra.join(" · ")}` : ""}`;
+    };
+    const pintarComparacion = (plantilla: PlantillaRutina): void => {
+        contComparacion.empty();
+        const detalles = el("details", "margin:12px 0;");
+        const filas = compararPlanes(plantilla, rutina);
+        const resumen = el("summary", "cursor:pointer;font-weight:700;",
+            `Plan base y ajustes actuales · ${filas.filter(f => f.estado !== "sin-cambios").length} cambios`);
+        detalles.appendChild(resumen);
+        detalles.appendChild(el("div", "opacity:.7;font-size:.82em;margin:6px 0;",
+            "Comparación de la planificación; los resultados registrados aparecen en las filas del historial."));
+        if (!filas.length) {
+            detalles.appendChild(el("div", "opacity:.7;font-size:.86em;", "La plantilla y la rutina no tienen ejercicios definidos."));
+        } else {
+            tablaEn(detalles, ["Estado", "Día base", "Día activo", "Ejercicio", "Plan base", "Plan activo"],
+                filas.map(f => [
+                    f.estado === "sin-cambios" ? "Sin cambios"
+                        : f.estado === "ajustado" ? "Ajustado"
+                            : f.estado === "añadido" ? "Añadido a la rutina" : "Retirado de la rutina",
+                    textoDiaPlan(f.diaBase),
+                    textoDiaPlan(f.diaActivo),
+                    f.activo?.nombre ?? f.base?.nombre ?? f.ejercicioId,
+                    textoEjercicioPlan(f.base),
+                    textoEjercicioPlan(f.activo),
+                ]), { filasVisibles: 8 });
+        }
+        contComparacion.appendChild(detalles);
+    };
+    const pintarEstadoComparacion = (texto: string): void => {
+        contComparacion.empty();
+        contComparacion.appendChild(el("div", "opacity:.7;font-size:.86em;margin:12px 0;", texto));
+    };
+    pintarEstadoComparacion("Cargando comparación con la plantilla de origen…");
+    void leerPlantillaOrigen(rutina).then(resultado => {
+        if (resultado.estado === "disponible") pintarComparacion(resultado.plantilla);
+        else if (resultado.estado === "sin-origen")
+            pintarEstadoComparacion("Esta rutina no tiene plantilla de origen para comparar.");
+        else if (resultado.estado === "eliminada")
+            pintarEstadoComparacion("La plantilla de origen ya no existe; el historial y la rutina activa siguen disponibles, pero no se puede comparar el plan base.");
+        else if ("error" in resultado)
+            pintarEstadoComparacion(`No se pudo leer la plantilla de origen: ${resultado.error}`);
+    }).catch((e: unknown) => {
+        console.error("[Gym Stone comparación del historial]", e);
+        pintarEstadoComparacion(`No se pudo cargar la comparación con la plantilla: ${msgError(e)}`);
+    });
+
     const pintar = () => {
         contTabla.empty();
         let filas: FilaHistorial[] = [];
@@ -97,6 +178,8 @@ export function seccionHistorial(c: HTMLElement, rutina: Rutina): void {
                         ? "⏭ saltada"
                         : tipo === "peso"
                             ? `${x.reps ?? "–"}×${pesoTexto(x.peso)}`
+                            : tipo === "tiempo" && e.repsPesoDuranteTiempo
+                                ? `${x.reps ?? "–"}×${pesoTexto(x.peso)} · ${x.duracionSeg ?? "–"} s`
                             : `${x.duracionSeg ?? "–"} s`).join(" · ") || "–",
                     volumen: tipo === "peso" ? pesoTexto(volumenEjercicio(e)) : seg > 0 ? `${seg} s` : "–",
                     notas: e.notas ?? "",

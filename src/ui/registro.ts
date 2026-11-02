@@ -25,6 +25,7 @@ interface EjercicioTrabajo {
     descansoSeg?: number | null;
     tipoEjercicio?: TipoEjercicio | null;
     duracionObjetivo?: number | null;
+    repsPesoDuranteTiempo?: boolean;
     trabajoSeg?: number | null;
     transicionSeg?: number | null;
     sinRegistrar?: boolean;
@@ -44,8 +45,14 @@ interface SesionTrabajo {
 
 const tipoDe = (ej: EjercicioTrabajo): TipoEjercicio => tipoEjercicioDe(ej);
 
-const serieVacia = (tipo: TipoEjercicio, tipoSerie?: TipoSerie | null): SerieSesion => ({
-    ...(tipo === "peso" ? { reps: null, peso: null } : { duracionSeg: null }),
+const serieVacia = (
+    tipo: TipoEjercicio,
+    tipoSerie?: TipoSerie | null,
+    repsPesoDuranteTiempo = false,
+): SerieSesion => ({
+    ...(tipo === "peso" || (tipo === "tiempo" && repsPesoDuranteTiempo)
+        ? { reps: null, peso: null, ...(tipo === "tiempo" ? { duracionSeg: null } : {}) }
+        : { duracionSeg: null }),
     ...(tipoSerie ? { tipoSerie } : {}),
 });
 
@@ -64,6 +71,11 @@ export const textoObjetivoDe = (def: EjercicioDef): string => {
         return `${def.series}×${textoRepsObjetivo(def)}${def.pesoObjetivo ? ` @ ${pesoTexto(def.pesoObjetivo)}` : ""}`;
     }
     if (tipo === "tiempo") {
+        if (def.repsPesoDuranteTiempo) {
+            const dur = Number(def.duracionObjetivo) > 0
+                ? ` durante ${Math.round(Number(def.duracionObjetivo))} s` : "";
+            return `${def.series}×reps y peso${dur}`;
+        }
         const dur = Number(def.duracionObjetivo) > 0 ? ` de ${Math.round(Number(def.duracionObjetivo))} s` : "";
         return `${def.series}×hold${dur}`;
     }
@@ -163,7 +175,8 @@ export function formularioSesion(
         inDia.oninput = () => { datos.diaId = diaTecleado(inDia.value); };
         cD.appendChild(dl);
         selDia = inDia;
-    } else {
+    }
+    else {
         const sel = el("select");
         for (const d of rutina.dias ?? []) sel.appendChild(nuevaOp(d.id, d.nombre));
         if (datos.diaId && ![...(rutina.dias ?? [])].some(d => d.id === datos.diaId)) {
@@ -207,12 +220,18 @@ export function formularioSesion(
 
             const objetivo: SerieSesion = tipo === "peso"
                 ? { reps: repsObjetivoDe(e), peso: e.pesoObjetivo ?? null, tipoSerie: e.tipoSerie ?? null }
-                : { duracionSeg: segundosDeObjetivo(e), tipoSerie: e.tipoSerie ?? null };
+                : {
+                    duracionSeg: segundosDeObjetivo(e),
+                    ...(tipo === "tiempo" && e.repsPesoDuranteTiempo
+                        ? { reps: null, peso: e.pesoObjetivo ?? null } : {}),
+                    tipoSerie: e.tipoSerie ?? null,
+                };
             const series: SerieSesion[] = Array.from({ length: n }, () =>
-                esEdicion ? serieVacia(tipo, e.tipoSerie) : { ...objetivo });
+                esEdicion ? serieVacia(tipo, e.tipoSerie, e.repsPesoDuranteTiempo === true) : { ...objetivo });
             const nuevo: EjercicioTrabajo = {
                 ejercicioId: e.id, nombre: e.nombre, series, notas: "",
                 tipoEjercicio: tipo, duracionObjetivo: e.duracionObjetivo ?? null,
+                repsPesoDuranteTiempo: e.repsPesoDuranteTiempo === true,
                 trabajoSeg: e.trabajoSeg ?? null, transicionSeg: e.transicionSeg ?? null,
             };
             if (esEdicion) nuevo.sinRegistrar = true;
@@ -284,12 +303,30 @@ export function formularioSesion(
         selTipo.title = "Tipo: reps y peso, tiempo mantenido o ciclos con sus segundos";
         selTipo.onchange = () => {
             ej.tipoEjercicio = selTipo.value as TipoEjercicio;
+            ej.repsPesoDuranteTiempo = false;
 
             delete ej.duracionObjetivo; delete ej.trabajoSeg; delete ej.transicionSeg;
             for (const s of ej.series) { s.reps = null; s.peso = null; s.duracionSeg = null; }
             montarEjercicios(); actualizaVol();
         };
         cEj.appendChild(selTipo);
+        const modoTiempoPeso = el("label", "display:flex;align-items:center;gap:6px;margin-top:4px;");
+        const chkTiempoPeso = el("input");
+        chkTiempoPeso.type = "checkbox";
+        chkTiempoPeso.checked = ej.repsPesoDuranteTiempo === true;
+        chkTiempoPeso.onchange = () => {
+            ej.repsPesoDuranteTiempo = chkTiempoPeso.checked;
+            if (chkTiempoPeso.checked) {
+                for (const s of ej.series) {
+                    s.reps ??= null;
+                    s.peso ??= null;
+                }
+            }
+            montarEjercicios();
+        };
+        modoTiempoPeso.append(chkTiempoPeso, "Registrar reps y peso además del tiempo");
+        modoTiempoPeso.hidden = tipo !== "tiempo";
+        cEj.appendChild(modoTiempoPeso);
         fila.appendChild(cEj);
 
         const inSeries = el("input"); inSeries.type = "number"; inSeries.min = "1"; inSeries.max = "10";
@@ -309,7 +346,8 @@ export function formularioSesion(
                 }
                 ej.series.length = obj;
             } else {
-                for (let i = actual; i < obj; i++) ej.series.push(serieVacia(tipo, tipoPlan));
+                for (let i = actual; i < obj; i++)
+                    ej.series.push(serieVacia(tipo, tipoPlan, ej.repsPesoDuranteTiempo));
             }
             inSeries.value = String(obj);
             marcarHecho(); actualizaVol(); pintarTipos();
@@ -324,13 +362,13 @@ export function formularioSesion(
         };
         const aplicaComun = (campo: CampoSerie, v: number | null): void => {
             const nueva = !ej.series.length;
-            if (nueva) ej.series.push(serieVacia(tipo, tipoPlan));
+            if (nueva) ej.series.push(serieVacia(tipo, tipoPlan, ej.repsPesoDuranteTiempo));
             for (const s of ej.series) if (!esSaltada(s)) s[campo] = v;
             marcarHecho(); actualizaVol();
             if (nueva) pintarTipos();
         };
 
-        if (tipo === "peso") {
+        if (tipo === "peso" || (tipo === "tiempo" && ej.repsPesoDuranteTiempo)) {
             const inReps = el("input"); inReps.type = "number"; inReps.min = "0"; inReps.step = "1";
             inReps.inputMode = "numeric"; inReps.placeholder = "Reps";
             inReps.value = comun("reps") == null ? "" : String(comun("reps"));
@@ -342,7 +380,8 @@ export function formularioSesion(
             inPeso.value = pesoACampo(comun("peso"));
             inPeso.oninput = () => aplicaComun("peso", pesoAKg(inPeso.value));
             celda(`Peso (${pesoActual()})`, inPeso, "Peso en todas las series, en la unidad activa (en el archivo se guarda siempre en kg)");
-        } else {
+        }
+        if (tipo !== "peso") {
 
             const inSeg = el("input"); inSeg.type = "number"; inSeg.min = "0"; inSeg.step = "1";
             inSeg.inputMode = "numeric"; inSeg.placeholder = "Seg";
@@ -352,7 +391,7 @@ export function formularioSesion(
                 tipo === "intervalo"
                     ? "Segundos de trabajo de cada ciclo (si varían, se vacía y lo que escribas se aplica a todos)"
                     : "Segundos mantenidos en cada serie (si varían, se vacía y lo que escribas se aplica a todas)");
-            fila.appendChild(el("div"));
+            if (!(tipo === "tiempo" && ej.repsPesoDuranteTiempo)) fila.appendChild(el("div"));
         }
 
         const descSeg = (): number => Math.max(0, Math.round(Number(ej.descansoSeg) || 0));
@@ -426,7 +465,8 @@ export function formularioSesion(
                     : "sin objetivo fijo");
 
         const descSeg = (): number => tipo === "intervalo"
-            ? Math.max(0, Math.round(Number(ej.descansoSeg ?? def?.descansoSeg) || 0))
+            ? Math.max(0, Math.round(Number(ej.transicionSeg ?? def?.transicionSeg
+                ?? ej.descansoSeg ?? def?.descansoSeg) || 0))
             : Number(ej.descansoSeg) > 0 ? Number(ej.descansoSeg)
                 : Number(def?.descansoSeg) > 0 ? Number(def?.descansoSeg) : 0;
         const chipDesc = el("span", "gym-chip gym-puntero", textoDescanso(descSeg()) + " ");
@@ -445,7 +485,8 @@ export function formularioSesion(
             const v = await pedirDescanso(descSeg());
             if (v == null) return;
 
-            ej.descansoSeg = v > 0 || tipo === "intervalo" ? Math.round(v) : null;
+            if (tipo === "intervalo") ej.transicionSeg = Math.round(v);
+            else ej.descansoSeg = v > 0 ? Math.round(v) : null;
             chipDesc.textContent = textoDescanso(descSeg()) + " ";
             marcarHecho();
         };
@@ -467,12 +508,12 @@ export function formularioSesion(
                 f.appendChild(cN);
                 let inputReps: HTMLInputElement | undefined;
                 if (tipo === "peso") {
-                    const r = el("input"); r.type = "number"; r.min = "0"; r.step = "1"; r.inputMode = "numeric";
+                    const r = el("input", "min-width:0;"); r.type = "number"; r.min = "0"; r.step = "1"; r.inputMode = "numeric";
                     r.placeholder = "Reps";
                     r.value = String(s.reps ?? "");
                     r.oninput = () => { s.reps = aNumero(r.value); if (conValor(r.value)) marcarHecho(); actualizaVol(); };
                     inputReps = r;
-                    const p = el("input"); p.type = "number"; p.min = "0"; p.step = "0.5"; p.inputMode = "decimal";
+                    const p = el("input", "min-width:0;"); p.type = "number"; p.min = "0"; p.step = "0.5"; p.inputMode = "decimal";
 
                     p.placeholder = `peso (${pesoActual()})`; p.value = pesoACampo(s.peso);
                     p.oninput = () => { s.peso = pesoAKg(p.value); if (conValor(p.value)) marcarHecho(); actualizaVol(); };
@@ -481,6 +522,26 @@ export function formularioSesion(
                         r.placeholder = p.placeholder = "Saltada";
                     }
                     f.appendChild(r); f.appendChild(p);
+                } else if (tipo === "tiempo" && ej.repsPesoDuranteTiempo) {
+                    const r = el("input"); r.type = "number"; r.min = "0"; r.step = "1"; r.inputMode = "numeric";
+                    r.placeholder = "Reps"; r.value = String(s.reps ?? "");
+                    r.oninput = () => { s.reps = aNumero(r.value); if (conValor(r.value)) marcarHecho(); actualizaVol(); };
+                    inputReps = r;
+                    const p = el("input"); p.type = "number"; p.min = "0"; p.step = "0.5"; p.inputMode = "decimal";
+                    p.placeholder = `peso (${pesoActual()})`; p.value = pesoACampo(s.peso);
+                    p.oninput = () => { s.peso = pesoAKg(p.value); if (conValor(p.value)) marcarHecho(); actualizaVol(); };
+                    const grupo = el("div", "display:flex;gap:4px;min-width:0;");
+                    grupo.append(r, p);
+                    if (saltada) {
+                        r.disabled = p.disabled = true;
+                        r.placeholder = p.placeholder = "Saltada";
+                    }
+                    f.appendChild(grupo);
+                    const g = el("input"); g.type = "number"; g.min = "0"; g.step = "1"; g.inputMode = "numeric";
+                    g.placeholder = "Seg"; g.value = String(s.duracionSeg ?? "");
+                    g.oninput = () => { s.duracionSeg = aNumero(g.value); if (conValor(g.value)) marcarHecho(); actualizaVol(); };
+                    if (saltada) { g.disabled = true; g.placeholder = "Saltada"; }
+                    f.appendChild(g);
                 } else {
 
                     const g = el("input"); g.type = "number"; g.min = "0"; g.step = "1"; g.inputMode = "numeric";
@@ -522,7 +583,10 @@ export function formularioSesion(
             });
             const mas = el("button", "gym-mini", "＋ serie");
             mas.type = "button";
-            mas.onclick = () => { ej.series.push(serieVacia(tipo, def?.tipoSerie)); pintarSeries(); };
+            mas.onclick = () => {
+                ej.series.push(serieVacia(tipo, def?.tipoSerie, def?.repsPesoDuranteTiempo === true));
+                pintarSeries();
+            };
             lista.appendChild(mas);
         };
         pintarSeries();
@@ -545,6 +609,8 @@ export function formularioSesion(
             if (!r) return;
 
             const tipo = tipoEjercicioDeRutina(rutina, r.id);
+            const defRutina = rutina.dias?.flatMap(d => d.ejercicios ?? []).find(e => e.id === r.id);
+            const repsPesoDuranteTiempo = tipo === "tiempo" && defRutina?.repsPesoDuranteTiempo === true;
             const u = ultimosValores(rutina, r.id);
             const n = Math.max(1, Math.min(10, Number(u?.series) || 1));
 
@@ -556,7 +622,17 @@ export function formularioSesion(
                     : "ejercicio nuevo · sin registros";
             const nuevo: EjercicioTrabajo = {
                 ejercicioId: r.id, nombre: r.nombre, notas: "", pista, tipoEjercicio: tipo,
-                series: Array.from({ length: n }, () => serieVacia(tipo, tipoSerieDeRutina(rutina, r.id))),
+                repsPesoDuranteTiempo,
+                duracionObjetivo: defRutina?.duracionObjetivo ?? null,
+                transicionSeg: defRutina?.transicionSeg ?? null,
+                series: Array.from({ length: n }, () => repsPesoDuranteTiempo
+                    ? {
+                        reps: null,
+                        peso: defRutina?.pesoObjetivo ?? null,
+                        duracionSeg: defRutina?.duracionObjetivo ?? null,
+                        tipoSerie: tipoSerieDeRutina(rutina, r.id),
+                    }
+                    : serieVacia(tipo, tipoSerieDeRutina(rutina, r.id))),
             };
 
             if (r.descansoSeg > 0 || tipo === "intervalo") nuevo.descansoSeg = r.descansoSeg;
@@ -602,6 +678,14 @@ export function formularioSesion(
     guardar.onclick = async () => {
         const f = inFecha.value;
         if (!esFechaValida(f)) return toast("⚠️ La fecha no es válida.", false);
+        const ejercicioIncompleto = (datos.ejercicios ?? []).find(e =>
+            tipoDe(e) === "tiempo" && e.repsPesoDuranteTiempo
+            && e.series.some(s => !esSaltada(s)
+                && (conValor(s.reps) || conValor(s.peso) || conValor(s.duracionSeg))
+                && (!conValor(s.duracionSeg) || !conValor(s.reps))));
+        if (ejercicioIncompleto) {
+            return toast(`⚠️ Completa las repeticiones y la duración de cada serie cronometrada de «${ejercicioIncompleto.nombre}».`, false);
+        }
         const completos = (datos.ejercicios ?? []).filter(e => seriesHechas(e).some(serieConDatos));
         if (!completos.length && !(await confirmar("📭 Sesión vacía",
             "No has metido ni una repetición, ni un peso, ni segundos. ¿Guardar la sesión vacía?",
@@ -635,7 +719,13 @@ export function formularioSesion(
 
                         const sOut: SerieSesion = tipo === "peso"
                             ? { reps: aNumero(s.reps), peso: aNumero(s.peso) }
-                            : { duracionSeg: aNumero(s.duracionSeg) };
+                            : tipo === "tiempo" && e.repsPesoDuranteTiempo
+                                ? {
+                                    reps: aNumero(s.reps),
+                                    peso: aNumero(s.peso),
+                                    duracionSeg: aNumero(s.duracionSeg),
+                                }
+                                : { duracionSeg: aNumero(s.duracionSeg) };
 
                         sOut.tipoSerie = etDe(s);
 
@@ -648,6 +738,7 @@ export function formularioSesion(
 
                 if (tipo === "tiempo") {
                     out.tipoEjercicio = tipo;
+                    if (e.repsPesoDuranteTiempo) out.repsPesoDuranteTiempo = true;
                     const dur = aNumero(e.duracionObjetivo);
                     if (dur != null && dur > 0) out.duracionObjetivo = Math.round(dur);
                 } else if (tipo === "intervalo") {
@@ -655,7 +746,8 @@ export function formularioSesion(
                     const trab = aNumero(e.trabajoSeg);
                     if (trab != null && trab > 0) out.trabajoSeg = Math.round(trab);
                     const trans = aNumero(e.transicionSeg);
-                    if (trans != null && trans > 0) out.transicionSeg = Math.round(trans);
+                    if (trans != null && (trans > 0 || tipo === "intervalo"))
+                        out.transicionSeg = Math.round(trans);
                 }
 
                 const desc = aNumero(e.descansoSeg);

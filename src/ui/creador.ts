@@ -4,12 +4,15 @@ import {
     escribirRutina, ejercicioVacio, finDesde,
     listarPlantillas, leerPlantilla, plantillaDeRutina, plantillaExiste,
     rutaDatosDe, rutinaVacia, escribirPlantilla, tipoEjercicioDe, tipoSerieDe,
+    catalogoGestion, normalizarGrupos, etiquetasDeDia,
 } from "../datos";
 import { aNumero, clonarJSON, esFechaValida, hoy, limpiarNombre, msgError, slug, tsDe } from "../util";
+import { uid } from "../util/texto";
 import { pesoActual, pesoACampo, pesoAKg } from "../unidades";
 import type { DiaRutina, EjercicioDef, EstadoRutina, Rutina } from "../tipos";
-import { confirmar, el, selectorUnidad, toast } from "./componentes";
+import { confirmar, el, modal, pedirTexto, ponerX, selectorUnidad, toast } from "./componentes";
 import { abrirRutina } from "./vistas";
+import { crearComparacionPlan } from "./comparacion-plan";
 
 interface EstadoForm {
     modo: "crear" | "editar";
@@ -21,6 +24,7 @@ interface EstadoForm {
     semanas: number;
     dias: DiaRutina[];
     plantilla: string;
+    plantillaOrigen: string | null;
     comoPlantilla: boolean;
     nombrePlantilla: string;
     plantillaEditada: boolean;
@@ -59,6 +63,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             semanas: base.semanas,
             dias: (base.dias ?? []).length ? base.dias : [nuevoDia("A")],
             plantilla: "",
+            plantillaOrigen: base.plantillaOrigen ?? null,
             comoPlantilla: false,
             nombrePlantilla: base.nombre ?? "",
             plantillaEditada: false,
@@ -90,6 +95,17 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
     raiz.appendChild(aviso);
     const error = (txt: string) => { aviso.textContent = "⚠️ " + txt; aviso.classList.remove("gym-oculto"); raiz.scrollIntoView({ block: "nearest" }); };
     const limpiarError = () => { aviso.classList.add("gym-oculto"); };
+    let gruposDisponibles: string[] = [];
+    try {
+        const catalogo = await catalogoGestion();
+        gruposDisponibles = normalizarGrupos([
+            ...catalogo.flatMap(ejercicio => ejercicio.grupos),
+            ...estado.dias.flatMap(dia => (dia.ejercicios ?? []).flatMap(ejercicio => ejercicio.grupos ?? [])),
+        ]);
+    } catch (err: unknown) {
+        console.error("[Gym Stone grupos del creador]", err);
+        error("No pude cargar el catálogo de grupos. Puedes crear grupos nuevos, pero revisa el aviso antes de editar el catálogo.");
+    }
 
     const campo = (etiqueta: string, control: HTMLElement, ayuda?: string): HTMLDivElement => {
         const f = el("div", "gym-campo");
@@ -145,6 +161,15 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
 
     const selPlantilla = el("select");
     const plantillas = listarPlantillas();
+    if (estado.modo === "editar" && estado.plantillaOrigen && !estado.plantilla) {
+        for (const nombre of plantillas) {
+            const lectura = await leerPlantilla(nombre);
+            if (!lectura.error && lectura.datos?.id === estado.plantillaOrigen) {
+                estado.plantilla = nombre;
+                break;
+            }
+        }
+    }
     const opBlanco = createEl("option");
     opBlanco.value = "";
     opBlanco.textContent = "En blanco";
@@ -154,27 +179,70 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         o.value = p; o.textContent = p;
         selPlantilla.appendChild(o);
     }
+    if (estado.modo === "editar" && estado.plantillaOrigen && !estado.plantilla) {
+        const o = createEl("option");
+        o.value = "__origen_no_disponible__";
+        o.textContent = "Plantilla de origen no disponible";
+        selPlantilla.appendChild(o);
+        estado.plantilla = o.value;
+    }
     selPlantilla.value = estado.plantilla ?? "";
     if (estado.modo === "editar") selPlantilla.disabled = true;
+    const controlOrigen = el("div", "display:flex;flex-direction:column;align-items:flex-start;gap:8px;");
+    controlOrigen.appendChild(selPlantilla);
+    const btnCompararPlantilla = el("button", "gym-chip", "🔎 Comparar plan base con los ajustes actuales");
+    btnCompararPlantilla.type = "button";
+    btnCompararPlantilla.disabled = !estado.plantilla || estado.plantilla === "__origen_no_disponible__";
+    btnCompararPlantilla.onclick = async () => {
+        const nombre = estado.plantilla;
+        if (!nombre || nombre === "__origen_no_disponible__") return;
+        const lectura = await leerPlantilla(nombre);
+        if (lectura.error || !lectura.datos) {
+            const mensaje = lectura.error ?? `No se pudo leer la plantilla «${nombre}».`;
+            console.error("[Gym Stone comparación desde la plantilla]", mensaje);
+            toast(`⚠️ ${mensaje}`, false);
+            return;
+        }
+        const m = modal("Plan base y ajustes actuales", nombre);
+        ponerX(m);
+        m.caja.appendChild(crearComparacionPlan(lectura.datos, construir()));
+    };
+    controlOrigen.appendChild(btnCompararPlantilla);
     selPlantilla.onchange = () => {
         estado.plantilla = selPlantilla.value;
+        btnCompararPlantilla.disabled = !estado.plantilla;
         if (estado.plantilla) void aplicarPlantilla(estado.plantilla);
+        else estado.plantillaOrigen = null;
         limpiarError();
     };
-    campoOrigen = campo("Origen", selPlantilla, plantillas.length
-        ? "Partir de una plantilla precarga días y ejercicios; puedes editarlos todo antes de guardar."
-        : "Todavía no hay plantillas: se crean desde una rutina existente con el botón «Guardar como plantilla».");
+    const ayudaOrigen = estado.modo === "editar"
+        ? estado.plantillaOrigen && estado.plantilla !== "__origen_no_disponible__"
+            ? "Plantilla de origen de solo lectura; los ajustes de esta rutina se guardan aparte."
+            : estado.plantillaOrigen
+                ? "La rutina conserva la referencia a su plantilla, pero esta ya no está disponible para comparar."
+                : "Esta rutina no tiene una plantilla de origen."
+        : plantillas.length
+            ? "Partir de una plantilla precarga días y ejercicios; la rutina guarda su propia copia editable."
+            : "Todavía no hay plantillas: se crean desde una rutina existente con el botón «Guardar como plantilla».";
+    campoOrigen = campo("Origen", controlOrigen, ayudaOrigen);
 
     const aplicarPlantilla = async (nombre: string): Promise<void> => {
         const r = await leerPlantilla(nombre);
-        if (r.error) { error(r.error); return; }
+        if (r.error) {
+            error(r.error);
+            selPlantilla.value = estado.plantilla = "";
+            estado.plantillaOrigen = null;
+            return;
+        }
         if (estado.dias.length && !(await confirmar("📋 Plantilla",
             `¿Reemplazar la estructura actual por la plantilla «${nombre}»?`,
             "Reemplazar", "Cancelar"))) {
             selPlantilla.value = estado.plantilla = "";
+            estado.plantillaOrigen = null;
             return;
         }
         const p = r.datos!;
+        estado.plantillaOrigen = p.id ?? null;
 
         estado.tipo = "planificada";
         estado.nombre = estado.nombre || p.nombre || "";
@@ -184,7 +252,10 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             id: d.id || slug(d.nombre || "dia"),
             nombre: d.nombre || "Día",
             diasSemana: [...(d.diasSemana ?? [])],
-            ejercicios: (d.ejercicios ?? []).map(e => ({ ...ejercicioVacio(), ...e })),
+            etiquetasPersonalizadas: normalizarGrupos(d.etiquetasPersonalizadas),
+            ejercicios: (d.ejercicios ?? []).map(e => ({
+                ...ejercicioVacio(), ...e, grupos: normalizarGrupos(e.grupos),
+            })),
         }));
         if (!estado.dias.length) estado.dias = [nuevoDia("A")];
         estado.nombrePlantilla = estado.nombrePlantilla || p.nombre || "";
@@ -287,7 +358,10 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
 
     function nuevoDia(letra: string): DiaRutina {
         const l = String(letra || "A").toUpperCase();
-        return { id: `dia-${slug(l)}`, nombre: `Día ${l}`, diasSemana: [], ejercicios: [] };
+        return {
+            id: `dia-${slug(l)}`, nombre: `Día ${l}`, diasSemana: [],
+            ejercicios: [], etiquetasPersonalizadas: [],
+        };
     }
 
     const repintar = (): void => {
@@ -297,7 +371,10 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         btnMas.type = "button";
         btnMas.onclick = () => {
             const letra = String.fromCharCode(65 + estado.dias.length);
-            estado.dias.push({ id: `dia-${slug(letra)}`, nombre: `Día ${letra}`, diasSemana: [], ejercicios: [] });
+            estado.dias.push({
+                id: `dia-${slug(letra)}`, nombre: `Día ${letra}`, diasSemana: [],
+                ejercicios: [], etiquetasPersonalizadas: [],
+            });
             limpiarError();
             repintar();
         };
@@ -363,6 +440,76 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         cab.appendChild(btnBorrarDia);
         cajaDia.appendChild(cab);
 
+        const tipoDia = el("div");
+        cajaDia.appendChild(el("div", "gym-etiqueta", "Tipo de día"));
+        cajaDia.appendChild(tipoDia);
+        const pintarTipoDia = () => {
+            tipoDia.empty();
+            const etiquetas = etiquetasDeDia(dia);
+            const grupos = new Set(etiquetas.gruposDerivados.map(g => g.toLocaleLowerCase("es")));
+            const personalizadas = new Set(etiquetas.personalizadas.map(g => g.toLocaleLowerCase("es")));
+            for (const etiqueta of etiquetas.todas) {
+                const clave = etiqueta.toLocaleLowerCase("es");
+                const esGrupo = grupos.has(clave);
+                const esPersonalizada = personalizadas.has(clave);
+                const chip = el("span",
+                    esGrupo ? "gym-chip gym-chip-mini gym-grupo" : "gym-chip gym-chip-mini",
+                    etiqueta);
+                chip.title = esGrupo && esPersonalizada
+                    ? "Grupo derivado del ejercicio y también etiqueta personalizada"
+                    : esGrupo ? "Grupo derivado de los ejercicios" : "Etiqueta personalizada";
+                if (esPersonalizada) {
+                    chip.setAttribute("role", "button");
+                    chip.tabIndex = 0;
+                    chip.title += " — clic para quitar la etiqueta personalizada";
+                    const quitar = () => {
+                        dia.etiquetasPersonalizadas = normalizarGrupos(
+                            (dia.etiquetasPersonalizadas ?? []).filter(g => g.toLocaleLowerCase("es") !== clave),
+                        );
+                        pintarTipoDia();
+                    };
+                    chip.onclick = quitar;
+                    chip.onkeydown = evento => {
+                        if (evento.key !== "Enter" && evento.key !== " ") return;
+                        evento.preventDefault();
+                        quitar();
+                    };
+                }
+                tipoDia.appendChild(chip);
+            }
+            if (!etiquetas.todas.length) {
+                tipoDia.appendChild(el("div", "gym-ayuda", "Elige grupos en los ejercicios o añade etiquetas personalizadas."));
+            }
+        };
+        pintarTipoDia();
+
+        const filaEtiqueta = el("div", "display:flex;gap:6px;align-items:center;margin:6px 0;");
+        const inEtiqueta = el("input", "flex:1;min-width:120px;");
+        inEtiqueta.type = "text";
+        inEtiqueta.placeholder = "Añadir etiqueta personalizada";
+        const btnEtiqueta = el("button", "gym-chip", "＋ Añadir etiqueta");
+        btnEtiqueta.type = "button";
+        const agregarEtiqueta = () => {
+            const escrita = limpiarNombre(inEtiqueta.value);
+            if (!escrita) return;
+            const existente = (dia.etiquetasPersonalizadas ?? [])
+                .find(etiqueta => etiqueta.toLocaleLowerCase("es") === escrita.toLocaleLowerCase("es"));
+            dia.etiquetasPersonalizadas = normalizarGrupos([
+                ...(dia.etiquetasPersonalizadas ?? []), existente ?? escrita,
+            ]);
+            inEtiqueta.value = "";
+            pintarTipoDia();
+            limpiarError();
+        };
+        btnEtiqueta.onclick = agregarEtiqueta;
+        inEtiqueta.onkeydown = evento => {
+            if (evento.key !== "Enter") return;
+            evento.preventDefault();
+            agregarEtiqueta();
+        };
+        filaEtiqueta.append(inEtiqueta, btnEtiqueta);
+        cajaDia.appendChild(filaEtiqueta);
+
         const contEj = el("div");
         cajaDia.appendChild(contEj);
 
@@ -380,12 +527,60 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             inEj.oninput = () => { ej.nombre = inEj.value; limpiarError(); };
             celda("Ejercicio", inEj);
 
+            const cajaGrupos = el("div", "display:flex;flex-wrap:wrap;gap:6px;align-items:center;");
+            const pintarGrupos = () => {
+                cajaGrupos.empty();
+                const disponibles = normalizarGrupos([...gruposDisponibles, ...(ej.grupos ?? [])])
+                    .sort((a, b) => a.localeCompare(b, "es"));
+                for (const grupo of disponibles) {
+                    const etiqueta = el("label", "gym-chip" +
+                        ((ej.grupos ?? []).some(g => g.toLocaleLowerCase("es") === grupo.toLocaleLowerCase("es")) ? " on" : ""));
+                    const check = el("input");
+                    check.type = "checkbox";
+                    check.checked = (ej.grupos ?? []).some(g => g.toLocaleLowerCase("es") === grupo.toLocaleLowerCase("es"));
+                    check.setAttribute("aria-label", grupo);
+                    check.onchange = () => {
+                        const actuales = ej.grupos ?? [];
+                        ej.grupos = normalizarGrupos(check.checked
+                            ? [...actuales, grupo]
+                            : actuales.filter(g => g.toLocaleLowerCase("es") !== grupo.toLocaleLowerCase("es")));
+                        etiqueta.classList.toggle("on", check.checked);
+                        pintarTipoDia();
+                        limpiarError();
+                    };
+                    etiqueta.append(check, ` ${grupo}`);
+                    cajaGrupos.appendChild(etiqueta);
+                }
+                const btnNuevoGrupo = el("button", "gym-chip", "＋ Grupo");
+                btnNuevoGrupo.type = "button";
+                btnNuevoGrupo.onclick = async () => {
+                    const escrito = await pedirTexto("Crear grupo", "", disponibles);
+                    if (escrito === null) return;
+                    const limpio = limpiarNombre(escrito);
+                    if (!limpio) {
+                        toast("⚠️ El nombre del grupo no puede quedar vacío.", false);
+                        return;
+                    }
+                    const existente = disponibles.find(g => g.toLocaleLowerCase("es") === limpio.toLocaleLowerCase("es"));
+                    const grupo = existente ?? limpio;
+                    gruposDisponibles = normalizarGrupos([...gruposDisponibles, grupo]);
+                    ej.grupos = normalizarGrupos([...(ej.grupos ?? []), grupo]);
+                    pintarGrupos();
+                    pintarTipoDia();
+                    limpiarError();
+                };
+                cajaGrupos.appendChild(btnNuevoGrupo);
+                if (!disponibles.length) cajaGrupos.appendChild(el("div", "gym-ayuda", "Selecciona un grupo o crea uno."));
+            };
+            pintarGrupos();
+            celda("Grupos", cajaGrupos);
+
             const selTipo = el("select", "gym-mini");
             for (const [v, t] of [["peso", "Peso"], ["tiempo", "Tiempo"], ["intervalo", "Intervalo"]] as const) {
                 const o = el("option", null, t); o.value = v; selTipo.appendChild(o);
             }
             selTipo.value = tipoEjercicioDe(ej);
-            selTipo.title = "Tipo de ejercicio: peso (reps y peso objetivo), tiempo (hold de duración fija) o intervalo (ciclos de trabajo y transición).";
+            selTipo.title = "Tipo de ejercicio: peso, tiempo con hold o repeticiones, e intervalos de trabajo y descanso.";
             celda("Tipo", selTipo);
 
             const num = (valor: string | number | null | undefined, min: number, paso: number, titulo: string) => {
@@ -416,7 +611,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             inDur.oninput = () => { ej.duracionObjetivo = aNumero(inDur.value); };
             const inTrabajo = num(ej.trabajoSeg, 1, 1, "Trabajo de cada ciclo (segundos)");
             inTrabajo.oninput = () => { ej.trabajoSeg = aNumero(inTrabajo.value); };
-            const inTrans = num(ej.transicionSeg, 0, 1, "Transición de cada ciclo (segundos)");
+            const inTrans = num(ej.transicionSeg ?? ej.descansoSeg, 0, 1, "Descanso entre intervalos (segundos)");
             inTrans.oninput = () => { ej.transicionSeg = aNumero(inTrans.value); };
             const cTiempo = el("div", "gym-par");
             cTiempo.append(inDur, inTrabajo, inTrans);
@@ -427,9 +622,21 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
 
             inPeso.oninput = () => { ej.pesoObjetivo = pesoAKg(inPeso.value); };
 
+            const modoTiempoPeso = el("label", "display:flex;align-items:center;gap:6px;");
+            const chkTiempoPeso = el("input");
+            chkTiempoPeso.type = "checkbox";
+            chkTiempoPeso.checked = ej.repsPesoDuranteTiempo === true;
+            modoTiempoPeso.append(chkTiempoPeso, "Registrar repeticiones y peso durante el tiempo");
+            const etqModoTiempoPeso = celda("Registro cronometrado", modoTiempoPeso).l;
+            chkTiempoPeso.onchange = () => {
+                ej.repsPesoDuranteTiempo = chkTiempoPeso.checked;
+                if (chkTiempoPeso.checked) ej.repsObjetivo = null;
+                pintaCampos();
+            };
+
             const inDesc = num(ej.descansoSeg, 0, 15, "Descanso entre series (segundos)");
             inDesc.oninput = () => { ej.descansoSeg = aNumero(inDesc.value); };
-            celda("Descanso (s)", inDesc);
+            const etqDesc = celda("Descanso (s)", inDesc).l;
 
             const inNotas = el("input", "gym-mini"); inNotas.type = "text";
             inNotas.placeholder = "Notas (opcional)"; inNotas.value = ej.notas ?? "";
@@ -438,6 +645,9 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
 
             const pintaCampos = () => {
                 const t = tipoEjercicioDe(ej);
+                if (t === "intervalo" && ej.transicionSeg == null && ej.descansoSeg != null) {
+                    ej.transicionSeg = ej.descansoSeg;
+                }
 
                 etqSeries.textContent = t === "intervalo" ? "Ciclos" : "Series";
                 inSeries.title = t === "intervalo" ? "Ciclos objetivo (cada ciclo es una serie)" : "Series objetivo";
@@ -449,13 +659,17 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
                     ? "Al fallo no hay reps objetivo: se anota lo hecho en cada serie"
                     : "Repeticiones objetivo";
 
-                etqPeso.style.display = inPeso.style.display = t === "peso" ? "" : "none";
+                etqPeso.style.display = inPeso.style.display =
+                    t === "peso" || (t === "tiempo" && ej.repsPesoDuranteTiempo === true) ? "" : "none";
+                etqModoTiempoPeso.style.display = t === "tiempo" ? "" : "none";
+                chkTiempoPeso.checked = ej.repsPesoDuranteTiempo === true;
 
                 inDesc.title = t === "intervalo"
-                    ? "Descanso dentro de cada ciclo (segundos)"
+                    ? "Descanso entre series (segundos)"
                     : "Descanso entre series (segundos)";
+                etqDesc.style.display = t === "intervalo" ? "none" : "";
 
-                etqTiempo.textContent = t === "intervalo" ? "Trabajo · transición (s)" : "Duración (s)";
+                etqTiempo.textContent = t === "intervalo" ? "Trabajo · descanso entre intervalos (s)" : "Duración (s)";
                 etqTiempo.style.display = t === "peso" ? "none" : "";
                 inDur.style.display = t === "tiempo" ? "" : "none";
                 inTrabajo.style.display = inTrans.style.display = t === "intervalo" ? "" : "none";
@@ -463,6 +677,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             selTipo.onchange = () => {
                 const v = selTipo.value;
                 ej.tipoEjercicio = v === "tiempo" || v === "intervalo" ? v : null;
+                if (v !== "tiempo") ej.repsPesoDuranteTiempo = false;
                 pintaCampos();
             };
             selSerie.onchange = () => {
@@ -480,6 +695,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
                 const p = dia.ejercicios.indexOf(ej);
                 if (p >= 0) dia.ejercicios.splice(p, 1);
                 pintarEjercicios();
+                pintarTipoDia();
             };
             cBorrar.appendChild(bBorrar);
             fila.appendChild(cBorrar);
@@ -492,7 +708,12 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             dia.ejercicios.forEach(ej => contEj.appendChild(filaEjercicio(ej)));
             const b = el("button", "gym-chip", "＋ Añadir ejercicio");
             b.type = "button";
-            b.onclick = () => { dia.ejercicios.push(ejercicioVacio()); pintarEjercicios(); limpiarError(); };
+            b.onclick = () => {
+                dia.ejercicios.push(ejercicioVacio());
+                pintarEjercicios();
+                pintarTipoDia();
+                limpiarError();
+            };
             contEj.appendChild(b);
         };
         pintarEjercicios();
@@ -598,6 +819,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             estado.semanas = CONFIG.SEMANAS_POR_DEFECTO;
             estado.dias = [nuevoDia("A")];
             estado.plantilla = "";
+            estado.plantillaOrigen = null;
             estado.comoPlantilla = false;
             estado.nombrePlantilla = "";
             estado.plantillaEditada = false;
@@ -636,18 +858,22 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             id: d.id || `dia-${slug(d.nombre || String.fromCharCode(65 + i))}`,
             nombre: limpiarNombre(d.nombre) || `Día ${String.fromCharCode(65 + i)}`,
             diasSemana: [...(d.diasSemana ?? [])],
+            etiquetasPersonalizadas: normalizarGrupos(d.etiquetasPersonalizadas),
             ejercicios: d.ejercicios.map((e, j) => {
 
                 const t = tipoEjercicioDe(e);
                 return {
                     id: e.id || `${slug(d.nombre || "dia")}-${slug(e.nombre || `ej-${j}`)}`,
                     nombre: limpiarNombre(e.nombre),
+                    grupos: normalizarGrupos(e.grupos),
                     tipoEjercicio: e.tipoEjercicio ?? null,
                     series: Math.max(1, Number(e.series) || 1),
                     repsObjetivo: t !== "peso" || tipoSerieDe(e) === "fallo"
                         ? null : Math.max(1, Number(e.repsObjetivo) || 1),
-                    pesoObjetivo: t === "peso" ? e.pesoObjetivo ?? null : null,
+                    pesoObjetivo: t === "peso" || (t === "tiempo" && e.repsPesoDuranteTiempo === true)
+                        ? e.pesoObjetivo ?? null : null,
                     duracionObjetivo: t === "tiempo" ? Math.max(1, Number(e.duracionObjetivo) || 1) : null,
+                    repsPesoDuranteTiempo: t === "tiempo" && e.repsPesoDuranteTiempo === true,
                     descansoSeg: e.descansoSeg ?? null,
                     trabajoSeg: t === "intervalo" ? Math.max(1, Number(e.trabajoSeg) || 1) : null,
                     transicionSeg: t === "intervalo" ? Math.max(0, Number(e.transicionSeg) || 0) : null,
@@ -661,6 +887,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         const libre = estado.tipo === "libre";
         return {
             id: idPropuesto(),
+            plantillaOrigen: estado.plantillaOrigen ?? null,
             nombre: limpiarNombre(estado.nombre),
             objetivo: estado.objetivo || "",
             tipo: libre ? "libre" : "planificada",
@@ -726,14 +953,22 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         btnGuardar.textContent = "Guardando…";
 
         try {
-
             await escribirRutina(rutina);
 
             if (estado.comoPlantilla) {
                 try {
-                    await escribirPlantilla(limpiarNombre(estado.nombrePlantilla), plantillaDeRutina(rutina));
+                    const idPlantilla = uid("plantilla");
+                    await escribirPlantilla(limpiarNombre(estado.nombrePlantilla), {
+                        ...plantillaDeRutina(rutina),
+                        id: idPlantilla,
+                    });
+                    if (!rutina.plantillaOrigen) {
+                        const rutinaConOrigen = { ...rutina, plantillaOrigen: idPlantilla };
+                        await escribirRutina(rutinaConOrigen);
+                        Object.assign(rutina, rutinaConOrigen);
+                    }
                 } catch (e: unknown) {
-                    toast("⚠️ La rutina se guardó, pero la plantilla no: " + msgError(e), false);
+                    toast("⚠️ La rutina se guardó, pero no pude guardar o vincular la plantilla: " + msgError(e), false);
                 }
             }
 

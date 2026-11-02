@@ -1,12 +1,13 @@
 import { CONFIG } from "../config";
 import {
-    adherencia, ejerciciosConDatos, esLibre, historialEjercicio, nombreDia,
-    resumenLibre, semanaActual, semanasTotales, segundosSesion, totalSeries,
-    ultimaMedida, volumenSesion,
+    adherencia, compararPlanes, ejerciciosConDatos, esLibre, historialEjercicio,
+    leerPlantillaOrigen, nombreDia, normalizarGrupos, resumenLibre,
+    semanaActual, semanasTotales, segundosSesion, textoRepsObjetivo, tipoEjercicioDe,
+    totalSeries, ultimaMedida, volumenSesion,
 } from "../datos";
-import { decimal, dos, esFechaValida, fechaLegible, nombreMes, tsDe } from "../util";
+import { decimal, dos, esFechaValida, fechaLegible, msgError, nombreMes, tsDe } from "../util";
 import { pesoActual, pesoMostrar, pesoTexto, tallaTexto } from "../unidades";
-import type { LecturaNota, MedidasDatos, Rutina, Sesion } from "../tipos";
+import type { EjercicioDef, LecturaNota, MedidasDatos, Rutina, Sesion } from "../tipos";
 import { el, KPI, limitaAlto, tablaEn } from "./componentes";
 import { grafica } from "./grafica";
 
@@ -164,10 +165,61 @@ function seccionProgresion(c: HTMLElement, rutina: Rutina): void {
     c.appendChild(envoltorio);
     c.appendChild(cont);
 
+    let resultadoOrigen: Awaited<ReturnType<typeof leerPlantillaOrigen>> | null = null;
+    const textoPlan = (ejercicio: EjercicioDef | null): string => {
+        if (!ejercicio) return "—";
+        const tipo = tipoEjercicioDe(ejercicio);
+        const grupos = normalizarGrupos(ejercicio.grupos);
+        const nombre = `${ejercicio.nombre || "Ejercicio"}${grupos.length ? ` · grupos: ${grupos.join(", ")}` : ""}`;
+        if (tipo === "peso") {
+            return `${nombre} · ${ejercicio.series}×${textoRepsObjetivo(ejercicio)} reps · ${pesoTexto(ejercicio.pesoObjetivo)}`;
+        }
+        if (tipo === "tiempo") {
+            const duracion = Math.round(Number(ejercicio.duracionObjetivo) || 0);
+            return ejercicio.repsPesoDuranteTiempo
+                ? `${nombre} · ${ejercicio.series} series · reps y peso durante ${duracion || "?"} s`
+                : `${nombre} · ${ejercicio.series}×hold${duracion ? ` de ${duracion} s` : ""}`;
+        }
+        const trabajo = Math.round(Number(ejercicio.trabajoSeg) || 0);
+        const descanso = Math.round(Number(ejercicio.transicionSeg ?? ejercicio.descansoSeg) || 0);
+        return `${nombre} · ${ejercicio.series} ciclos · ${trabajo || "?"} s trabajo · ${descanso} s descanso entre ciclos`;
+    };
+
     const pintarEjercicio = () => {
         cont.empty();
         const info = ejercicios.find(e => e.id === sel.value) ?? conHistorial[0];
         const hist = historialEjercicio(rutina, info.id);
+        const origen = resultadoOrigen;
+
+        const comparacion = el("div", "margin:8px 0 12px;");
+        comparacion.appendChild(el("div", "gym-tit", "Plan base y ajuste actual"));
+        if (!origen) {
+            comparacion.appendChild(el("div", "opacity:.7;font-size:.86em;", "Cargando comparación con la plantilla de origen…"));
+        } else if (origen.estado === "sin-origen") {
+            comparacion.appendChild(el("div", "opacity:.7;font-size:.86em;", "Esta rutina no tiene plantilla de origen para comparar."));
+        } else if (origen.estado === "eliminada") {
+            comparacion.appendChild(el("div", "opacity:.7;font-size:.86em;", "La plantilla de origen fue eliminada; la rutina y sus estadísticas siguen disponibles, pero ya no se puede comparar el plan base."));
+        } else if ("error" in origen) {
+            comparacion.appendChild(el("div", "opacity:.7;font-size:.86em;", `No se pudo leer la plantilla de origen: ${origen.error}`));
+        } else if (origen.estado === "disponible" && origen.plantilla) {
+            const filasPlan = compararPlanes(origen.plantilla, rutina)
+                .filter(f => f.ejercicioId === info.id);
+            if (!filasPlan.length) {
+                comparacion.appendChild(el("div", "opacity:.7;font-size:.86em;", "Este ejercicio no tiene una definición asociada al plan base o al plan activo."));
+            } else {
+                tablaEn(comparacion, ["Estado", "Día base", "Plan base", "Día activo", "Plan activo"],
+                    filasPlan.map(f => [
+                        f.estado === "sin-cambios" ? "Sin cambios"
+                            : f.estado === "ajustado" ? "Ajustado"
+                                : f.estado === "añadido" ? "Añadido a la rutina" : "Retirado de la rutina",
+                        f.diaBase?.nombre ?? "—",
+                        textoPlan(f.base),
+                        f.diaActivo?.nombre ?? "—",
+                        textoPlan(f.activo),
+                    ]), { filasVisibles: 4 });
+            }
+        }
+        cont.appendChild(comparacion);
 
         const tipo = hist[hist.length - 1]?.tipoEjercicio ?? "peso";
         const esPeso = tipo === "peso";
@@ -235,6 +287,8 @@ function seccionProgresion(c: HTMLElement, rutina: Rutina): void {
             const hPeso = h.tipoEjercicio === "peso";
             const seriesTxt = hPeso
                 ? h.series.map(s => `${s.reps ?? "–"}×${pesoTexto(s.peso)}`).join(" · ")
+                : h.repsPesoDuranteTiempo
+                    ? h.series.map(s => `${s.reps ?? "–"}×${pesoTexto(s.peso)} · ${s.duracionSeg ?? "–"} s`).join(" · ")
                 : h.series.map(s => `${s.duracionSeg ?? "–"} s`).join(" · ");
             const mejorTxt = hPeso
                 ? `${h.mejor.reps ?? "–"} × ${pesoTexto(h.mejor.peso)}`
@@ -274,6 +328,14 @@ function seccionProgresion(c: HTMLElement, rutina: Rutina): void {
     };
     sel.onchange = pintarEjercicio;
     pintarEjercicio();
+    void leerPlantillaOrigen(rutina).then(resultado => {
+        resultadoOrigen = resultado;
+        pintarEjercicio();
+    }).catch((e: unknown) => {
+        console.error("[Gym Stone comparación de estadísticas]", e);
+        resultadoOrigen = { estado: "error", error: msgError(e) };
+        pintarEjercicio();
+    });
 }
 
 export function seccionMedidas(
