@@ -253,7 +253,7 @@ export const elegirEjercicio = (
 ): Promise<EleccionEjercicio | null> => new Promise(resolve => {
 
     let catalogo = catalogoEjercicios(rutina).filter(x => !excluir.includes(x.id));
-    const m = modal("＋ Añadir ejercicio", "elige de TODAS tus rutinas o escribe uno nuevo",
+    const m = modal("＋ Añadir ejercicio", "busca un ejercicio guardado o escribe uno nuevo",
         true);
 
     let resuelto = false;
@@ -282,7 +282,8 @@ export const elegirEjercicio = (
 
     const inNombre = el("input");
     inNombre.type = "text";
-    inNombre.placeholder = "Busca (por ejemplo, «press») o escribe uno nuevo";
+    inNombre.placeholder = "Busca o escribe un ejercicio";
+    inNombre.setAttribute("aria-label", "Buscar o escribir ejercicio");
     inNombre.style.cssText = "box-sizing:border-box;width:100%;height:34px;min-height:34px;padding:4px 8px;border-radius:8px;" +
         "border:1px solid var(--background-modifier-border);background:var(--background-secondary);" +
         "color:var(--text-normal);font-size:1em;box-sizing:border-box;";

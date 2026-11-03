@@ -2,7 +2,7 @@ import { CONFIG } from "../config";
 import { ReclamoDespierta } from "../despierta";
 import {
     cargarBaseRecordesPersonales, descansoDe, detectarRecordesSesion,
-    diaPorId, diaProgramado, esLibre, esSaltada, esSinRegistrar,
+    diaPorId, diaProgramado, esLibre, esSaltada, esSinRegistrar, etiquetasDeDia,
     escribirRutina, repsObjetivoDe, seriesHechas, textoRepsObjetivo, volumenSesion,
     tipoEjercicioDe, tipoSerieDe, tipoSerieDeRutina, ultimosValores,
 } from "../datos";
@@ -12,6 +12,7 @@ import { pesoACampo, pesoAKg, pesoTexto } from "../unidades";
 import { aNumero, dos, esc, fechaLegible, hoy, msgError } from "../util";
 import { btn, confirmar, el, modal, pedirTexto, ponerX, toast } from "./componentes";
 import { controlDescanso, elegirEjercicio, pedirDescanso } from "./ejercicios-ui";
+import { ofrecerAjustesPlan, tieneAjustesSugeridos } from "./sugerencias-plan";
 import { reiniciarCuentaAtras, sonarCuentaAtras, sonarDescanso, sonarTemporizador, vibrar } from "./sonido";
 import type { Pintar } from "./pintar";
 
@@ -32,6 +33,7 @@ interface DefSesion {
     plan: number;
     planOrigen: number;
     series: SerieSesion[];
+    planDeRutina?: boolean;
     tipoSiguiente?: TipoSerie | null;
     notas: string;
 }
@@ -108,8 +110,6 @@ const pedirCiclo = (trabajo: number | null, descanso: number | null):
     m.caja.appendChild(ok);
 });
 
-interface AjustePlan { d: DefSesion; maxHoy: number }
-
 export function elegirDiaGuiada(rutina: Rutina, pintar: Pintar): void {
 
     if (esLibre(rutina)) {
@@ -166,6 +166,13 @@ const aEjercicioGuardado = (d: DefSesion): EjercicioSesion => {
         nombre: d.nombre,
         notas: d.notas || "",
         series: d.series.map(aSerieGuardada),
+        ...(d.planDeRutina && tipoEjercicioDe(d.objetivo) === "peso" ? {
+            objetivoPlan: {
+                series: Math.max(1, Number(d.objetivo.series) || 1),
+                repsObjetivo: repsObjetivoDe(d.objetivo),
+                pesoObjetivo: d.objetivo.pesoObjetivo ?? null,
+            },
+        } : {}),
     };
 
     const descSeg = d.objetivo?.descansoSeg;
@@ -194,10 +201,18 @@ const aEjercicioGuardado = (d: DefSesion): EjercicioSesion => {
 export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: Pintar): Promise<void> {
     medirAreasSeguras();
 
-    const dia = diaPorId(rutina, diaId as string)
+    let dia = diaPorId(rutina, diaId as string)
         ?? (esLibre(rutina) ? { id: diaId ?? "", nombre: diaId || "Sesión libre", ejercicios: [] } : null)
         ?? rutina.dias?.[0];
     if (!dia) return toast("⚠️ La rutina no tiene días definidos.", false);
+    const haySesionEnCurso = (rutina.sesiones ?? []).some(s => s.enCurso);
+    const sesionesAnteriores = rutina.sesiones ?? [];
+    if (!haySesionEnCurso && tieneAjustesSugeridos(rutina, sesionesAnteriores, dia.id)) {
+        const aviso = modal("💡 Ajustes para esta sesión", dia.nombre);
+        await ofrecerAjustesPlan(rutina, sesionesAnteriores, dia.id, aviso.caja,
+            () => { void pintar(); aviso.cerrar(); }, () => aviso.cerrar(), false);
+        dia = diaPorId(rutina, dia.id) ?? dia;
+    }
     const defs: DefSesion[] = (dia.ejercicios ?? []).map(e => {
         const plan0 = Math.max(1, Number(e.series) || 1);
         return {
@@ -206,6 +221,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             objetivo: e,
             plan: plan0,
             planOrigen: plan0, // las filas ≥ planOrigen son series extra («＋1 serie»): se marcan y se pueden quitar
+            planDeRutina: true,
             series: [],          // completadas: [{ reps, peso }]
             notas: "",
         };
@@ -324,11 +340,30 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
 
     const cab = el("div", "gym-modo-cab");
     const titCab = el("div", "flex:1;min-width:0;");
-    const titDia = el("b", "gym-naranja", `🎯 ${dia.nombre}`);
-    titCab.append(
-        titDia,
-        el("div", "gym-modo-fecha", fechaLegible(hoy())),
+    const titDia = el("b", "gym-naranja gym-modo-titulo-dia", `🎯 ${dia.nombre}`);
+    const filaTitulo = el("div", "gym-modo-titulos");
+    filaTitulo.append(titDia, el("div", "gym-modo-fecha", fechaLegible(hoy())));
+    const tipoDia = el("div", "gym-modo-tipo-dia");
+    const etiquetasDia = etiquetasDeDia(dia);
+    const etiquetasPersonalizadasDia = new Set(
+        etiquetasDia.personalizadas.map(etiqueta => etiqueta.toLocaleLowerCase("es")),
     );
+    if (etiquetasDia.todas.length) {
+        tipoDia.setAttribute("aria-label", `Tipo de día: ${etiquetasDia.todas.join(", ")}`);
+        tipoDia.appendChild(el("span", "gym-modo-tipo-dia-etiqueta", "Tipo de día"));
+    }
+    for (const etiqueta of etiquetasDia.todas) {
+        const esGrupo = etiquetasDia.gruposDerivados.some(
+            grupo => grupo.toLocaleLowerCase("es") === etiqueta.toLocaleLowerCase("es"),
+        );
+        const esPersonalizada = etiquetasPersonalizadasDia.has(etiqueta.toLocaleLowerCase("es"));
+        const chip = el("span", "gym-chip gym-chip-mini" + (esGrupo ? " gym-grupo" : ""), etiqueta);
+        chip.title = esGrupo && esPersonalizada
+            ? "Grupo de los ejercicios y etiqueta personalizada"
+            : esGrupo ? "Grupo de los ejercicios de este día" : "Etiqueta personalizada";
+        tipoDia.appendChild(chip);
+    }
+    titCab.append(filaTitulo, tipoDia);
 
     const relojEl = el("span", "gym-btn-g gym-modo-reloj");
     const btnPausa = el("button", "gym-btn-g gym-btn-pausa gym-btn-descanso-pausa", "⏸ Pausa"); btnPausa.type = "button";
@@ -540,8 +575,17 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         else pintarEjercicio();
     };
 
+    const indiceEjercicioPendiente = (): number =>
+        defs.findIndex(def => def.series.length < def.plan);
+
     const completarSerie = (iSet: number) => {
         if (!iniciada || pausado) return;
+        const indicePendiente = indiceEjercicioPendiente();
+        if (indicePendiente >= 0 && indicePendiente !== idx) {
+            irAEjercicio(indicePendiente);
+            completarSerie(defs[indicePendiente].series.length);
+            return;
+        }
         if ((descanso?.restanteMs ?? 0) > 0) return;
         if (ciclo) return;
         if (hold && hold.ej !== idx) return;
@@ -763,6 +807,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
 
     const pintarEjercicio = () => {
         const ej = defs[idx];
+        const indicePendiente = indiceEjercicioPendiente();
         pintarProgreso();
         relojEl.textContent = `⏱ ${relojTexto(transcurridoMs())}`;
 
@@ -1217,6 +1262,8 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                                                           : `⏳ Ciclo de «${defs[ciclo!.ej].nombre}»: aquí solo miras`)
                         : holdAjeno ? `⏳ Hold de «${defs[hold!.ej].nombre}»: aquí solo miras`
                         : hold ? "Terminar el hold: registra los segundos transcurridos"
+                        : indicePendiente >= 0 && indicePendiente !== idx
+                            ? `Ir a «${defs[indicePendiente].nombre}» y completar la serie que toca`
                         : "Completar esta serie";
                     bOk.disabled = !esActual || !iniciada || pausado || enDescansoPend || cicloActivo || holdAjeno;
                     bOk.onclick = () => completarSerie(i);
@@ -1573,7 +1620,6 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         sesion: Sesion,
         recordes: RecordeDetectado[],
         duracionMs: number,
-        ajustesPlan: number,
     ): void => {
         const m = modal("🏁 Entrenamiento completado", dia.nombre);
         ponerX(m);
@@ -1607,10 +1653,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             }
         }
         m.caja.appendChild(lista);
-        if (ajustesPlan) {
-            m.caja.appendChild(el("div", "gym-resumen-nota",
-                `Plan ajustado en ${ajustesPlan} ejercicio${ajustesPlan > 1 ? "s" : ""}.`));
-        }
+        void ofrecerAjustesPlan(rutina, [sesion], dia.id, m.caja, () => { void pintar(); });
     };
 
     const terminar = async () => {
@@ -1623,19 +1666,12 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         const totalSinRegistrar = defs.length - conDatos.length;
         const duracionMin = Math.max(1, Math.round(transcurridoMs() / 60000));
 
-        const enElPlan = (d: DefSesion) => (rutina.dias ?? []).some(x => (x.ejercicios ?? []).some(e => e.id === d.id));
-        const ajustes: AjustePlan[] = conDatos.filter(enElPlan).map(d => {
-            const pesos = seriesHechas(d).map(s => s.peso).filter((p): p is number => typeof p === "number" && !Number.isNaN(p));
-            if (!pesos.length) return null;
-            const maxHoy = Math.max(...pesos);
-            const previo = typeof d.objetivo.pesoObjetivo === "number" ? d.objetivo.pesoObjetivo : null;
-            return previo === maxHoy ? null : { d, maxHoy };
-        }).filter((a): a is AjustePlan => a != null);
         if (!(await confirmar("🏁 Terminar sesión",
             `¿Terminar y guardar la sesión de «${dia.nombre}»?\n\n· ${conDatos.length} de ${defs.length} ejercicios\n· ${totalSeries} series · ~${duracionMin} min` +
             (totalSaltadas ? `\n· ${totalSaltadas} serie${totalSaltadas > 1 ? "s" : ""} saltada${totalSaltadas > 1 ? "s" : ""} (quedan registradas como no hechas)` : "") +
             (totalSinRegistrar ? `\n· ${totalSinRegistrar} ejercicio${totalSinRegistrar > 1 ? "s" : ""} sin registrar (quedan marcados como no hechos)` : "") +
-            (ajustes.length ? "\n· Los pesos del plan pasarán a los de hoy: el más alto de cada ejercicio, suba o baje" : ""),
+            (conDatos.some(d => d.planDeRutina && tipoEjercicioDe(d.objetivo) === "peso")
+                ? "\n· Se guardará la diferencia entre el plan y las series/pesos realizados" : ""),
             "Terminar y guardar", "Seguir entrenando"))) return;
         const recordesFinales = recordesDeSesion();
         const duracionRealMs = transcurridoMs();
@@ -1649,7 +1685,6 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             ejercicios: defs.map(aEjercicioGuardado),
         };
         try {
-            for (const a of ajustes) a.d.objetivo.pesoObjetivo = a.maxHoy;
             const iP = parcialGuard ? rutina.sesiones.indexOf(parcialGuard) : -1;
             if (iP >= 0) rutina.sesiones.splice(iP, 1);
             parcialGuard = null;
@@ -1658,7 +1693,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             await escribirRutina(rutina);
             cerrar();
             void pintar();
-            mostrarResumen(sesion, recordesFinales, duracionRealMs, ajustes.length);
+            mostrarResumen(sesion, recordesFinales, duracionRealMs);
         } catch (e: unknown) {
             console.error("[GymGestor modo sesión]", e);
             toast("⚠️ No pude guardar la sesión: " + msgError(e), false);

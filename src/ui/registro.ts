@@ -10,7 +10,7 @@ import {
 import { aNumero, clonarJSON, decimal, esFechaValida, fechaLegible, hoy, horaAhora, msgError } from "../util";
 import { pesoACampo, pesoActual, pesoAKg, pesoTexto } from "../unidades";
 import type {
-    EjercicioDef, EjercicioSesion, LecturaNota, Medida, MedidasDatos,
+    EjercicioDef, EjercicioSesion, LecturaNota, Medida, MedidasDatos, ObjetivoPlanSesion,
     Rutina, SerieSesion, Sesion, TipoEjercicio, TipoSerie,
 } from "../tipos";
 import { btn, confirmar, el, modal, ponerX, selectorUnidad, toast } from "./componentes";
@@ -21,6 +21,8 @@ interface EjercicioTrabajo {
     ejercicioId: string;
     nombre: string;
     series: SerieSesion[];
+    objetivoPlan?: ObjetivoPlanSesion;
+    ajusteAplicado?: EjercicioSesion["ajusteAplicado"];
     notas?: string;
     descansoSeg?: number | null;
     tipoEjercicio?: TipoEjercicio | null;
@@ -44,6 +46,15 @@ interface SesionTrabajo {
 }
 
 const tipoDe = (ej: EjercicioTrabajo): TipoEjercicio => tipoEjercicioDe(ej);
+
+const objetivoPlanDe = (def: EjercicioDef | undefined): ObjetivoPlanSesion | undefined =>
+    def && tipoEjercicioDe(def) === "peso"
+        ? {
+            series: Math.max(1, Number(def.series) || 1),
+            repsObjetivo: repsObjetivoDe(def),
+            pesoObjetivo: def.pesoObjetivo ?? null,
+        }
+        : undefined;
 
 const serieVacia = (
     tipo: TipoEjercicio,
@@ -230,6 +241,7 @@ export function formularioSesion(
                 esEdicion ? serieVacia(tipo, e.tipoSerie, e.repsPesoDuranteTiempo === true) : { ...objetivo });
             const nuevo: EjercicioTrabajo = {
                 ejercicioId: e.id, nombre: e.nombre, series, notas: "",
+                objetivoPlan: objetivoPlanDe(e),
                 tipoEjercicio: tipo, duracionObjetivo: e.duracionObjetivo ?? null,
                 repsPesoDuranteTiempo: e.repsPesoDuranteTiempo === true,
                 trabajoSeg: e.trabajoSeg ?? null, transicionSeg: e.transicionSeg ?? null,
@@ -734,7 +746,12 @@ export function formularioSesion(
                         if (s.ejecMs != null) sOut.ejecMs = s.ejecMs;
                         return sOut;
                     });
-                const out: EjercicioSesion = { ejercicioId: e.ejercicioId, nombre: e.nombre, notas: e.notas ?? "", series: serie };
+                const out: EjercicioSesion = {
+                    ejercicioId: e.ejercicioId, nombre: e.nombre, notas: e.notas ?? "", series: serie,
+                };
+                const objetivoPlan = e.objetivoPlan ?? (!esEdicion ? objetivoPlanDe(defDia) : undefined);
+                if (tipo === "peso" && objetivoPlan) out.objetivoPlan = objetivoPlan;
+                if (e.ajusteAplicado) out.ajusteAplicado = e.ajusteAplicado;
 
                 if (tipo === "tiempo") {
                     out.tipoEjercicio = tipo;

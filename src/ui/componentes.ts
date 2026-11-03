@@ -28,7 +28,7 @@ const cerrarGlobo = (): void => { globo?.remove(); globo = null; };
 export const conAyuda = (e: HTMLElement, texto: () => string): void => {
     const abrir = (): void => {
         cerrarGlobo();
-        const g = el("div", "position:fixed;z-index:10000;max-width:min(280px,80vw);padding:6px 10px;border-radius:8px;background:var(--background-primary);border:1px solid var(--background-modifier-border);box-shadow:0 4px 14px rgba(0,0,0,.35);font-size:.78em;line-height:1.45;pointer-events:none;", texto());
+        const g = el("div", "position:fixed;z-index:10040;max-width:min(280px,80vw);padding:6px 10px;border-radius:8px;background:var(--background-primary);border:1px solid var(--background-modifier-border);box-shadow:0 4px 14px rgba(0,0,0,.35);font-size:.78em;line-height:1.45;pointer-events:none;", texto());
         document.body.appendChild(g);
         const r = e.getBoundingClientRect();
         const b = g.getBoundingClientRect();
@@ -201,7 +201,7 @@ export const toast = (txt: string, ok = true): void => {
     const d = el("div",
         `position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--background-primary);` +
         `color:var(--text-normal);border:1px solid ${ok ? CONFIG.VERDE : CONFIG.ROJO};border-radius:10px;padding:11px 20px;` +
-        `z-index:9999;box-shadow:0 8px 28px rgba(0,0,0,.4);font-size:.9em;max-width:82vw;text-align:center;`, txt);
+        `z-index:10030;box-shadow:0 8px 28px rgba(0,0,0,.4);font-size:.9em;max-width:82vw;text-align:center;`, txt);
     d.className = "gym-toast";
     document.body.appendChild(d);
     window.setTimeout(() => {
@@ -225,7 +225,7 @@ export const confirmar = (titulo: string, mensaje: string, textoOk = "Aceptar", 
             if (e.key === "Escape") { e.stopPropagation(); terminar(false); }
         };
         const overlay = el("div",
-            `position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;display:flex;` +
+            `position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10020;display:flex;` +
             `align-items:center;justify-content:center;padding:16px;`);
         overlay.id = "gym-confirm-activo";
         const cajaM = el("div",

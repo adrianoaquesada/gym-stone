@@ -6,11 +6,11 @@ import {
     rutaDatosDe, rutinaVacia, escribirPlantilla, tipoEjercicioDe, tipoSerieDe,
     catalogoGestion, normalizarGrupos, etiquetasDeDia,
 } from "../datos";
-import { aNumero, clonarJSON, esFechaValida, hoy, limpiarNombre, msgError, slug, tsDe } from "../util";
+import { aNumero, clonarJSON, esFechaValida, hoy, limpiarNombre, msgError, norm, slug, tsDe } from "../util";
 import { uid } from "../util/texto";
 import { pesoActual, pesoACampo, pesoAKg } from "../unidades";
 import type { DiaRutina, EjercicioDef, EstadoRutina, Rutina } from "../tipos";
-import { confirmar, el, modal, pedirTexto, ponerX, selectorUnidad, toast } from "./componentes";
+import { btn, confirmar, el, modal, pedirTexto, ponerX, selectorUnidad, toast } from "./componentes";
 import { abrirRutina } from "./vistas";
 import { crearComparacionPlan } from "./comparacion-plan";
 
@@ -96,10 +96,11 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
     const error = (txt: string) => { aviso.textContent = "⚠️ " + txt; aviso.classList.remove("gym-oculto"); raiz.scrollIntoView({ block: "nearest" }); };
     const limpiarError = () => { aviso.classList.add("gym-oculto"); };
     let gruposDisponibles: string[] = [];
+    let ejerciciosCatalogo: Awaited<ReturnType<typeof catalogoGestion>> = [];
     try {
-        const catalogo = await catalogoGestion();
+        ejerciciosCatalogo = await catalogoGestion();
         gruposDisponibles = normalizarGrupos([
-            ...catalogo.flatMap(ejercicio => ejercicio.grupos),
+            ...ejerciciosCatalogo.flatMap(ejercicio => ejercicio.grupos),
             ...estado.dias.flatMap(dia => (dia.ejercicios ?? []).flatMap(ejercicio => ejercicio.grupos ?? [])),
         ]);
     } catch (err: unknown) {
@@ -523,38 +524,151 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
                 fila.appendChild(c);
                 return { c, l };
             };
-            const inEj = el("input"); inEj.type = "text"; inEj.placeholder = "Ejercicio"; inEj.value = ej.nombre;
-            inEj.oninput = () => { ej.nombre = inEj.value; limpiarError(); };
-            celda("Ejercicio", inEj);
+            const inEj = el("input");
+            inEj.type = "text";
+            inEj.placeholder = "Busca o escribe un ejercicio";
+            inEj.value = ej.nombre;
+            inEj.autocomplete = "off";
+            inEj.setAttribute("aria-label", "Buscar o escribir ejercicio");
+            inEj.setAttribute("role", "combobox");
+            inEj.setAttribute("aria-autocomplete", "list");
+            const celdaNombre = celda("Ejercicio", inEj).c;
+            celdaNombre.classList.add("gym-ej-nombre", "gym-form-ejercicio-busqueda");
+            const resultadosEjercicio = el("div", "gym-form-ejercicio-resultados");
+            resultadosEjercicio.id = uid("gym-ejercicio-resultados");
+            resultadosEjercicio.setAttribute("role", "listbox");
+            resultadosEjercicio.hidden = true;
+            inEj.setAttribute("aria-controls", resultadosEjercicio.id);
+            celdaNombre.appendChild(resultadosEjercicio);
 
-            const cajaGrupos = el("div", "display:flex;flex-wrap:wrap;gap:6px;align-items:center;");
+            const cajaGrupos = el("div", "gym-ej-grupos-control");
             const pintarGrupos = () => {
                 cajaGrupos.empty();
-                const disponibles = normalizarGrupos([...gruposDisponibles, ...(ej.grupos ?? [])])
-                    .sort((a, b) => a.localeCompare(b, "es"));
-                for (const grupo of disponibles) {
-                    const etiqueta = el("label", "gym-chip" +
-                        ((ej.grupos ?? []).some(g => g.toLocaleLowerCase("es") === grupo.toLocaleLowerCase("es")) ? " on" : ""));
-                    const check = el("input");
-                    check.type = "checkbox";
-                    check.checked = (ej.grupos ?? []).some(g => g.toLocaleLowerCase("es") === grupo.toLocaleLowerCase("es"));
-                    check.setAttribute("aria-label", grupo);
-                    check.onchange = () => {
-                        const actuales = ej.grupos ?? [];
-                        ej.grupos = normalizarGrupos(check.checked
-                            ? [...actuales, grupo]
-                            : actuales.filter(g => g.toLocaleLowerCase("es") !== grupo.toLocaleLowerCase("es")));
-                        etiqueta.classList.toggle("on", check.checked);
-                        pintarTipoDia();
-                        limpiarError();
-                    };
-                    etiqueta.append(check, ` ${grupo}`);
-                    cajaGrupos.appendChild(etiqueta);
+                const asignados = normalizarGrupos(ej.grupos);
+                const btnElegirGrupos = el("button", "gym-chip",
+                    asignados.length ? `Editar (${asignados.length})` : "＋ Elegir");
+                btnElegirGrupos.type = "button";
+                btnElegirGrupos.title = "Elegir o crear grupos";
+                btnElegirGrupos.setAttribute("aria-label", "Elegir o crear grupos");
+                btnElegirGrupos.onclick = () => abrirSelectorGrupos(asignados);
+                cajaGrupos.appendChild(btnElegirGrupos);
+            };
+            const cerrarResultados = () => {
+                resultadosEjercicio.hidden = true;
+                inEj.setAttribute("aria-expanded", "false");
+            };
+            const seleccionarEjercicio = (existente: typeof ejerciciosCatalogo[number]) => {
+                ej.id = existente.id;
+                ej.nombre = existente.nombre;
+                ej.grupos = normalizarGrupos(existente.grupos);
+                gruposDisponibles = normalizarGrupos([...gruposDisponibles, ...existente.grupos]);
+                inEj.value = existente.nombre;
+                cerrarResultados();
+                pintarGrupos();
+                pintarTipoDia();
+                limpiarError();
+            };
+            const pintarResultados = () => {
+                resultadosEjercicio.empty();
+                const consulta = norm(inEj.value);
+                if (!consulta) {
+                    cerrarResultados();
+                    return;
                 }
-                const btnNuevoGrupo = el("button", "gym-chip", "＋ Grupo");
-                btnNuevoGrupo.type = "button";
-                btnNuevoGrupo.onclick = async () => {
-                    const escrito = await pedirTexto("Crear grupo", "", disponibles);
+                const encontrados = ejerciciosCatalogo
+                    .filter(existente =>
+                        norm(existente.nombre).includes(consulta) ||
+                        norm(existente.grupos.join(" ")).includes(consulta))
+                    .slice(0, 8);
+                if (!encontrados.length) {
+                    resultadosEjercicio.appendChild(el("div", "gym-form-ejercicio-sin-resultados",
+                        "Sin coincidencias; se creará como ejercicio nuevo al guardar."));
+                } else {
+                    for (const existente of encontrados) {
+                        const opcion = el("button", "gym-form-ejercicio-opcion");
+                        opcion.type = "button";
+                        opcion.setAttribute("role", "option");
+                        opcion.setAttribute("aria-selected", "false");
+                        opcion.appendChild(el("span", null, existente.nombre));
+                        if (existente.grupos.length) {
+                            opcion.appendChild(el("small", null, existente.grupos.join(" · ")));
+                        }
+                        opcion.onmousedown = evento => evento.preventDefault();
+                        opcion.onclick = () => seleccionarEjercicio(existente);
+                        opcion.onkeydown = evento => {
+                            const opciones = [...resultadosEjercicio.querySelectorAll<HTMLButtonElement>("button")];
+                            const indice = opciones.indexOf(opcion);
+                            if (evento.key === "ArrowDown") {
+                                evento.preventDefault();
+                                opciones[indice + 1]?.focus();
+                            } else if (evento.key === "ArrowUp") {
+                                evento.preventDefault();
+                                if (indice > 0) opciones[indice - 1]?.focus();
+                                else inEj.focus();
+                            } else if (evento.key === "Escape") {
+                                cerrarResultados();
+                                inEj.focus();
+                            }
+                        };
+                        resultadosEjercicio.appendChild(opcion);
+                    }
+                }
+                resultadosEjercicio.hidden = false;
+                inEj.setAttribute("aria-expanded", "true");
+            };
+            inEj.oninput = () => {
+                ej.nombre = inEj.value;
+                pintarResultados();
+                limpiarError();
+            };
+            inEj.onfocus = pintarResultados;
+            inEj.onblur = () => {
+                window.setTimeout(() => {
+                    if (!celdaNombre.contains(document.activeElement)) cerrarResultados();
+                }, 0);
+            };
+            inEj.onkeydown = evento => {
+                if (evento.key === "ArrowDown" && !resultadosEjercicio.hidden) {
+                    evento.preventDefault();
+                    resultadosEjercicio.querySelector("button")?.focus();
+                } else if (evento.key === "Escape") {
+                    cerrarResultados();
+                }
+            };
+            const abrirSelectorGrupos = (iniciales: string[]): void => {
+                const seleccionados = new Set(iniciales.map(grupo => grupo.toLocaleLowerCase("es")));
+                const selector = modal("Grupos del ejercicio", ej.nombre);
+                ponerX(selector);
+                selector.caja.appendChild(el("div", "gym-ayuda", "Selecciona los grupos que pertenecen a este ejercicio."));
+                const lista = el("div", "gym-form-grupos-lista");
+                const pintarOpciones = () => {
+                    lista.empty();
+                    const disponibles = normalizarGrupos([...gruposDisponibles, ...(ej.grupos ?? [])])
+                        .sort((a, b) => a.localeCompare(b, "es"));
+                    if (!disponibles.length) {
+                        lista.appendChild(el("div", "gym-ayuda", "Todavía no hay grupos. Puedes crear uno nuevo."));
+                    }
+                    for (const grupo of disponibles) {
+                        const opcion = el("label", "gym-form-grupo-opcion");
+                        const check = el("input");
+                        check.type = "checkbox";
+                        check.checked = seleccionados.has(grupo.toLocaleLowerCase("es"));
+                        check.onchange = () => {
+                            const clave = grupo.toLocaleLowerCase("es");
+                            if (check.checked) seleccionados.add(clave);
+                            else seleccionados.delete(clave);
+                        };
+                        opcion.append(check, el("span", null, grupo));
+                        lista.appendChild(opcion);
+                    }
+                };
+                pintarOpciones();
+                selector.caja.appendChild(lista);
+
+                const acciones = el("div", "gym-botones");
+                const btnCrearGrupo = btn("＋ Crear grupo", null, async () => {
+                    const disponibles = normalizarGrupos([...gruposDisponibles, ...(ej.grupos ?? [])]);
+                    const escrito = await pedirTexto("Crear grupo", "", disponibles, true);
                     if (escrito === null) return;
                     const limpio = limpiarNombre(escrito);
                     if (!limpio) {
@@ -564,16 +678,23 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
                     const existente = disponibles.find(g => g.toLocaleLowerCase("es") === limpio.toLocaleLowerCase("es"));
                     const grupo = existente ?? limpio;
                     gruposDisponibles = normalizarGrupos([...gruposDisponibles, grupo]);
-                    ej.grupos = normalizarGrupos([...(ej.grupos ?? []), grupo]);
+                    seleccionados.add(grupo.toLocaleLowerCase("es"));
+                    pintarOpciones();
+                });
+                const btnCancelar = btn("Cancelar", null, () => selector.cerrar());
+                const btnGuardarGrupos = btn("Guardar selección", "primario", () => {
+                    const disponibles = normalizarGrupos([...gruposDisponibles, ...(ej.grupos ?? [])]);
+                    ej.grupos = disponibles.filter(grupo => seleccionados.has(grupo.toLocaleLowerCase("es")));
+                    selector.cerrar();
                     pintarGrupos();
                     pintarTipoDia();
                     limpiarError();
-                };
-                cajaGrupos.appendChild(btnNuevoGrupo);
-                if (!disponibles.length) cajaGrupos.appendChild(el("div", "gym-ayuda", "Selecciona un grupo o crea uno."));
+                });
+                acciones.append(btnCrearGrupo, btnCancelar, btnGuardarGrupos);
+                selector.caja.appendChild(acciones);
             };
             pintarGrupos();
-            celda("Grupos", cajaGrupos);
+            celda("Grupos", cajaGrupos).c.classList.add("gym-ej-grupos");
 
             const selTipo = el("select", "gym-mini");
             for (const [v, t] of [["peso", "Peso"], ["tiempo", "Tiempo"], ["intervalo", "Intervalo"]] as const) {
@@ -581,7 +702,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             }
             selTipo.value = tipoEjercicioDe(ej);
             selTipo.title = "Tipo de ejercicio: peso, tiempo con hold o repeticiones, e intervalos de trabajo y descanso.";
-            celda("Tipo", selTipo);
+            celda("Tipo", selTipo).c.classList.add("gym-ej-tipo");
 
             const num = (valor: string | number | null | undefined, min: number, paso: number, titulo: string) => {
                 const n = el("input", "gym-mini");
@@ -592,7 +713,9 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             };
             const inSeries = num(ej.series, 1, 1, "Series objetivo");
             inSeries.oninput = () => { ej.series = Math.max(1, Number(inSeries.value) || 1); };
-            const etqSeries = celda("Series", inSeries).l;
+            const celdaSeries = celda("Series", inSeries);
+            celdaSeries.c.classList.add("gym-ej-series");
+            const etqSeries = celdaSeries.l;
 
             const inReps = num(ej.repsObjetivo, 1, 1, "Repeticiones objetivo");
             inReps.oninput = () => { ej.repsObjetivo = Math.max(1, Number(inReps.value) || 1); };
@@ -605,7 +728,8 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             selSerie.title = "Tipo de serie de este ejercicio: cómo se leen sus reps (en «fallo» son al fallo, sin número objetivo).";
             const cReps = el("div", "gym-reps");
             cReps.append(selSerie, inReps);
-            const etqReps = celda("Tipo · Reps", cReps).l;
+            const celdaReps = celda("Tipo · Reps", cReps);
+            celdaReps.c.classList.add("gym-ej-reps");
 
             const inDur = num(ej.duracionObjetivo, 1, 1, "Duración del hold (segundos)");
             inDur.oninput = () => { ej.duracionObjetivo = aNumero(inDur.value); };
@@ -615,10 +739,13 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             inTrans.oninput = () => { ej.transicionSeg = aNumero(inTrans.value); };
             const cTiempo = el("div", "gym-par");
             cTiempo.append(inDur, inTrabajo, inTrans);
-            const etqTiempo = celda("Duración (s)", cTiempo).l;
+            const celdaTiempo = celda("Duración (s)", cTiempo);
+            celdaTiempo.c.classList.add("gym-ej-duracion");
+            const etqTiempo = celdaTiempo.l;
 
             const inPeso = num(pesoACampo(ej.pesoObjetivo), 0, 0.5, `Peso objetivo (${pesoActual()}, opcional)`);
-            const etqPeso = celda(`Peso (${pesoActual()})`, inPeso).l;
+            const celdaPeso = celda(`Peso (${pesoActual()})`, inPeso);
+            celdaPeso.c.classList.add("gym-ej-peso");
 
             inPeso.oninput = () => { ej.pesoObjetivo = pesoAKg(inPeso.value); };
 
@@ -627,7 +754,8 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             chkTiempoPeso.type = "checkbox";
             chkTiempoPeso.checked = ej.repsPesoDuranteTiempo === true;
             modoTiempoPeso.append(chkTiempoPeso, "Registrar repeticiones y peso durante el tiempo");
-            const etqModoTiempoPeso = celda("Registro cronometrado", modoTiempoPeso).l;
+            const celdaModoTiempoPeso = celda("Registro cronometrado", modoTiempoPeso);
+            celdaModoTiempoPeso.c.classList.add("gym-ej-registro-tiempo");
             chkTiempoPeso.onchange = () => {
                 ej.repsPesoDuranteTiempo = chkTiempoPeso.checked;
                 if (chkTiempoPeso.checked) ej.repsObjetivo = null;
@@ -636,38 +764,45 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
 
             const inDesc = num(ej.descansoSeg, 0, 15, "Descanso entre series (segundos)");
             inDesc.oninput = () => { ej.descansoSeg = aNumero(inDesc.value); };
-            const etqDesc = celda("Descanso (s)", inDesc).l;
+            const celdaDescanso = celda("Descanso (s)", inDesc);
+            celdaDescanso.c.classList.add("gym-ej-descanso");
 
             const inNotas = el("input", "gym-mini"); inNotas.type = "text";
             inNotas.placeholder = "Notas (opcional)"; inNotas.value = ej.notas ?? "";
             inNotas.oninput = () => { ej.notas = inNotas.value; };
-            celda("Notas", inNotas);
+            celda("Notas", inNotas).c.classList.add("gym-ej-notas");
 
             const pintaCampos = () => {
                 const t = tipoEjercicioDe(ej);
                 if (t === "intervalo" && ej.transicionSeg == null && ej.descansoSeg != null) {
                     ej.transicionSeg = ej.descansoSeg;
                 }
+                fila.classList.toggle("gym-ej-peso", t === "peso");
+                fila.classList.toggle("gym-ej-tiempo", t === "tiempo");
+                fila.classList.toggle("gym-ej-tiempo-con-peso",
+                    t === "tiempo" && ej.repsPesoDuranteTiempo === true);
+                fila.classList.toggle("gym-ej-intervalo", t === "intervalo");
 
                 etqSeries.textContent = t === "intervalo" ? "Ciclos" : "Series";
                 inSeries.title = t === "intervalo" ? "Ciclos objetivo (cada ciclo es una serie)" : "Series objetivo";
 
-                etqReps.style.display = selSerie.style.display = t === "tiempo" ? "none" : "";
+                celdaReps.c.style.display = t === "peso" ? "" : "none";
                 inReps.style.display = t !== "peso" || tipoSerieDe(ej) === "fallo" ? "none" : "";
                 inReps.placeholder = "Reps";
                 inReps.title = tipoSerieDe(ej) === "fallo"
                     ? "Al fallo no hay reps objetivo: se anota lo hecho en cada serie"
                     : "Repeticiones objetivo";
 
-                etqPeso.style.display = inPeso.style.display =
+                celdaTiempo.c.style.display = t === "peso" ? "none" : "";
+                celdaPeso.c.style.display =
                     t === "peso" || (t === "tiempo" && ej.repsPesoDuranteTiempo === true) ? "" : "none";
-                etqModoTiempoPeso.style.display = t === "tiempo" ? "" : "none";
+                celdaModoTiempoPeso.c.style.display = t === "tiempo" ? "" : "none";
                 chkTiempoPeso.checked = ej.repsPesoDuranteTiempo === true;
 
                 inDesc.title = t === "intervalo"
                     ? "Descanso entre series (segundos)"
                     : "Descanso entre series (segundos)";
-                etqDesc.style.display = t === "intervalo" ? "none" : "";
+                celdaDescanso.c.style.display = t === "intervalo" ? "none" : "";
 
                 etqTiempo.textContent = t === "intervalo" ? "Trabajo · descanso entre intervalos (s)" : "Duración (s)";
                 etqTiempo.style.display = t === "peso" ? "none" : "";
@@ -688,6 +823,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             pintaCampos();
 
             const cBorrar = el("div");
+            cBorrar.classList.add("gym-ej-borrar");
             const bBorrar = el("button", "gym-borrar", "🗑");
             bBorrar.type = "button";
             bBorrar.title = "Borrar ejercicio";

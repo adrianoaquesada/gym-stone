@@ -44,7 +44,7 @@ export class GymStoneTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName("Carpeta raíz")
             .setDesc("Carpeta donde se guardan los datos del plugin. Cambiarla no mueve los archivos existentes.")
-            .addText(t => t.setPlaceholder("gym-stone")
+            .addText(t => t.setPlaceholder("Gym-stone")
                 .setValue(conf().carpetaRaiz)
                 .onChange(async v => this.guardar("carpetaRaiz", v)));
 

@@ -73,10 +73,23 @@ export interface SerieSesion {
 
 }
 
+export interface ObjetivoPlanSesion {
+    series: number;
+    repsObjetivo: number | null;
+    pesoObjetivo: number | null;
+}
+
+export interface AjustePlanAplicado {
+    series: number;
+    pesoObjetivo: number | null;
+}
+
 export interface EjercicioSesion {
     ejercicioId: string;
     nombre: string;
     series: SerieSesion[];
+    objetivoPlan?: ObjetivoPlanSesion;
+    ajusteAplicado?: AjustePlanAplicado;
     notas?: string;
     descansoSeg?: number;
     tipoEjercicio?: TipoEjercicio | null;

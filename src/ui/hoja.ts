@@ -46,10 +46,11 @@ export const hojaFormulario = async ({ modo, rutinaId = null }: OpcionesHoja): P
     };
 
     const onKey = (e: KeyboardEvent) => {
-        if (e.key === "Escape" && !document.getElementById("gym-confirm-activo")) {
-            e.stopPropagation();
-            cerrar();
-        }
+        if (e.key !== "Escape") return;
+        // Si hay un modal o un diálogo de confirmación encima, los deja cerrarlos a ellos.
+        if (document.querySelector(".gym-modal, #gym-confirm-activo")) return;
+        e.stopPropagation();
+        cerrar();
     };
     document.addEventListener("keydown", onKey, true);
     btnCerrar.onclick = cerrar;

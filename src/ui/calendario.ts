@@ -2,7 +2,7 @@ import { CONFIG, DIAS, DIAS_LARGO } from "../config";
 import {
     diaProgramado, escribirRutina, esLibre, esSaltada, esSinRegistrar, nombreDia,
     programados, segundosEjercicio, segundosSesion, seriesHechas, sesionesEn,
-    tipoEjercicioDe, totalSaltadas, totalSeries,
+    etiquetasDeDia, diaPorId, tipoEjercicioDe, totalSaltadas, totalSeries,
     volumenEjercicio, volumenSesion,
 } from "../datos";
 import { decimal, diaSemana, dos, esFechaValida, fechaLegible, hoy, msgError,
@@ -20,6 +20,24 @@ const cargaTexto = (kg: number, seg: number): string => {
     if (kg > 0) partes.push(pesoTexto(kg));
     if (seg > 0) partes.push(`${Math.round(seg)} s`);
     return partes.length ? partes.join(" · ") : pesoTexto(0);
+};
+
+const tipoDiaEnDetalle = (dia: DiaRutina): HTMLDivElement | null => {
+    const etiquetas = etiquetasDeDia(dia);
+    if (!etiquetas.todas.length) return null;
+    const fila = el("div", "gym-cal-tipo-dia");
+    fila.appendChild(el("span", "gym-cal-tipo-dia-titulo", "Tipo de día"));
+    for (const etiqueta of etiquetas.todas) {
+        const clave = etiqueta.toLocaleLowerCase("es");
+        const esGrupo = etiquetas.gruposDerivados.some(g => g.toLocaleLowerCase("es") === clave);
+        const esPersonalizada = etiquetas.personalizadas.some(g => g.toLocaleLowerCase("es") === clave);
+        const chip = el("span", "gym-chip gym-chip-mini" + (esGrupo ? " gym-grupo" : ""), etiqueta);
+        chip.title = esGrupo && esPersonalizada
+            ? "Grupo de los ejercicios y etiqueta personalizada"
+            : esGrupo ? "Grupo de los ejercicios de este día" : "Etiqueta personalizada";
+        fila.appendChild(chip);
+    }
+    return fila;
 };
 
 export function seccionCalendario(c: HTMLElement, rutina: Rutina, pintar: Pintar): void {
@@ -545,6 +563,10 @@ export function detalleDia(rutina: Rutina, fecha: string, pintar: Pintar): void 
                 ? "Rutina libre · con registros"
                 : "Rutina libre · sin registros ese día")
             : `Programado: ${prog ? prog.nombre : "descanso (día no programado)"}`));
+        if (prog) {
+            const tipoDia = tipoDiaEnDetalle(prog);
+            if (tipoDia) cajaD.appendChild(tipoDia);
+        }
 
         if (sesiones.length) bloqueResumenDia(cajaD, sesiones);
 
@@ -561,6 +583,11 @@ export function detalleDia(rutina: Rutina, fecha: string, pintar: Pintar): void 
                 el("span", "gym-chip", `${Number(s.duracionMin) || 0} min`),
                 el("span", "gym-chip", cargaTexto(volumenSesion(s), segundosSesion(s))),
                 el("span", "gym-chip", `${totalSeries(s)} series`));
+            const diaSesion = diaPorId(rutina, s.diaId);
+            if (diaSesion && diaSesion.id !== prog?.id) {
+                const tipoDia = tipoDiaEnDetalle(diaSesion);
+                if (tipoDia) tit.appendChild(tipoDia);
+            }
             if (nSaltadas) {
                 const chipSal = el("span", "gym-chip",
                     `⏭ ${nSaltadas} saltada${nSaltadas > 1 ? "s" : ""}`);

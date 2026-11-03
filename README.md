@@ -1,192 +1,73 @@
-# 🏋️ Gym Stone
+# Gym Stone
 
-Plugin de Obsidian con el **sistema de rutinas de gimnasio**: creas una rutina, registras sesiones,
-medidas y anotaciones, y ves el progreso en un calendario mensual y unas estadísticas (mismo look
-que el panel de trading).
+Gym Stone es un complemento de Obsidian para planificar rutinas de gimnasio, registrar
+entrenamientos y consultar tu progreso. Funciona en escritorio y móvil; los datos se guardan
+en tu vault.
 
-## Instalación (Installation)
+## Funciones
 
-Funciona en **escritorio y móvil**. Dos formas de instalarlo:
+- Crea rutinas semanales desde cero o a partir de plantillas.
+- Registra sesiones guiadas o manuales, con ejercicios de peso, tiempo e intervalos.
+- Organiza ejercicios por grupos musculares y conserva su historial aunque cambies sus nombres.
+- Registra peso y talla, y consulta su evolución, el IMC, calendarios y estadísticas.
+- Usa temporizadores y cronómetro durante el entrenamiento.
 
-**Opción A · Desde la lista de plugins de la comunidad** (cuando esté publicado):
+## Instalación
 
-1. Abre **Ajustes → Comunidad de plugins → Explorar**.
-2. Busca «Gym Stone» o pulsa este enlace:
-   [obsidian://show-plugin?id=gym-stone](obsidian://show-plugin?id=gym-stone).
-3. Pulsa **Instalar** y después **Habilitar**.
+### Desde el directorio de complementos
 
-**Opción B · Instalación manual** (o mientras tanto, desde la última release de GitHub):
+Si Gym Stone está publicado en el directorio de la comunidad:
 
-1. Descarga de la [última release](https://github.com/adrianoaquesada/gym-stone/releases/latest)
-   los tres archivos: `main.js`, `manifest.json` y `styles.css`.
-2. Colócalos dentro de tu vault, en
+1. En Obsidian, ve a **Ajustes → Comunidad de plugins → Explorar**.
+2. Busca **Gym Stone**, instálalo y actívalo.
 
-   ```
-   <tu-vault>/.obsidian/plugins/gym-stone/
-   ```
+### Instalación manual
 
-3. Abre **Ajustes → Comunidad de plugins → plugins sin verificar** y activa **Gym Stone**.
+1. Descarga `main.js`, `manifest.json` y `styles.css` desde la
+   [última versión](https://github.com/adrianoaquesada/gym-stone/releases/latest).
+2. Copia los archivos en `<tu-vault>/.obsidian/plugins/gym-stone/`.
+3. En Obsidian, activa Gym Stone en **Ajustes → Comunidad de plugins → Plugins sin verificar**.
 
-## Uso (Usage)
+## Uso
 
-**En corto (basic usage)**: abre el plugin con la **campana de mancuerna** (barra lateral
-izquierda) o con el comando «Abrir la lista de rutinas» → **＋ Nueva rutina** para crear la
-primera → **🎯** en su fila para empezar la **sesión guiada** y registrar series con sus
-descansos. El progreso se guarda solo, en notas `.md` de tu vault.
+Abre Gym Stone desde el icono de la barra lateral o ejecuta el comando **Abrir la lista de
+rutinas**. Crea una rutina, añade ejercicios y registra cada sesión desde la rutina o con la
+sesión guiada. Desde Inicio también puedes registrar medidas, explorar el catálogo y consultar
+estadísticas.
 
-**Toda la navegación ocurre en una sola pestaña** (se cambia de
-pantalla dentro de ella, nunca se abren pestañas de más), y Inicio ⇄ la ficha de una rutina
-cambia **en la misma vista, sin remontar la pestaña**: mientras se leen los datos sigue
-visible lo anterior (nunca un destello en blanco) y el scroll solo se reinicia al cambiar de
-pantalla. La navegación no toca archivos: los `.md` son solo consulta y guardado. Hay un
-**carrusel de pestañas** bajo la cabecera naranja: una sola línea que se recorre deslizando,
-**sin barra de desplazamiento visible**:
+En cada ejercicio puedes definir objetivos de peso y repeticiones, duración o ciclos de
+trabajo y descanso. Las sesiones guardan los resultados para consultar el historial y la
+progresión.
 
-- **📋 Inicio**: tres secciones a pantalla completa que se cambian desde el carrusel, y **📋
-  Rutinas es la que sale por defecto**. Ahí están el índice de todas las rutinas (estado,
-  fechas, semana en curso y sesiones hechas) con sus KPIs justo debajo del encabezado, y en
-  cada fila editas (✏️) o borras (🗑) la rutina, o inicias su sesión guiada (🎯) sin entrar a
-  su ficha. Las otras dos secciones son **⚖️ Medidas e IMC** (peso corporal, evolución e IMC,
-  con **＋ Registrar medidas** como acción principal cuando estás en ella) y **🗂 Ejercicios**
-  (el gestor del catálogo a pantalla completa, ya no como popup: renombra con ids estables
-  —**el historial se conserva**—, abre estadísticas globales al tocar una tarjeta, filtra por
-  varios grupos musculares a la vez o por **Sin grupo**, y ofrece **Limpiar filtros** para
-  restablecer la búsqueda y la lista. En las estadísticas se muestra el resumen, la progresión
-  y las sesiones del mismo ejercicio en todas las rutinas guardadas, con métricas según su tipo.
-  Al editar un ejercicio puedes elegir varios grupos existentes, crear uno nuevo o quitar
-  grupos. También permite purgar 🧹, con confirmación, las
-  entradas que ya no usan ni rutinas ni plantillas). El carrusel cierra la acción principal
-  (**＋ Nueva rutina**, **＋ Registrar medidas** en Medidas e IMC y NINGUNA en Ejercicios) y,
-  al final a la derecha, **⏱ Temporizador**.
-- **🏋️ Rutina**: el dashboard de la rutina a todo el ancho, con su carrusel: **← Inicio**,
-  **✏️ Editar**, **🎯 Empezar sesión guiada** (naranja), **＋ Registrar sesión**,
-  **📝 Anotación**, **⚖️ Registrar medidas**, **📈 Estadísticas** y **🗓 Historial**
-  (como secciones de la ficha) y, **al final a la derecha, ⏱
-  Temporizador**. En el **modo sesión guiada** (pensado para el móvil) entrenas un ejercicio a la vez:
-  descansos con **−15 s** / **＋30 s**, **tiempo activo real** (las pausas no cuentan ni en el
-  cronómetro ni en los tiempos de las series) y «entre series» desglosado en descanso y
-  ejecución. En la cabecera de cada ejercicio se cambia el descanso y su **tipo de serie** del
-  plan (calentamiento · trabajo · descenso · fallo; en las rutinas libres es ahí donde se
-  configura, porque no hay plan), y en la serie que toca se anota la suya; las series hechas
-  muestran su etiqueta.
-  Cada tipo de ejercicio se registra a su manera: **peso** con reps y kilos como siempre,
-  **tiempo** con un *hold* (cuenta arriba que corre con el reloj y se detiene a mano con ✔) o,
-  si se activa en el plan, con repeticiones libres y peso durante un tiempo objetivo; e
-  **intervalo** con trabajo y descanso entre ciclos. Cada ciclo es una serie y el último no
-  añade descanso. La intensidad al correr no se mide ni se guarda. En **Historial** y
-  **Estadísticas**, y también en la ficha de rutina, se distingue el plan base de la plantilla
-  de origen y los ajustes actuales; el historial y las estadísticas incluyen además los
-  resultados registrados. Si la plantilla se elimina, la rutina sigue funcionando, pero ya no
-  puede compararse con su plan base.
-  Al pulsar un día del calendario se abre su detalle: KPIs del día, gráficos de
-  volumen, tiempo de trabajo y la **🕒 línea de tiempo** de toda la sesión; los días con
-  anotación muestran su 📝 siempre a la vista.
-- **✏️ Nueva/Editar**: el formulario se abre en una **hoja superpuesta** sobre lo que estés
-  mirando (✕ o Esc la cierran y vuelves exactamente a donde estabas), con estado de la
-  rutina (🟢 Activa · ⏸ Pausada · 🏁 Finalizada), selector **kg | lb** y búsqueda de
-  ejercicios por nombre o grupo con chips. Cada ejercicio puede pertenecer a varios grupos y
-  estos se reflejan como etiquetas derivadas del **tipo de día**, junto a las etiquetas
-  personalizadas que añadas.
-  En cada ejercicio se elige su **tipo**: **peso** (reps y kilos objetivo), **tiempo** (segundos
-  de hold o, opcionalmente, reps y peso durante el tiempo objetivo) o **intervalo** (trabajo y
-  descanso entre ciclos, con ciclos planificados en «Ciclos»). En «peso» e «intervalo» se elige
-  además su **tipo de serie** por defecto: **calentamiento**, **trabajo**, **descenso** (drop
-  set) o **fallo** (las reps se leen al fallo, sin objetivo).
-  Al crear desde una plantilla, esta queda como plan base de solo lectura y la rutina conserva
-  su copia editable; el botón de comparación permite consultar la plantilla junto a los ajustes
-  actuales del formulario sin modificarla.
+El historial compara las series y el peso planificados con lo realizado. Al terminar una
+sesión o iniciar otra, puedes aplicar al objetivo del día actual los valores sugeridos según
+el último registro; la plantilla no se modifica.
 
-La **cabecera naranja** muestra el título («🏋️ Inicio» en la lista; el nombre y las fechas de
-la rutina en su ficha), y el menú **⋮** de arriba a la derecha lleva **«Alternar pesos
-kg ↔ libras»** y **«Abrir como Markdown»** para cualquier pestaña del plugin.
+## Datos
 
-**Abrir los archivos del plugin es abrir el plugin**: si abres
-`gym-stone/rutinas.gym-stone.md` o un archivo de `gym-stone/datos/rutinas/`, esa pestaña pasa
-a la vista del plugin, y el icono 🏋️ de la esquina superior de la nota la vuelve a mostrar
-como markdown crudo. No hay frontmatter ni notas-dashboard: los datos son JSON puro en notas
-`.md` legibles, y el plugin es el dueño de sus archivos.
+Gym Stone guarda los datos como JSON dentro de notas Markdown en la carpeta raíz configurada
+en los ajustes (`gym-stone` por defecto):
 
-**La pantalla no se apaga sola entre series**: mientras corre un temporizador —el ⏱ libre o la
-sesión guiada en marcha (cronómetro y descanso)— el plugin mantiene la pantalla encendida con la
-*Screen Wake Lock API* del sistema (Android e iOS ≥ 18.4; en escritorio no hace falta). Al
-pausar o parar se suelta, y el interruptor **Ajustes → Gym Stone → Mantener la pantalla
-encendida** lo apaga por completo (viene activado).
+| Ruta | Contenido |
+| --- | --- |
+| `gym-stone/rutinas.gym-stone.md` | Índice de rutinas |
+| `gym-stone/datos/rutinas/<id>.gym-stone.md` | Plan, sesiones y anotaciones de cada rutina |
+| `gym-stone/datos/medidas.gym-stone.md` | Medidas corporales |
+| `gym-stone/datos/ejercicios.gym-stone.md` | Catálogo y grupos musculares |
+| `gym-stone/plantillas/<nombre>.md` | Plantillas |
 
-**Los pitidos del plugin son ajustables**: al terminar la cuenta atrás del ⏱ libre y al
-terminar un descanso de la sesión guiada suena un pitido de tres notas sintetizado con la
-Web Audio API (no hay archivos de audio) y el móvil vibra, y en **Ajustes → Gym Stone** se
-gestiona con cuatro controles: **Sonido del temporizador** y **Sonido del descanso** (los
-interruptores de cada aviso), **Volumen del sonido** (deslizador 0–100 %, común a los dos) y
-el botón **🔊 Probar**, que suena con el volumen vigente para calibrarlo (ignora los
-interruptores). Apagados los sonidos siguen los avisos visuales —«⏰ ¡Tiempo!» y «¡Listo!»—
-y la vibración del móvil; «⏭ Saltar descanso» no suena nunca.
+Antes de sobrescribir un archivo de datos, el complemento conserva una copia `.bak`. El peso
+se almacena en kilogramos y la talla en centímetros; las unidades elegidas en los ajustes se
+usan para mostrar e introducir valores.
 
-El temporizador libre también permite cambiar al modo **Cronómetro**: al
-hacerlo, las cuentas atrás siguen en marcha y el cronómetro puede funcionar
-simultáneamente. El cronómetro queda detenido en cero hasta pulsar **Iniciar**.
-En esta vista se muestra solo el tiempo, con los parciales en un área
-desplazable. **Detener** pausa el cronómetro y permite reanudarlo;
-**Parcial** registra el tiempo desde el parcial anterior y el acumulado.
-Al detenerlo, el segundo botón permite restablecerlo para empezar otra sesión.
-Los parciales se conservan por vault en el almacenamiento local propio de
-Obsidian. El progreso del temporizador y del cronómetro también se guarda: al
-cerrar y volver a abrir Obsidian, los tiempos en marcha incluyen el tiempo
-transcurrido durante el cierre y los que estaban pausados siguen en pausa. Si
-una cuenta atrás vence mientras la app está cerrada, se avisa al volver a abrirla;
-no se puede emitir una alarma mientras Obsidian está completamente cerrado.
+## Desarrollo
 
-Las cuentas atrás se pueden ver en modo circular —con gestos laterales y puntos
-para alternar entre temporizadores— o en una lista completa con su hora de
-alarma, duración, tiempo restante y controles. Al iniciar una cuenta atrás se
-ocultan los ajustes; el botón **+** permite volver a abrirlos para añadir otra.
-Al finalizar una cuenta atrás se elimina solo esa cuenta y el panel permanece
-abierto. Para iniciar una duración rápida, el primer toque la enfoca y el
-segundo toque la inicia.
-El panel conserva un tamaño estable adaptado al alto de la pantalla; la lista
-tiene desplazamiento propio y el temporizador circular cambia con una
-transición lateral.
-
-Para el audio se reutiliza un `AudioContext` y se prepara al iniciar una cuenta
-atrás desde el botón **Iniciar**, incluso si el sonido está desactivado en ese
-momento, para que pueda activarse durante la cuenta atrás; si el sistema lo
-suspende, se intenta reanudar antes de reproducir. Gym Stone usa Web Audio y no
-solicita directamente un indicador de reproducción de KDE ni una sesión
-multimedia. No se pudo confirmar visualmente en Plasma si su icono de audio
-aparece durante los pitidos: ese indicador depende de cómo el entorno de
-escritorio detecte el flujo de audio.
-
-## Dónde viven los datos
-
-Toda la vida del plugin cabe en **UNA carpeta raíz** (`gym-stone` por defecto, ajustable y
-siempre en minúsculas):
-
-| Archivo | Función |
-|---|---|
-| `gym-stone/rutinas.gym-stone.md` | **Índice**: una fila por rutina (fecha, id, nombre, estado) |
-| `gym-stone/datos/rutinas/<id>.gym-stone.md` | Cada rutina con TODO: plan + sesiones + anotaciones |
-| `gym-stone/datos/medidas.gym-stone.md` | Peso y talla (global) |
-| `gym-stone/datos/ejercicios.gym-stone.md` | Grupos asociados a cada ejercicio (global) |
-| `gym-stone/plantillas/<nombre>.md` | Plantillas reutilizables y de solo lectura en la aplicación |
-
-Los datos llevan el **sufijo `.gym-stone.md`** (siguen siendo `.md` normales): el plugin los
-identifica **por nombre**, no recorriendo el vault, y un `.md` normal que dejes ahí se sigue
-abriendo como nota.
-
-El índice se regenera solo cada vez que se guarda una rutina, así que aunque lo edites a mano
-(o lo borres) se repone con lo último en disco. La carpeta raíz es un **ajuste del plugin**
-(Ajustes → Gym Stone → Carpeta raíz). El peso se guarda siempre en kg y la talla en cm: la
-unidad que muestras (kg | lb, cm | in) es solo de pantalla y se teclea en esa unidad. La de
-peso se cambia desde **Ajustes → Gym Stone → Unidad de peso**, desde el selector **kg | lb**
-del propio panel o con **«Alternar pesos kg ↔ libras»** del menú ⋮ (es lo mismo en los tres
-sitios y se recuerda por vault); la de talla, desde **Unidad de talla** en Ajustes. Antes de
-sobrescribir un archivo de datos se guarda su copia previa en `<archivo>.bak`; si un JSON está
-roto, el motor avisa y **no** sobrescribe.
-
-Las rutinas, plantillas y grupos usan versiones de datos. Los archivos con formatos anteriores
-se ignoran y no se modifican; Gym Stone no migra los datos actuales. Una rutina creada desde una
-plantilla guarda su plan editable y el ID estable de origen en sus propios datos: no se crea un
-tercer archivo de instantánea.
+```bash
+npm install
+npm run lint
+npm run build
+```
 
 ## Licencia
 
-MIT — ver [LICENSE](LICENSE).
+MIT. Consulta [LICENSE](LICENSE).

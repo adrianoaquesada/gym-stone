@@ -1,6 +1,6 @@
 import {
     compararPlanes, diaPorId, ejerciciosConDatos, esSaltada, leerPlantillaOrigen,
-    nombreDia, normalizarGrupos, segundosEjercicio, textoRepsObjetivo,
+    nombreDia, normalizarGrupos, segundosEjercicio, serieConDatos, textoRepsObjetivo,
     tipoEjercicioDe, tipoSerieDe, volumenEjercicio,
 } from "../datos";
 import { esFechaValida, fechaLegible, hoy, msgError } from "../util";
@@ -18,6 +18,7 @@ interface FilaHistorial {
     dia: string;
     ejercicio: string;
     series: string;
+    diferencia: string;
     volumen: string;
     notas: string;
 }
@@ -169,6 +170,24 @@ export function seccionHistorial(c: HTMLElement, rutina: Rutina): void {
 
                 const tipo = tipoEjercicioDe(e);
                 const seg = segundosEjercicio(e);
+                const objetivo = e.objetivoPlan;
+                const hechas = (e.series ?? []).filter(x => !esSaltada(x) && serieConDatos(x));
+                const pesos = hechas.map(x => x.peso).filter((p): p is number =>
+                    typeof p === "number" && Number.isFinite(p));
+                const rangoPeso = pesos.length
+                    ? Math.min(...pesos) === Math.max(...pesos)
+                        ? pesoTexto(pesos[0])
+                        : `${pesoTexto(Math.min(...pesos))}–${pesoTexto(Math.max(...pesos))}`
+                    : "sin peso registrado";
+                const diferenciaSeries = objetivo
+                    ? hechas.length - objetivo.series
+                    : null;
+                const minPeso = pesos.length ? Math.min(...pesos) : null;
+                const maxPeso = pesos.length ? Math.max(...pesos) : null;
+                const diferenciaPeso = objetivo?.pesoObjetivo != null && minPeso != null && maxPeso != null
+                    && (minPeso !== objetivo.pesoObjetivo || maxPeso !== objetivo.pesoObjetivo)
+                    ? `${pesoTexto(minPeso - objetivo.pesoObjetivo)}–${pesoTexto(maxPeso - objetivo.pesoObjetivo)}`
+                    : "";
                 filas.push({
                     fecha: s.fecha,
                     dia: nombreDia(rutina, s.diaId),
@@ -181,6 +200,14 @@ export function seccionHistorial(c: HTMLElement, rutina: Rutina): void {
                             : tipo === "tiempo" && e.repsPesoDuranteTiempo
                                 ? `${x.reps ?? "–"}×${pesoTexto(x.peso)} · ${x.duracionSeg ?? "–"} s`
                             : `${x.duracionSeg ?? "–"} s`).join(" · ") || "–",
+                    diferencia: objetivo
+                        ? `${objetivo.series} planificadas → ${hechas.length} hechas` +
+                            (diferenciaSeries === 0 ? "" : ` (${diferenciaSeries! > 0 ? "+" : "−"}${Math.abs(diferenciaSeries!)} series)`) +
+                            (tipo === "peso"
+                                ? ` · ${pesoTexto(objetivo.pesoObjetivo)} → ${rangoPeso}` +
+                                    (diferenciaPeso ? ` (${diferenciaPeso})` : "")
+                                : "")
+                        : "Sin objetivo guardado",
                     volumen: tipo === "peso" ? pesoTexto(volumenEjercicio(e)) : seg > 0 ? `${seg} s` : "–",
                     notas: e.notas ?? "",
                 });
@@ -194,9 +221,9 @@ export function seccionHistorial(c: HTMLElement, rutina: Rutina): void {
         }
 
         const total = filas.length;
-        tablaEn(contTabla, ["Fecha", "Día", "Ejercicio", "Series", "Volumen / tiempo", "Notas"],
+        tablaEn(contTabla, ["Fecha", "Día", "Ejercicio", "Series", "Plan vs. realizado", "Volumen / tiempo", "Notas"],
             filas.slice(0, 200).map(f => [
-                fechaLegible(f.fecha), f.dia, el("b", null, f.ejercicio), f.series, f.volumen, f.notas,
+                fechaLegible(f.fecha), f.dia, el("b", null, f.ejercicio), f.series, f.diferencia, f.volumen, f.notas,
             ]), { filasVisibles: 10 });
         if (total > 200) contTabla.appendChild(el("div", "opacity:.7;font-size:.8em;margin-top:6px;",
             `Se muestran las 200 más recientes de ${total}: afina los filtros para ver el resto.`));
