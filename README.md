@@ -35,6 +35,16 @@ rutinas**. Crea una rutina, añade ejercicios y registra cada sesión desde la r
 sesión guiada. Desde Inicio también puedes registrar medidas, explorar el catálogo y consultar
 estadísticas.
 
+## Capturas
+
+Sesión guiada:
+
+![Pantalla de sesión guiada con registro de series y temporizador de descanso](screenshots/sesion-guiada.webp)
+
+Rutina semanal y calendario:
+
+![Vista de una rutina semanal y su calendario de sesiones](screenshots/rutina-calendario.webp)
+
 En cada ejercicio puedes definir objetivos de peso y repeticiones, duración o ciclos de
 trabajo y descanso. Las sesiones guardan los resultados para consultar el historial y la
 progresión.

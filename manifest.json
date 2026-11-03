@@ -1,7 +1,7 @@
 {
   "id": "gym-stone",
   "name": "Gym Stone",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "minAppVersion": "1.8.7",
   "description": "Planifica rutinas de gimnasio, registra sesiones y medidas, y consulta tu progreso con calendario y estadisticas.",
   "author": "adrianoaquesada",
