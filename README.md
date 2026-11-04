@@ -45,6 +45,10 @@ Rutina semanal y calendario:
 
 ![Vista de una rutina semanal y su calendario de sesiones](screenshots/rutina-calendario.webp)
 
+Historial de sesión y estadísticas:
+
+![Historial de una sesión con estadísticas, gráficos y series registradas](screenshots/historial-sesion.webp)
+
 En cada ejercicio puedes definir objetivos de peso y repeticiones, duración o ciclos de
 trabajo y descanso. Las sesiones guardan los resultados para consultar el historial y la
 progresión.
