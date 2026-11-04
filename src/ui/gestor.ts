@@ -1,7 +1,7 @@
 import { CONFIG, DIAS_LARGO } from "../config";
 import { rutaMedidas } from "../ajustes";
 import {
-    catalogoEjercicios, escribirRutina, esLibre, leerPlantillaOrigen,
+    catalogoEjercicios, escribirRutina, esLibre,
     leerMedidas, leerRutina, medidasVacias, resumenLibre, rutaDatosDe, semanaActual,
     semanasTotales, tipoEjercicioDe, transcurrida,
 } from "../datos";
@@ -12,14 +12,11 @@ import { textoObjetivoDe } from "./registro";
 import { pintarCabecera, pintarNavegacion } from "./cabecera";
 import { abrirFormulario, abrirLista } from "./vistas";
 import { abrirTemporizador } from "./temporizador";
-import { pintarResumenProgresion } from "./progresion";
 import { elegirDiaGuiada } from "./sesion-guiada";
 import { fijarPintar, type Pintar } from "./pintar";
 import { seccionCalendario } from "./calendario";
 import { abrirRegistro, formularioAnotacion, formularioMedidas } from "./registro";
 import { seccionEstadisticas } from "./estadisticas";
-import { seccionHistorial } from "./historial";
-import { crearComparacionPlan } from "./comparacion-plan";
 
 export interface OpcionesDashboard {
 
@@ -27,9 +24,9 @@ export interface OpcionesDashboard {
 
     alRepintar?: Pintar;
 
-    seccion?: "rutina" | "progresion" | "estadisticas" | "historial";
+    seccion?: "rutina" | "estadisticas";
 
-    alCambiarSeccion?: (seccion: "rutina" | "progresion" | "estadisticas" | "historial") => void;
+    alCambiarSeccion?: (seccion: "rutina" | "estadisticas") => void;
 }
 
 export const pintarDashboard = async (
@@ -63,7 +60,7 @@ export const pintarDashboard = async (
     });
 
     const pintar: Pintar = () => (ops.alRepintar ? ops.alRepintar() : pintarDashboard(cont, rutinaId));
-    const cambiarSeccion = (seccion: "rutina" | "progresion" | "estadisticas" | "historial"): void => {
+    const cambiarSeccion = (seccion: "rutina" | "estadisticas"): void => {
         if (ops.alCambiarSeccion) {
             ops.alCambiarSeccion(seccion);
             return;
@@ -88,31 +85,13 @@ export const pintarDashboard = async (
             activo: ops.seccion === "estadisticas",
             alPulsar: () => cambiarSeccion("estadisticas"),
         },
-        {
-            texto: "📈 Progresión",
-            activo: ops.seccion === "progresion",
-            alPulsar: () => cambiarSeccion("progresion"),
-        },
-        {
-            texto: "🗓 Historial",
-            activo: ops.seccion === "historial",
-            alPulsar: () => cambiarSeccion("historial"),
-        },
         { texto: "⏱ Temporizador", alPulsar: () => void abrirTemporizador(), derecha: true },
     ]);
 
-    if (ops.seccion === "progresion") {
-        const contenido = el("div", "gym-rutina-contenido");
-        cont2.appendChild(contenido);
-        await pintarResumenProgresion(contenido, { rutinaId: rutina.id });
-    } else if (ops.seccion === "estadisticas") {
+    if (ops.seccion === "estadisticas") {
         const contenido = el("div", "gym-rutina-contenido");
         cont2.appendChild(contenido);
         seccionEstadisticas(contenido, rutina, medidas);
-    } else if (ops.seccion === "historial") {
-        const contenido = el("div", "gym-rutina-contenido");
-        cont2.appendChild(contenido);
-        seccionHistorial(contenido, rutina);
     } else {
         seccionDetalles(cont2, rutina, pintar);
         seccionCalendario(cont2, rutina, pintar);
@@ -195,32 +174,6 @@ const seccionDetalles = (c: HTMLElement, rutina: Rutina, pintar: Pintar): void =
             est.appendChild(box);
         }
         c.appendChild(est);
-
-        const comparacion = el("div", "gym-caja");
-        comparacion.appendChild(el("div", "gym-tit-naranja", "Plan base y ajustes actuales"));
-        comparacion.appendChild(el("div", "opacity:.7;font-size:.86em;", "Cargando comparación con la plantilla de origen…"));
-        c.appendChild(comparacion);
-        void leerPlantillaOrigen(rutina).then(resultado => {
-            comparacion.empty();
-            comparacion.appendChild(el("div", "gym-tit-naranja", "Plan base y ajustes actuales"));
-            if (resultado.estado === "disponible") {
-                comparacion.appendChild(crearComparacionPlan(resultado.plantilla, rutina));
-            } else if (resultado.estado === "sin-origen") {
-                comparacion.appendChild(el("div", "gym-caja-vacio", "Esta rutina no tiene una plantilla de origen para comparar."));
-            } else if (resultado.estado === "eliminada") {
-                comparacion.appendChild(el("div", "gym-caja-vacio", "La plantilla de origen ya no existe; la rutina y su plan activo siguen disponibles, pero no se puede comparar el plan base."));
-            } else if ("error" in resultado) {
-                comparacion.appendChild(el("div", "gym-caja-vacio",
-                    `No se pudo leer la plantilla de origen: ${resultado.error}`));
-            }
-        }).catch((e: unknown) => {
-            console.error("[Gym Stone comparación de la rutina]", e);
-            comparacion.empty();
-            comparacion.append(
-                el("div", "gym-tit-naranja", "Plan base y ajustes actuales"),
-                el("div", "gym-caja-vacio", `No se pudo cargar la comparación: ${msgError(e)}`),
-            );
-        });
     }
 
     if (transcurrida(rutina)) {

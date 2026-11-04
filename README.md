@@ -35,6 +35,9 @@ rutinas**. Crea una rutina, añade ejercicios y registra cada sesión desde la r
 sesión guiada. Desde Inicio también puedes registrar medidas, explorar el catálogo y consultar
 estadísticas.
 
+En cada rutina, la sección **Estadísticas** reúne el resumen, la evolución por ejercicio y el
+historial filtrable con la comparación entre el plan y lo realizado.
+
 ## Capturas
 
 Sesión guiada:
@@ -61,6 +64,11 @@ el último registro; la plantilla no se modifica.
 
 Gym Stone guarda los datos como JSON dentro de notas Markdown en la carpeta raíz configurada
 en los ajustes (`gym-stone` por defecto):
+
+En una instalación nueva, la carpeta `gym-stone` se crea en la raíz del vault. En los ajustes
+puedes buscar una carpeta existente escribiendo su ruta o introducir una ruta relativa nueva.
+Cambiar esta opción no mueve los datos: si mueves la carpeta desde Obsidian, selecciona después
+su nueva ubicación.
 
 | Ruta | Contenido |
 | --- | --- |

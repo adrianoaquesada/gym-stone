@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { AbstractInputSuggest, App, PluginSettingTab, Setting, TFolder } from "obsidian";
 import type { SettingDefinitionItem } from "obsidian";
 import type GymStone from "../main";
 import { normalizarAjustes, type AjustesGym } from "../ajustes";
@@ -31,6 +31,47 @@ export function abrirAjustesOpcionesRapidas(app: App): boolean {
     return true;
 }
 
+class SugerenciaCarpetas extends AbstractInputSuggest<TFolder> {
+    private readonly carpetas: TFolder[];
+
+    constructor(
+        app: App,
+        inputEl: HTMLInputElement,
+        private readonly seleccionar: (carpeta: TFolder) => void,
+    ) {
+        super(app, inputEl);
+        this.limit = 50;
+        this.carpetas = [];
+
+        const recorrer = (carpeta: TFolder): void => {
+            for (const hijo of carpeta.children) {
+                if (hijo instanceof TFolder) {
+                    this.carpetas.push(hijo);
+                    recorrer(hijo);
+                }
+            }
+        };
+        recorrer(app.vault.getRoot());
+        this.carpetas.sort((a, b) => a.path.localeCompare(b.path, "es"));
+    }
+
+    protected getSuggestions(query: string): TFolder[] {
+        const busqueda = query.trim().toLowerCase();
+        return this.carpetas.filter(carpeta => carpeta.path.toLowerCase().includes(busqueda));
+    }
+
+    renderSuggestion(carpeta: TFolder, elemento: HTMLElement): void {
+        elemento.textContent = carpeta.path;
+    }
+
+    selectSuggestion(carpeta: TFolder, evento: MouseEvent | KeyboardEvent): void {
+        evento.preventDefault();
+        this.setValue(carpeta.path);
+        this.close();
+        this.seleccionar(carpeta);
+    }
+}
+
 export class GymStoneTab extends PluginSettingTab {
     constructor(app: App, private readonly pluginRef: GymStone) {
         super(app, pluginRef);
@@ -41,21 +82,34 @@ export class GymStoneTab extends PluginSettingTab {
         containerEl.empty();
         containerEl.addClass("gym-ajustes");
 
-        new Setting(containerEl)
-            .setName("Carpeta raíz")
-            .setDesc("Carpeta donde se guardan los datos del plugin. Cambiarla no mueve los archivos existentes.")
-            .addText(t => t.setPlaceholder("Gym-stone")
-                .setValue(conf().carpetaRaiz)
-                .onChange(async v => this.guardar("carpetaRaiz", v)));
+        const seccionDatos = containerEl.createDiv("gym-ajustes-seccion");
+        new Setting(seccionDatos)
+            .setName("Datos y unidades")
+            .setHeading();
 
-        new Setting(containerEl)
+        new Setting(seccionDatos)
+            .setName("Carpeta raíz")
+            .setDesc("Carpeta del vault donde se guardan los datos. Escribe para buscar; cambiarla no mueve los archivos existentes.")
+            .addText(t => {
+                t.setPlaceholder("gym-stone")
+                    .setValue(conf().carpetaRaiz)
+                    .onChange(async v => this.guardar("carpetaRaiz", v));
+                new SugerenciaCarpetas(this.app, t.inputEl, carpeta => {
+                    void this.guardar("carpetaRaiz", carpeta.path).catch(err => {
+                        console.error("[Gym Stone] No se pudo guardar la carpeta raíz.", err);
+                        toast("No se pudo guardar la carpeta raíz.", false);
+                    });
+                });
+            });
+
+        new Setting(seccionDatos)
             .setName("Unidad de talla")
             .setDesc("Unidad en la que se muestra la talla. Los datos se guardan en centímetros.")
             .addDropdown(d => d.addOption("cm", "Cm").addOption("in", "In")
                 .setValue(conf().unidadTalla)
                 .onChange(async v => this.guardar("unidadTalla", v as "cm" | "in")));
 
-        new Setting(containerEl)
+        new Setting(seccionDatos)
             .setName("Unidad de peso")
             .setDesc("Unidad para mostrar e introducir el peso. Los datos se guardan en kilogramos.")
             .addDropdown(d => d.addOption("kg", "Kilogramos (kg)")
@@ -63,13 +117,23 @@ export class GymStoneTab extends PluginSettingTab {
                 .setValue(pesoActual())
                 .onChange(u => this.fijarPeso(u)));
 
-        new Setting(containerEl)
+        const seccionTemporizador = containerEl.createDiv("gym-ajustes-seccion");
+        new Setting(seccionTemporizador)
+            .setName("Temporizador")
+            .setHeading();
+
+        new Setting(seccionTemporizador)
             .setName("Mantener la pantalla encendida")
             .setDesc("Evita que la pantalla se apague mientras corre un temporizador. Se libera al pausar o parar.")
             .addToggle(t => t.setValue(conf().mantenerDespierta)
                 .onChange(async v => this.guardar("mantenerDespierta", v)));
 
-        const seccionSonido = containerEl.createDiv("gym-ajustes-sonido");
+        this.mostrarOpcionesRapidas(
+            new Setting(seccionTemporizador),
+            conf().opcionesRapidasTemporizador,
+        );
+
+        const seccionSonido = containerEl.createDiv("gym-ajustes-seccion");
         new Setting(seccionSonido)
             .setName("Sonido")
             .setHeading();
@@ -149,11 +213,6 @@ export class GymStoneTab extends PluginSettingTab {
             .addButton(b => b.setButtonText("🔊 Probar")
                 .setTooltip("Probar el sonido")
                 .onClick(() => probarSonido()));
-
-        this.mostrarOpcionesRapidas(
-            new Setting(containerEl),
-            conf().opcionesRapidasTemporizador,
-        );
     }
 
     private mostrarOpcionesRapidas(setting: Setting, valores: number[]): void {
@@ -281,112 +340,126 @@ export class GymStoneTab extends PluginSettingTab {
     override getSettingDefinitions(): SettingDefinitionItem[] {
         return [
             {
-                name: "Carpeta raíz",
-                desc: "Carpeta donde se guardan los datos del plugin. Cambiarla no mueve los archivos existentes.",
-                control: { key: "carpetaRaiz", type: "text", placeholder: "gym-stone" },
-            },
-            {
-                name: "Unidad de talla",
-                desc: "Unidad en la que se muestra la talla. Los datos se guardan en centímetros.",
-                control: { key: "unidadTalla", type: "dropdown", options: { cm: "Cm", in: "In" } },
-            },
-            {
-                name: "Unidad de peso",
-                desc: "Unidad para mostrar e introducir el peso. Los datos se guardan en kilogramos.",
-                control: {
-                    key: "unidadPeso", type: "dropdown",
-                    options: { kg: "Kilogramos (kg)", lb: "Libras (lb)" },
-                },
-            },
-            {
-                name: "Mantener la pantalla encendida",
-                desc: "Evita que la pantalla se apague mientras corre un temporizador. Se libera al pausar o parar.",
-                control: { key: "mantenerDespierta", type: "toggle" },
-            },
-            {
-                name: "Sonido",
-                searchable: false,
-                render: s => {
-                    s.setHeading();
-                },
-            },
-            {
-                name: "Sonido del temporizador",
-                desc: "Reproduce un pitido al terminar el temporizador libre.",
-                control: { key: "sonidoTemporizador", type: "toggle" },
-            },
-            {
-                name: "Sonido del descanso",
-                desc: "Reproduce un pitido y vibra al terminar un descanso de la sesión guiada.",
-                control: { key: "sonidoDescanso", type: "toggle" },
-            },
-            {
-                name: "Tipo de sonido",
-                desc: "Elige la forma de onda del sintetizador.",
-                control: {
-                    key: "formaOndaSonido", type: "dropdown",
-                    options: {
-                        sine: "Senoidal · suave",
-                        triangle: "Triangular · redonda",
-                        square: "Cuadrada · marcada",
-                        sawtooth: "Diente de sierra · brillante",
+                type: "group",
+                heading: "Datos y unidades",
+                cls: "gym-ajustes-grupo",
+                items: [
+                    {
+                        name: "Carpeta raíz",
+                        desc: "Carpeta donde se guardan los datos del plugin. Cambiarla no mueve los archivos existentes.",
+                        control: { key: "carpetaRaiz", type: "text", placeholder: "gym-stone" },
                     },
-                },
-            },
-            {
-                name: "Patrón del aviso",
-                desc: "Elige la secuencia de notas al terminar.",
-                control: {
-                    key: "patronSonido", type: "dropdown",
-                    options: {
-                        clasico: "Tres notas",
-                        unico: "Pitido único",
-                        ascendente: "Ascendente",
-                        doble: "Doble",
+                    {
+                        name: "Unidad de talla",
+                        desc: "Unidad en la que se muestra la talla. Los datos se guardan en centímetros.",
+                        control: { key: "unidadTalla", type: "dropdown", options: { cm: "Cm", in: "In" } },
                     },
-                },
-            },
-            {
-                name: "Avisos de cuenta atrás",
-                desc: "Pitidos en los últimos segundos del temporizador o descanso.",
-                control: {
-                    key: "avisosCuentaAtras", type: "dropdown",
-                    options: {
-                        "0": "Desactivados",
-                        "3": "Últimos 3 segundos",
-                        "5": "Últimos 5 segundos",
+                    {
+                        name: "Unidad de peso",
+                        desc: "Unidad para mostrar e introducir el peso. Los datos se guardan en kilogramos.",
+                        control: {
+                            key: "unidadPeso", type: "dropdown",
+                            options: { kg: "Kilogramos (kg)", lb: "Libras (lb)" },
+                        },
                     },
-                },
+                ],
             },
             {
-                name: "Volumen del sonido",
-                desc: "Volumen común para los avisos del temporizador y del descanso.",
-                control: {
-                    key: "volumenSonido", type: "slider", min: 0, max: 100, step: 5,
-                    displayFormat: (v: number) => `${v} %`,
-                },
+                type: "group",
+                heading: "Temporizador",
+                cls: "gym-ajustes-grupo",
+                items: [
+                    {
+                        name: "Mantener la pantalla encendida",
+                        desc: "Evita que la pantalla se apague mientras corre un temporizador. Se libera al pausar o parar.",
+                        control: { key: "mantenerDespierta", type: "toggle" },
+                    },
+                    {
+                        name: "Opciones rápidas del temporizador",
+                        desc: "Una duración por casilla. Formato: minutos:segundos (3:00).",
+                        searchable: false,
+                        render: s => this.mostrarOpcionesRapidas(s, conf().opcionesRapidasTemporizador),
+                    },
+                ],
             },
             {
-                name: "Probar el sonido",
-                desc: "Reproduce el aviso con el volumen actual.",
-                searchable: false,
-                render: s => {
-                    s.addButton(b => b.setButtonText("🔊 Probar")
-                        .setTooltip("Probar el sonido")
-                        .onClick(() => probarSonido()));
-                },
-            },
-            {
-                name: "Frecuencias de las notas",
-                desc: "Personaliza las tres notas en hercios (de 100 a 2000).",
-                searchable: false,
-                render: s => this.mostrarFrecuencias(s, conf().frecuenciasSonido),
-            },
-            {
-                name: "Opciones rápidas del temporizador",
-                desc: "Una duración por casilla. Formato: minutos:segundos (3:00).",
-                searchable: false,
-                render: s => this.mostrarOpcionesRapidas(s, conf().opcionesRapidasTemporizador),
+                type: "group",
+                heading: "Sonido",
+                cls: "gym-ajustes-grupo",
+                items: [
+                    {
+                        name: "Sonido del temporizador",
+                        desc: "Reproduce un pitido al terminar el temporizador libre.",
+                        control: { key: "sonidoTemporizador", type: "toggle" },
+                    },
+                    {
+                        name: "Sonido del descanso",
+                        desc: "Reproduce un pitido y vibra al terminar un descanso de la sesión guiada.",
+                        control: { key: "sonidoDescanso", type: "toggle" },
+                    },
+                    {
+                        name: "Tipo de sonido",
+                        desc: "Elige la forma de onda del sintetizador.",
+                        control: {
+                            key: "formaOndaSonido", type: "dropdown",
+                            options: {
+                                sine: "Senoidal · suave",
+                                triangle: "Triangular · redonda",
+                                square: "Cuadrada · marcada",
+                                sawtooth: "Diente de sierra · brillante",
+                            },
+                        },
+                    },
+                    {
+                        name: "Patrón del aviso",
+                        desc: "Elige la secuencia de notas al terminar.",
+                        control: {
+                            key: "patronSonido", type: "dropdown",
+                            options: {
+                                clasico: "Tres notas",
+                                unico: "Pitido único",
+                                ascendente: "Ascendente",
+                                doble: "Doble",
+                            },
+                        },
+                    },
+                    {
+                        name: "Avisos de cuenta atrás",
+                        desc: "Pitidos en los últimos segundos del temporizador o descanso.",
+                        control: {
+                            key: "avisosCuentaAtras", type: "dropdown",
+                            options: {
+                                "0": "Desactivados",
+                                "3": "Últimos 3 segundos",
+                                "5": "Últimos 5 segundos",
+                            },
+                        },
+                    },
+                    {
+                        name: "Volumen del sonido",
+                        desc: "Volumen común para los avisos del temporizador y del descanso.",
+                        control: {
+                            key: "volumenSonido", type: "slider", min: 0, max: 100, step: 5,
+                            displayFormat: (v: number) => `${v} %`,
+                        },
+                    },
+                    {
+                        name: "Probar el sonido",
+                        desc: "Reproduce el aviso con el volumen actual.",
+                        searchable: false,
+                        render: s => {
+                            s.addButton(b => b.setButtonText("🔊 Probar")
+                                .setTooltip("Probar el sonido")
+                                .onClick(() => probarSonido()));
+                        },
+                    },
+                    {
+                        name: "Frecuencias de las notas",
+                        desc: "Personaliza las tres notas en hercios (de 100 a 2000).",
+                        searchable: false,
+                        render: s => this.mostrarFrecuencias(s, conf().frecuenciasSonido),
+                    },
+                ],
             },
         ];
     }

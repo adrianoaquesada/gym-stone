@@ -1,5 +1,6 @@
 import { MarkdownView, Plugin, type EventRef, type Menu, type WorkspaceLeaf } from "obsidian";
 import { normalizarAjustes, rutaIndice, type AjustesGym } from "./ajustes";
+import { asegurarCarpeta } from "./datos/archivos";
 import { reiniciarDespierta } from "./despierta";
 import { iniciarEstado, actualizarAjustes } from "./estado";
 import { limpiarOverlays, toast } from "./ui/componentes";
@@ -26,8 +27,10 @@ export default class GymStone extends Plugin {
     ajustes: AjustesGym = normalizarAjustes(null);
 
     async onload(): Promise<void> {
-        this.ajustes = normalizarAjustes(((await this.loadData()) ?? {}) as Record<string, unknown>);
+        const datosGuardados = await this.loadData() as Record<string, unknown> | null;
+        this.ajustes = normalizarAjustes(datosGuardados ?? {});
         iniciarEstado(this.app, this.ajustes, ajustes => this.guardarAjustes(ajustes));
+        if (typeof datosGuardados?.carpetaRaiz !== "string") await asegurarCarpeta(rutaIndice());
         restaurarEstadoTemporizadores();
 
         this.registerView(VISTA_APP, leaf => new VistaApp(leaf));

@@ -35,7 +35,7 @@ export const AJUSTES_POR_DEFECTO: AjustesGym = {
 
 export const carpetaRaizLimpia = (v: unknown): string => {
     if (typeof v !== "string") return AJUSTES_POR_DEFECTO.carpetaRaiz;
-    const limpio = v.trim().replace(/^\/+|\/+$/g, "").replace(/\/{2,}/g, "/").toLowerCase();
+    const limpio = v.trim().replace(/^\/+|\/+$/g, "").replace(/\/{2,}/g, "/");
     return limpio || AJUSTES_POR_DEFECTO.carpetaRaiz;
 };
 

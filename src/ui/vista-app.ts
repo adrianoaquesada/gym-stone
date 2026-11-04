@@ -23,7 +23,7 @@ export class VistaApp extends ItemView {
     protected pantallaPorDefecto: Pantalla = "lista";
 
     private pantalla: Pantalla = "lista";
-    private seccionRutina: "rutina" | "progresion" | "estadisticas" | "historial" = "rutina";
+    private seccionRutina: "rutina" | "estadisticas" = "rutina";
     private rutinaId: string | null = null;
     private nombre = "";
     private pintadaEn: Pantalla | null = null;
@@ -54,8 +54,8 @@ export class VistaApp extends ItemView {
             ? p : this.pantallaPorDefecto;
         this.rutinaId = state?.rutinaId ?? null;
         const seccion = state?.seccionRutina;
-        this.seccionRutina = seccion === "progresion" || seccion === "estadisticas" || seccion === "historial"
-            ? seccion : "rutina";
+        this.seccionRutina = seccion === "estadisticas" || seccion === "progresion" || seccion === "historial"
+            ? "estadisticas" : "rutina";
 
         if (this.pantalla === "lista") this.inicio.seccion = "rutinas";
         await this.pintar();
