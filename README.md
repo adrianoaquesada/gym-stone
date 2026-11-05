@@ -10,7 +10,8 @@ en tu vault.
 - Registra sesiones guiadas o manuales, con ejercicios de peso, tiempo e intervalos.
 - Añade calentamiento y estiramiento al día: la sesión guiada cronometra estos bloques antes
   o después de los ejercicios según el orden de la rutina; el registro manual permite anotar
-  su duración.
+  su duración. En una rutina libre, puedes añadirlos desde el selector o con botones junto a
+  «Añadir ejercicio»; el calentamiento se añade antes de iniciar y el estiramiento queda al final.
 - Organiza ejercicios por grupos musculares y conserva su historial aunque cambies sus nombres.
 - Registra peso y talla, y consulta su evolución, el IMC, calendarios y estadísticas.
 - Usa temporizadores y cronómetro durante el entrenamiento.

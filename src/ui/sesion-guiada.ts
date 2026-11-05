@@ -813,10 +813,58 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         siguiente();
     };
 
-    const anadirEjercicioBoton = (): HTMLButtonElement => {
+    const crearBloqueLibre = (tipoBloque: TipoBloqueEspecial): DefSesion => ({
+        id: `bloque-libre:${tipoBloque}`,
+        nombre: nombreBloqueEspecial(tipoBloque),
+        objetivo: {
+            series: 1,
+            repsObjetivo: null,
+            pesoObjetivo: null,
+            descansoSeg: null,
+            notas: "",
+            tipoEjercicio: "tiempo",
+            tipoBloqueEspecial: tipoBloque,
+            tipoSerie: null,
+            duracionObjetivo: null,
+            repsPesoDuranteTiempo: false,
+            trabajoSeg: null,
+            transicionSeg: null,
+        },
+        plan: 1,
+        planOrigen: 1,
+        series: [],
+        notas: "",
+    });
+
+    const agregarBloqueLibre = (tipoBloque: TipoBloqueEspecial, noUltimo: boolean): void => {
+        if (!esLibre(rutina) || defs.some(d => d.objetivo.tipoBloqueEspecial === tipoBloque)) return;
+        if (tipoBloque === "calentamiento") {
+            if (iniciada || defs.some(d => d.series.length > 0)) return;
+            const ejercicioActual = defs[idx];
+            defs.unshift(crearBloqueLibre(tipoBloque));
+            idx = ejercicioActual ? idx + 1 : 0;
+        } else {
+            if (noUltimo) return;
+            const actual = defs[idx];
+            const sinTerminar = actual ? actual.series.length < actual.plan : false;
+            defs.push(crearBloqueLibre(tipoBloque));
+            if (!sinTerminar) {
+                if (descanso && descanso.ej === idx) descanso = null;
+                if (ejecDesdeEj === idx) ejecDesde = null;
+                idx = defs.length - 1;
+                tipoSerieAbierto = null;
+                inReps = []; inPeso = []; inDuracion = [];
+            }
+        }
+        pintarEjercicio();
+    };
+
+    const anadirEjercicioBoton = (): HTMLDivElement => {
+        const filaAnadir = el("div", "gym-modo-anadir");
         const b = el("button", "gym-btn-g", "＋ Añadir ejercicio");
         b.type = "button";
-        const noUltimo = defs.length > 0 && idx < defs.length - 1;
+        const noUltimo = defs.length > 0 && idx < defs.length - 1
+            && !(esLibre(rutina) && !iniciada);
         if (noUltimo) {
             b.disabled = true;
             b.title = "Solo se pueden añadir ejercicios desde el último: avanza (⏭ siguiente) hasta llegar a él";
@@ -825,8 +873,34 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         }
         b.onclick = async () => {
             if (noUltimo) return;
-            const r = await elegirEjercicio(rutina, { excluir: defs.map(d => d.id) });
+            const opcionesBloques = esLibre(rutina) ? [
+                {
+                    tipoBloqueEspecial: "calentamiento" as const,
+                    deshabilitada: iniciada || defs.some(d =>
+                        d.objetivo.tipoBloqueEspecial === "calentamiento" || d.series.length > 0),
+                    ayuda: iniciada
+                        ? "El Calentamiento solo se puede añadir antes de iniciar la sesión"
+                        : "Añadir Calentamiento al principio de la sesión",
+                },
+                {
+                    tipoBloqueEspecial: "estiramiento" as const,
+                    deshabilitada: noUltimo || defs.some(d =>
+                        d.objetivo.tipoBloqueEspecial === "estiramiento"),
+                    ayuda: noUltimo
+                        ? "Avanza hasta el último elemento para añadir Estiramiento al final"
+                        : "Añadir Estiramiento al final de la sesión",
+                },
+            ].filter(opcion => !defs.some(d =>
+                d.objetivo.tipoBloqueEspecial === opcion.tipoBloqueEspecial)) : [];
+            const r = await elegirEjercicio(rutina, {
+                excluir: defs.map(d => d.id),
+                bloquesEspeciales: opcionesBloques,
+            });
             if (!r) return;
+            if ("tipoBloqueEspecial" in r) {
+                agregarBloqueLibre(r.tipoBloqueEspecial, noUltimo);
+                return;
+            }
             const u = ultimosValores(rutina, r.id);
             const plan0 = esLibre(rutina) ? 1 : Math.max(1, Math.min(10, Number(u?.series) || 3));
             const actual = defs[idx];
@@ -835,7 +909,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             const enPlan = enPlanDe(rutina, r.id);
 
             const tipoIni = enPlan ? enPlan.tipoEjercicio ?? null : u?.tipoEjercicio ?? null;
-            defs.push({
+            const nuevo: DefSesion = {
                 id: r.id, nombre: r.nombre,
 
                 objetivo: {
@@ -856,21 +930,54 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                 },
                 plan: plan0, planOrigen: plan0,
                 series: [], notas: "",
-            });
-            if (sinTerminar) {
+            };
+            const indiceEstiramiento = defs.findIndex(d =>
+                d.objetivo.tipoBloqueEspecial === "estiramiento");
+            const indiceInsercion = indiceEstiramiento >= 0 ? indiceEstiramiento : defs.length;
+            defs.splice(indiceInsercion, 0, nuevo);
+            const indiceActual = actual ? defs.indexOf(actual) : -1;
+            if (sinTerminar && actual?.objetivo.tipoBloqueEspecial !== "estiramiento") {
+                if (indiceActual >= 0) idx = indiceActual;
 
                 toast(`＋ ${r.nombre} añadido: tocará cuando termines «${actual.nombre}»`);
             } else {
                 if (descanso && descanso.ej === idx) descanso = null;
                 if (ejecDesdeEj === idx) ejecDesde = null;
-                idx = defs.length - 1;
+                idx = indiceInsercion;
                 tipoSerieAbierto = null;
                 inReps = []; inPeso = []; inDuracion = [];
                 toast(`＋ ${r.nombre} añadido a la sesión`);
             }
             pintarEjercicio();
         };
-        return b;
+        filaAnadir.appendChild(b);
+
+        if (esLibre(rutina)) {
+            if (!defs.some(d => d.objetivo.tipoBloqueEspecial === "calentamiento")) {
+                const bCalentamiento = el("button", "gym-btn-g gym-btn-bloque-especial", "＋ Calentamiento");
+                bCalentamiento.type = "button";
+                bCalentamiento.title = "Añadir calentamiento al principio antes de iniciar la sesión";
+                bCalentamiento.disabled = iniciada || defs.some(d => d.series.length > 0);
+                bCalentamiento.onclick = () => {
+                    if (bCalentamiento.disabled) return;
+                    agregarBloqueLibre("calentamiento", noUltimo);
+                };
+                filaAnadir.appendChild(bCalentamiento);
+            }
+
+            if (!defs.some(d => d.objetivo.tipoBloqueEspecial === "estiramiento")) {
+                const bEstiramiento = el("button", "gym-btn-g gym-btn-bloque-especial", "＋ Estiramiento");
+                bEstiramiento.type = "button";
+                bEstiramiento.title = "Añadir estiramiento al final de la sesión";
+                bEstiramiento.disabled = noUltimo;
+                bEstiramiento.onclick = () => {
+                    if (bEstiramiento.disabled) return;
+                    agregarBloqueLibre("estiramiento", noUltimo);
+                };
+                filaAnadir.appendChild(bEstiramiento);
+            }
+        }
+        return filaAnadir;
     };
 
     const aplicarNombreDia = (texto: string): void => {
@@ -972,17 +1079,49 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
 
         if (ej.objetivo.tipoBloqueEspecial) {
             const tipoBloque = ej.objetivo.tipoBloqueEspecial;
-            contEj.appendChild(el("div", "gym-modo-seccion gym-modo-bloque-especial", `🔹 ${nombreBloqueEspecial(tipoBloque)}`));
-            contEj.appendChild(el("div", "gym-modo-bloque-ayuda",
-                "Este bloque va antes de los ejercicios. El cronómetro empieza al iniciar y no hay descanso al terminar."));
+            contEj.appendChild(el("div", "gym-modo-seccion gym-modo-bloque-especial",
+                nombreBloqueEspecial(tipoBloque)));
             const bloqueOmitido = Boolean(ej.series[0]?.saltada);
             const tiempoRegistrado = bloqueOmitido ? undefined : ej.series[0]?.duracionSeg;
             const inicioBloque = ej.inicioBloqueMs ?? transcurridoMs();
             lecturaBloque = el("div", "gym-modo-bloque-tiempo",
-                bloqueOmitido ? "⏭ Bloque omitido"
-                    : tiempoRegistrado != null ? `⏱ Duración registrada: ${tiempoRegistrado} s`
+                bloqueOmitido ? "⏭ Saltado"
+                    : tiempoRegistrado != null ? `⏱ ${relojTexto(tiempoRegistrado * 1000)}`
                         : `⏱ ${relojTexto(Math.max(0, transcurridoMs() - inicioBloque))}`);
-            contEj.appendChild(lecturaBloque);
+
+            const filaBloque = el("div", `gym-modo-set especial${bloqueOmitido ? " saltada" : tiempoRegistrado != null ? " hecha" : " actual"}`);
+            const celdaNumero = el("div", "gym-modo-numero");
+            celdaNumero.appendChild(el("div", "n", "1"));
+            const tipoBloqueIndicador = el("span", "gym-modo-set-tipo gym-modo-set-especial-tipo",
+                tipoBloque === "calentamiento" ? "C" : "E");
+            tipoBloqueIndicador.title = nombreBloqueEspecial(tipoBloque);
+            tipoBloqueIndicador.setAttribute("aria-label", nombreBloqueEspecial(tipoBloque));
+            celdaNumero.appendChild(tipoBloqueIndicador);
+            filaBloque.appendChild(celdaNumero);
+            lecturaBloque.classList.add("gym-modo-set-valor", "gym-modo-bloque-tiempo");
+            filaBloque.appendChild(lecturaBloque);
+
+            const accionesBloque = el("div", "cierre");
+            const bHecho = el("button", "gym-btn-g verde", "✔");
+            bHecho.type = "button";
+            bHecho.title = "Registrar la duración del bloque";
+            bHecho.disabled = !iniciada || pausado || tiempoRegistrado != null || bloqueOmitido;
+            bHecho.onclick = () => completarBloqueEspecial();
+            const bSaltarBloque = el("button", "gym-btn-g", "⏭");
+            bSaltarBloque.type = "button";
+            bSaltarBloque.title = "Saltar bloque";
+            bSaltarBloque.disabled = !iniciada || pausado || ej.series.length > 0;
+            bSaltarBloque.onclick = () => bSaltar.click();
+            accionesBloque.append(bHecho, bSaltarBloque);
+            filaBloque.appendChild(accionesBloque);
+            if (esLibre(rutina)) {
+                const filaExtras = el("div", "display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;");
+                filaExtras.classList.add("gym-modo-acciones-series");
+                filaExtras.appendChild(anadirEjercicioBoton());
+                contEj.append(filaBloque, filaExtras);
+            } else {
+                contEj.appendChild(filaBloque);
+            }
             bSaltar.textContent = "⏭ Saltar bloque";
             bSaltar.disabled = !iniciada || pausado || ej.series.length > 0;
 
@@ -1006,7 +1145,8 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             if (iniciada && !pausado) barraAccion.appendChild(btnPausa);
             barraAccion.appendChild(btnAccion);
             bVolver.disabled = idx === 0;
-            bSiguiente.disabled = (tiempoRegistrado == null && !bloqueOmitido) || idx >= defs.length - 1;
+            bSiguiente.disabled = (iniciada && tiempoRegistrado == null && !bloqueOmitido)
+                || idx >= defs.length - 1;
             return;
         }
 
@@ -1032,9 +1172,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                 : `${ej.plan} × hold${dur > 0 ? ` de ${dur} s` : ""}`;
         } else {
             const trab = Math.round(Number(ej.objetivo.trabajoSeg) || 0);
-            const trans = Math.max(0, Math.round(Number(ej.objetivo.transicionSeg ?? ej.objetivo.descansoSeg) || 0));
-            meta = `${ej.plan} ciclos × ${trab} s de trabajo` +
-                (trans > 0 ? ` · ${trans} s de descanso` : "");
+            meta = `${ej.plan} ciclos × ${trab} s de trabajo`;
         }
         cMeta.appendChild(el("span", "", meta));
 
@@ -1625,7 +1763,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
     };
     const bSiguiente = el("button", "gym-btn-g", "⏭ Siguiente"); bSiguiente.type = "button";
     bSiguiente.onclick = () => {
-        if (defs[idx]?.objetivo.tipoBloqueEspecial && !defs[idx].series.length) return;
+        if (iniciada && defs[idx]?.objetivo.tipoBloqueEspecial && !defs[idx].series.length) return;
         if (idx + 1 < defs.length) deslizarA(idx + 1);
     };
     const bSaltar = el("button", "gym-btn-g", "⏭ Saltar ejercicio"); bSaltar.type = "button";

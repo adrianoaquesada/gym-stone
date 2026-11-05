@@ -5,7 +5,7 @@ import {
 } from "../datos/calculos";
 import { catalogoGestion, renombrarEjercicio, type EjercicioGestion } from "../datos/ejercicios";
 import { fijarGrupos, gruposEnMemoria, purgarGruposSinUsar } from "../datos/grupos";
-import type { EjercicioCatalogo, Rutina, TipoEjercicio } from "../tipos";
+import type { EjercicioCatalogo, Rutina, TipoBloqueEspecial, TipoEjercicio } from "../tipos";
 import { pesoActual, pesoMostrar, pesoTexto } from "../unidades";
 import { aNumero, fechaLegible, limpiarNombre, msgError, norm, tsDe } from "../util";
 import { confirmar, KPI, modal, pedirTexto, ponerX, toast, el } from "./componentes";
@@ -248,22 +248,45 @@ export interface EleccionEjercicio {
     descansoSeg: number;
 }
 
-export const elegirEjercicio = (
-    rutina: Rutina, { excluir = [] }: { excluir?: string[] } = {},
-): Promise<EleccionEjercicio | null> => new Promise(resolve => {
+export interface EleccionBloqueEspecial {
+    tipoBloqueEspecial: TipoBloqueEspecial;
+}
+
+export interface OpcionBloqueEspecial {
+    tipoBloqueEspecial: TipoBloqueEspecial;
+    deshabilitada?: boolean;
+    ayuda?: string;
+}
+
+export function elegirEjercicio(
+    rutina: Rutina, opciones?: { excluir?: string[] },
+): Promise<EleccionEjercicio | null>;
+export function elegirEjercicio(
+    rutina: Rutina, opciones: { excluir?: string[]; bloquesEspeciales: OpcionBloqueEspecial[] },
+): Promise<EleccionEjercicio | EleccionBloqueEspecial | null>;
+export function elegirEjercicio(
+    rutina: Rutina,
+    { excluir = [], bloquesEspeciales = [] }: {
+        excluir?: string[];
+        bloquesEspeciales?: OpcionBloqueEspecial[];
+    } = {},
+): Promise<EleccionEjercicio | EleccionBloqueEspecial | null> {
+    return new Promise(resolve => {
 
     let catalogo = catalogoEjercicios(rutina).filter(x => !excluir.includes(x.id));
     const m = modal("＋ Añadir ejercicio", "busca un ejercicio guardado o escribe uno nuevo",
         true);
 
     let resuelto = false;
-    const listo = (r: { id: string; nombre: string } | null) => {
+    const listo = (r: { id: string; nombre: string } | EleccionBloqueEspecial | null) => {
         if (resuelto) return;
         resuelto = true;
         document.removeEventListener("keydown", onKey);
         m.cerrar();
 
-        resolve(r && { id: r.id, nombre: r.nombre, descansoSeg: segDescanso() });
+        resolve(r && ("tipoBloqueEspecial" in r
+            ? r
+            : { id: r.id, nombre: r.nombre, descansoSeg: segDescanso() }));
     };
 
     const onKey = (e: KeyboardEvent) => {
@@ -364,6 +387,19 @@ export const elegirEjercicio = (
             (!q || norm(x.nombre).includes(q) || norm(textoGrupos(x.id)).includes(q)));
 
         lista.empty();
+        for (const opcion of bloquesEspeciales) {
+            const nombre = opcion.tipoBloqueEspecial === "calentamiento" ? "Calentamiento" : "Estiramiento";
+            const filaBloque = el("button", "gym-selector-bloque-especial gym-btn-bloque-especial",
+                `🔹 ${nombre}`);
+            filaBloque.type = "button";
+            filaBloque.disabled = Boolean(opcion.deshabilitada);
+            filaBloque.title = opcion.ayuda ?? `Añadir ${nombre} a la sesión`;
+            filaBloque.setAttribute("aria-label", filaBloque.title);
+            filaBloque.onclick = () => {
+                if (!filaBloque.disabled) listo({ tipoBloqueEspecial: opcion.tipoBloqueEspecial });
+            };
+            lista.appendChild(filaBloque);
+        }
         if (!visibles.length) {
             lista.appendChild(el("div", "padding:12px;opacity:.65;font-size:.86em;",
                 q || gruposActivos.size
@@ -478,7 +514,8 @@ export const elegirEjercicio = (
             console.error("[Gym Stone grupos del selector]", err);
             toast("⚠️ No pude cargar los grupos del catálogo: " + msgError(err), false);
         });
-});
+    });
+}
 
 export const pintarGestionEjercicios = (cont: HTMLElement): void => {
     cont.appendChild(el("div", "opacity:.75;font-size:.82em;",
