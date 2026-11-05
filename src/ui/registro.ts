@@ -11,7 +11,7 @@ import { aNumero, clonarJSON, decimal, esFechaValida, fechaLegible, hoy, horaAho
 import { pesoACampo, pesoActual, pesoAKg, pesoTexto } from "../unidades";
 import type {
     EjercicioDef, EjercicioSesion, LecturaNota, Medida, MedidasDatos, ObjetivoPlanSesion,
-    Rutina, SerieSesion, Sesion, TipoEjercicio, TipoSerie,
+    Rutina, SerieSesion, Sesion, TipoBloqueEspecial, TipoEjercicio, TipoSerie,
 } from "../tipos";
 import { btn, confirmar, el, modal, ponerX, selectorUnidad, toast } from "./componentes";
 import { elegirEjercicio, pedirDescanso, textoDescanso } from "./ejercicios-ui";
@@ -26,6 +26,8 @@ interface EjercicioTrabajo {
     notas?: string;
     descansoSeg?: number | null;
     tipoEjercicio?: TipoEjercicio | null;
+    tipoBloqueEspecial?: TipoBloqueEspecial | null;
+    bloqueEspecialTranscurridoMs?: number;
     duracionObjetivo?: number | null;
     repsPesoDuranteTiempo?: boolean;
     trabajoSeg?: number | null;
@@ -77,6 +79,9 @@ const segundosEjercicio = (ej: { series?: SerieSesion[] } | null | undefined): n
         .reduce((t, s) => t + (aNumero(s.duracionSeg) ?? 0), 0);
 
 export const textoObjetivoDe = (def: EjercicioDef): string => {
+    if (def.tipoBloqueEspecial) {
+        return def.tipoBloqueEspecial === "calentamiento" ? "Calentamiento" : "Estiramiento";
+    }
     const tipo = tipoEjercicioDe(def);
     if (tipo === "peso") {
         return `${def.series}×${textoRepsObjetivo(def)}${def.pesoObjetivo ? ` @ ${pesoTexto(def.pesoObjetivo)}` : ""}`;
@@ -243,6 +248,7 @@ export function formularioSesion(
                 ejercicioId: e.id, nombre: e.nombre, series, notas: "",
                 objetivoPlan: objetivoPlanDe(e),
                 tipoEjercicio: tipo, duracionObjetivo: e.duracionObjetivo ?? null,
+                tipoBloqueEspecial: e.tipoBloqueEspecial ?? null,
                 repsPesoDuranteTiempo: e.repsPesoDuranteTiempo === true,
                 trabajoSeg: e.trabajoSeg ?? null, transicionSeg: e.transicionSeg ?? null,
             };
@@ -488,7 +494,9 @@ export function formularioSesion(
         const chipNoReg = el("span", "gym-chip gym-sinreg", "⏳ sin registrar");
         chipNoReg.hidden = true;
         const filaChips = el("div", null);
-        filaChips.append(chipObj, chipDesc, chipVol, chipNoReg);
+        filaChips.append(chipObj);
+        if (!ej.tipoBloqueEspecial) filaChips.appendChild(chipDesc);
+        filaChips.append(chipVol, chipNoReg);
         cabE.append(
             el("div", "gym-ej-nombre", ej.nombre || ej.ejercicioId),
             filaChips,
@@ -508,6 +516,35 @@ export function formularioSesion(
         const pintarEstado = (): void => { chipNoReg.hidden = !esSinRegistrar(ej); };
         const marcarHecho = (): void => { delete ej.sinRegistrar; pintarEstado(); };
         pintarEstado();
+
+        if (ej.tipoBloqueEspecial) {
+            const serie = ej.series[0] ?? (ej.series[0] = { duracionSeg: null });
+            const filaDuracion = el("div", "gym-fila gym-bloque-especial-registro");
+            const entrada = el("input");
+            entrada.type = "number";
+            entrada.min = "1";
+            entrada.step = "1";
+            entrada.inputMode = "numeric";
+            entrada.placeholder = "Segundos";
+            entrada.value = serie.duracionSeg == null ? "" : String(serie.duracionSeg);
+            entrada.setAttribute("aria-label", `Duración real del ${ej.tipoBloqueEspecial} en segundos`);
+            entrada.oninput = () => {
+                serie.duracionSeg = aNumero(entrada.value);
+                if (conValor(entrada.value)) {
+                    delete serie.saltada;
+                    delete ej.bloqueEspecialTranscurridoMs;
+                    marcarHecho();
+                }
+                actualizaVol();
+            };
+            filaDuracion.append(
+                el("div", "gym-et", "Duración real (s)"),
+                entrada,
+                el("div", "opacity:.7;font-size:.8em;", "Se registra manualmente en segundos."),
+            );
+            box.appendChild(filaDuracion);
+            return box;
+        }
 
         const lista = el("div");
         box.appendChild(lista);
@@ -755,6 +792,11 @@ export function formularioSesion(
 
                 if (tipo === "tiempo") {
                     out.tipoEjercicio = tipo;
+                    if (e.tipoBloqueEspecial) {
+                        out.tipoBloqueEspecial = e.tipoBloqueEspecial;
+                        if (e.bloqueEspecialTranscurridoMs != null && !serie.length)
+                            out.bloqueEspecialTranscurridoMs = e.bloqueEspecialTranscurridoMs;
+                    }
                     if (e.repsPesoDuranteTiempo) out.repsPesoDuranteTiempo = true;
                     const dur = aNumero(e.duracionObjetivo);
                     if (dur != null && dur > 0) out.duracionObjetivo = Math.round(dur);
@@ -770,7 +812,8 @@ export function formularioSesion(
                 const desc = aNumero(e.descansoSeg);
                 if (desc != null && (desc > 0 || tipo === "intervalo")) out.descansoSeg = Math.round(desc);
 
-                if (esSinRegistrar(e) || (!serie.length && !out.notas)) out.sinRegistrar = true;
+                if (esSinRegistrar(e) || (!serie.length && !out.notas
+                    && e.bloqueEspecialTranscurridoMs == null)) out.sinRegistrar = true;
                 return out;
             }).filter(e => e.series.length || e.notas || e.sinRegistrar),
         };

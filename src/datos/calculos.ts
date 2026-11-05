@@ -28,6 +28,7 @@ const camposComparablesEjercicio = (ejercicio: EjercicioDef): string => JSON.str
     nombre: ejercicio.nombre ?? "",
     grupos: normalizarGrupos(ejercicio.grupos).sort((a, b) => a.localeCompare(b, "es")),
     tipoEjercicio: tipoEjercicioDe(ejercicio),
+    tipoBloqueEspecial: ejercicio.tipoBloqueEspecial ?? null,
     series: Math.max(1, Number(ejercicio.series) || 1),
     repsObjetivo: repsObjetivoDe(ejercicio),
     pesoObjetivo: ejercicio.pesoObjetivo ?? null,

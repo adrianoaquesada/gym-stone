@@ -9,7 +9,7 @@ import { decimal, diaSemana, dos, esFechaValida, fechaLegible, hoy, msgError,
     nombreMes, sumarDias, tsAhora, tsDe } from "../util";
 import { pesoTexto } from "../unidades";
 import type { DiaRutina, Rutina, Sesion } from "../tipos";
-import { btn, conAyuda, confirmar, el, modal, toast } from "./componentes";
+import { btn, conAyuda, confirmar, el, modal, ponerX, toast } from "./componentes";
 import type { Pintar } from "./pintar";
 import { abrirRegistro, formularioAnotacion, formularioSesion } from "./registro";
 
@@ -41,7 +41,9 @@ const tipoDiaEnDetalle = (dia: DiaRutina): HTMLDivElement | null => {
 };
 
 export function seccionCalendario(c: HTMLElement, rutina: Rutina, pintar: Pintar): void {
-    c.appendChild(el("div", "gym-tit")).append(
+    const calendario = el("div", "gym-calendario");
+    c.appendChild(calendario);
+    calendario.appendChild(el("div", "gym-tit")).append(
         el("span", null, "📅 Calendario"),
         " — clic en un cuadro para ver (y editar) el detalle de ese día",
     );
@@ -67,7 +69,7 @@ export function seccionCalendario(c: HTMLElement, rutina: Rutina, pintar: Pintar
     indiceMes = Math.max(mesMin, Math.min(mesMax, indiceMes));
 
     const nav = el("div", "display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;");
-    c.appendChild(nav);
+    calendario.appendChild(nav);
     const estiloBtn = "box-sizing:border-box;height:34px;min-height:34px;padding:4px 10px;border-radius:6px;border:1px solid var(--background-modifier-border);background:var(--background-secondary);color:var(--text-normal);cursor:pointer;font-size:.9em;";
     const btnAnt = el("button", estiloBtn, "◀"); btnAnt.type = "button"; btnAnt.title = "Mes anterior";
     const etiqueta = el("div", "font-weight:700;font-size:.95em;min-width:150px;text-align:center;");
@@ -83,7 +85,7 @@ export function seccionCalendario(c: HTMLElement, rutina: Rutina, pintar: Pintar
     nav.appendChild(btnAnt); nav.appendChild(etiqueta); nav.appendChild(btnSig); nav.appendChild(selector);
 
     const cajaMes = el("div", "margin-bottom:6px;");
-    c.appendChild(cajaMes);
+    calendario.appendChild(cajaMes);
 
     const pintarMes = (): void => {
         const anyo = Math.floor(indiceMes / 12), mes = indiceMes % 12;
@@ -481,28 +483,72 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
         }
         if (evs.length) filas.push({ nombre: e.nombre || e.ejercicioId || "–", evs });
     }
-    if (!filas.length) return null;
-
-    const eje = Math.max(lejos, (Number(s.duracionMin) || 0) * 60000, 60000);
-    const pct = (t: number): number => Math.min(100, Math.max(0, t / eje * 100));
+    const pausas = (s.pausas ?? [])
+        .filter(p => Number.isFinite(p.t) && Number.isFinite(p.ms) && p.ms > 0)
+        .sort((a, b) => a.t - b.t);
+    const finActivo = Math.max(
+        lejos,
+        Number(s.transcurridoMs) || 0,
+        (Number(s.duracionMin) || 0) * 60000,
+        60000,
+    );
+    const inicioReal = typeof s.inicioRealMs === "number" && Number.isFinite(s.inicioRealMs)
+        ? s.inicioRealMs
+        : null;
     const col = (i: number): string => [CONFIG.NARANJA, CONFIG.AZUL, CONFIG.VERDE, "#af7ac5"][i % 4];
+    const horaReal = (inicioMs: number, transcurridoMs: number): string => new Date(inicioMs + transcurridoMs)
+        .toLocaleTimeString("es-ES", { hour: "numeric", minute: "2-digit", hour12: true });
 
     const wrap = el("div", "margin:10px 0 6px;");
-    wrap.appendChild(el("div", "gym-et", "🕒 Línea de tiempo de la sesión"));
+    const cabecera = el("div", "display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;");
+    cabecera.appendChild(el("div", "gym-et", "🕒 Línea de tiempo de la sesión"));
+    const controlesZoom = el("div", "display:flex;align-items:center;gap:5px;");
+    const etiquetaZoom = el("span", "font-size:.75em;opacity:.7;min-width:32px;text-align:center;", "1×");
+    let zoom = 1;
+    let contenido: HTMLDivElement;
+    const fijarZoom = (valor: number): void => {
+        zoom = Math.max(1, Math.min(4, valor));
+        etiquetaZoom.textContent = `${zoom.toFixed(zoom % 1 ? 1 : 0)}×`;
+        contenido.style.width = `${zoom * 100}%`;
+        ventana.classList.toggle("gym-cal-linea-ampliada", zoom > 1);
+    };
+    const reducir = btn("−", "gym-mini", () => fijarZoom(zoom - 0.5));
+    reducir.title = "Alejar línea de tiempo";
+    reducir.setAttribute("aria-label", reducir.title);
+    const ampliar = btn("+", "gym-mini", () => fijarZoom(zoom + 0.5));
+    ampliar.title = "Acercar línea de tiempo";
+    ampliar.setAttribute("aria-label", ampliar.title);
+    const restablecer = btn("↺", "gym-mini", () => fijarZoom(1));
+    restablecer.title = "Restablecer zoom";
+    restablecer.setAttribute("aria-label", restablecer.title);
+    controlesZoom.append(reducir, etiquetaZoom, ampliar, restablecer);
+    cabecera.appendChild(controlesZoom);
+    wrap.appendChild(cabecera);
 
-    if (s.pausas?.length) {
+    const ventana = el("div", "gym-cal-linea-ventana");
+    ventana.setAttribute("aria-label", "Línea de tiempo de la sesión; usa los controles, la rueda o pellizca para cambiar el zoom");
+    contenido = el("div", "min-width:100%;");
+    ventana.appendChild(contenido);
+    wrap.appendChild(ventana);
+
+    const pct = (t: number): number => Math.min(100, Math.max(0, t / finActivo * 100));
+    const seccion = el("div", "margin-top:5px;");
+    const marcas = [0, 0.25, 0.5, 0.75, 1];
+    seccion.classList.add("gym-cal-linea-seccion");
+    if (pausas.length) {
         const filaP = el("div", "display:flex;align-items:center;gap:8px;margin:3px 0;");
         filaP.appendChild(el("div", "flex:0 0 90px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.76em;opacity:.6;", "⏸ pausas"));
         const pistaP = el("div", "flex:1;position:relative;height:14px;border-radius:7px;background:var(--background-secondary);overflow:hidden;");
-        for (const p of s.pausas) {
+        for (const pausa of pausas) {
             const marca = el("div", "position:absolute;top:0;bottom:0;width:3px;background:var(--text-faint);");
-            marca.style.left = `calc(${pct(p.t)}% - 1.5px)`;
-            conAyuda(marca, () => `⏸ Pausa de ${relojMs(p.ms)} — a los ${relojMs(p.t)} de sesión activa`);
+            marca.style.left = `calc(${pct(pausa.t)}% - 1.5px)`;
+            conAyuda(marca, () => `⏸ Pausa de ${relojMs(pausa.ms)} — a los ${relojMs(pausa.t)} de sesión activa`, true);
             pistaP.appendChild(marca);
         }
         filaP.appendChild(pistaP);
-        wrap.appendChild(filaP);
+        seccion.appendChild(filaP);
     }
+
     filas.forEach((f, iF) => {
         const color = col(iF);
         const fila = el("div", "display:flex;align-items:center;gap:8px;margin:3px 0;");
@@ -512,7 +558,7 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
         nom.append(cuad, " " + f.nombre);
         const fin = f.evs[f.evs.length - 1];
         conAyuda(nom, () => `${f.nombre} — ${f.evs.length} registro${f.evs.length === 1 ? "" : "s"} · de ${relojMs(f.evs[0].t)} a ${relojMs(fin.t)}` +
-            (fin.t > f.evs[0].t ? ` · ${relojMs(fin.t - f.evs[0].t)} de duración` : ""));
+            (fin.t > f.evs[0].t ? ` · ${relojMs(fin.t - f.evs[0].t)} de duración` : ""), true);
         fila.appendChild(nom);
         const pista = el("div", "flex:1;position:relative;height:14px;border-radius:7px;background:var(--background-secondary);overflow:hidden;");
 
@@ -531,23 +577,137 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
                 : " — ⏭ saltada"} · ${relojMs(ev.t)}` +
                 (iS > 0 ? ` · ${relojMs(ev.t - f.evs[iS - 1].t)} después de la anterior` : " · primera del ejercicio") +
                 (ev.descansoMs != null && ev.ejecMs != null
-                    ? ` (${relojMs(ev.descansoMs)} de descanso + ${relojMs(ev.ejecMs)} de ejecución)` : ""));
+                    ? ` (${relojMs(ev.descansoMs)} de descanso + ${relojMs(ev.ejecMs)} de ejecución)` : ""), true);
             pista.appendChild(tick);
         });
         fila.appendChild(pista);
-        wrap.appendChild(fila);
+        seccion.appendChild(fila);
     });
 
-    const escala = el("div", "display:flex;justify-content:space-between;font-size:.7em;opacity:.55;margin:2px 0 0 98px;");
-    for (const p of [0, 0.25, 0.5, 0.75, 1]) escala.appendChild(el("span", "", relojMs(eje * p)));
-    wrap.appendChild(escala);
+    const crearEscala = (etiqueta: string): { fila: HTMLDivElement; valores: HTMLDivElement } => {
+        const fila = el("div", "display:flex;align-items:center;gap:8px;margin:2px 0 0;");
+        fila.appendChild(el("div", "flex:0 0 90px;min-width:0;font-size:.72em;font-weight:600;opacity:.7;", etiqueta));
+        const valores = el("div", "display:flex;flex:1;justify-content:space-between;min-width:0;font-size:.7em;opacity:.55;");
+        fila.appendChild(valores);
+        return { fila, valores };
+    };
+    const escala = crearEscala("Duración");
+    marcas.forEach(p => escala.valores.appendChild(el("span", "", relojMs(finActivo * p))));
+    seccion.appendChild(escala.fila);
+
+    const guias = el("div", "position:absolute;z-index:1;left:98px;right:0;top:0;bottom:34px;pointer-events:none;");
+    for (const marca of marcas) {
+        const guia = el("div", "position:absolute;top:0;bottom:0;width:1px;background:var(--text-faint);opacity:.28;");
+        guia.style.left = `${marca * 100}%`;
+        guia.setAttribute("aria-hidden", "true");
+        guias.appendChild(guia);
+    }
+    seccion.appendChild(guias);
+
+    const hora = el("div", "margin-top:5px;");
+    const escalaReal = crearEscala("Hora real");
+    if (inicioReal != null) {
+        marcas.forEach(p => {
+            const transcurrido = finActivo * p;
+            const pausasAnteriores = pausas
+                .filter(pausa => pausa.t < transcurrido)
+                .reduce((total, pausa) => total + pausa.ms, 0);
+            escalaReal.valores.appendChild(el("span", "", horaReal(inicioReal, transcurrido + pausasAnteriores)));
+        });
+    } else {
+        escalaReal.valores.appendChild(el("span", "", "No disponible"));
+    }
+    hora.appendChild(escalaReal.fila);
+    seccion.appendChild(hora);
+    contenido.appendChild(seccion);
+    fijarZoom(zoom);
+
+    ventana.addEventListener("wheel", ev => {
+        if (Math.abs(ev.deltaY) <= Math.abs(ev.deltaX)) return;
+        ev.preventDefault();
+        fijarZoom(zoom + (ev.deltaY < 0 ? 0.25 : -0.25));
+    }, { passive: false });
+
+    let arrastreRaton: { id: number; x: number; scrollLeft: number } | null = null;
+    ventana.addEventListener("pointerdown", ev => {
+        if (ev.pointerType !== "mouse" || ev.button !== 0 || zoom <= 1) return;
+        arrastreRaton = { id: ev.pointerId, x: ev.clientX, scrollLeft: ventana.scrollLeft };
+        ventana.setPointerCapture(ev.pointerId);
+    });
+    ventana.addEventListener("pointermove", ev => {
+        if (ev.pointerType !== "mouse" || arrastreRaton?.id !== ev.pointerId) return;
+        const dx = ev.clientX - arrastreRaton.x;
+        if (Math.abs(dx) > 3) {
+            ventana.classList.add("gym-cal-linea-arrastrando");
+            ventana.scrollLeft = arrastreRaton.scrollLeft - dx;
+            ev.preventDefault();
+        }
+    });
+    const terminarArrastreRaton = (ev: PointerEvent): void => {
+        if (arrastreRaton?.id !== ev.pointerId) return;
+        arrastreRaton = null;
+        ventana.classList.remove("gym-cal-linea-arrastrando");
+        if (ventana.hasPointerCapture(ev.pointerId)) ventana.releasePointerCapture(ev.pointerId);
+    };
+    ventana.addEventListener("pointerup", terminarArrastreRaton);
+    ventana.addEventListener("pointercancel", terminarArrastreRaton);
+
+    const toques = new Map<number, { x: number; y: number }>();
+    let distanciaPellizco: number | null = null;
+    let toquePan: { id: number; x: number; y: number; scrollLeft: number } | null = null;
+    const distanciaEntreToques = (): number => {
+        const [a, b] = [...toques.values()];
+        return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+    };
+    ventana.addEventListener("pointerdown", ev => {
+        if (ev.pointerType !== "touch") return;
+        toques.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+        distanciaPellizco = toques.size === 2 ? distanciaEntreToques() : null;
+        toquePan = toques.size === 1
+            ? { id: ev.pointerId, x: ev.clientX, y: ev.clientY, scrollLeft: ventana.scrollLeft }
+            : null;
+    });
+    ventana.addEventListener("pointermove", ev => {
+        if (ev.pointerType !== "touch" || !toques.has(ev.pointerId)) return;
+        toques.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+        if (toques.size === 1 && toquePan?.id === ev.pointerId) {
+            const dx = ev.clientX - toquePan.x;
+            const dy = ev.clientY - toquePan.y;
+            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 4) {
+                ventana.scrollLeft = toquePan.scrollLeft - dx;
+                ev.preventDefault();
+            }
+            return;
+        }
+        if (toques.size < 2) return;
+        const nuevaDistancia = distanciaEntreToques();
+        if (distanciaPellizco && nuevaDistancia > 0) {
+            fijarZoom(zoom * nuevaDistancia / distanciaPellizco);
+            ev.preventDefault();
+        }
+        distanciaPellizco = nuevaDistancia;
+    });
+    const terminarPellizco = (ev: PointerEvent): void => {
+        toques.delete(ev.pointerId);
+        if (toquePan?.id === ev.pointerId) toquePan = null;
+        distanciaPellizco = toques.size === 2 ? distanciaEntreToques() : null;
+        if (toques.size === 1) {
+            const [id, punto] = [...toques.entries()][0];
+            toquePan = { id, x: punto.x, y: punto.y, scrollLeft: ventana.scrollLeft };
+        }
+    };
+    ventana.addEventListener("pointerup", terminarPellizco);
+    ventana.addEventListener("pointercancel", terminarPellizco);
+
     wrap.appendChild(el("div", "font-size:.72em;opacity:.6;margin-top:3px;",
-        "■ por ejercicio · ✔ serie hecha · ⏭ saltada (tenue) · │ pausa · fondo = del primer al último registro"));
+        "■ por ejercicio · ✔ serie hecha · ⏭ saltada (tenue) · fondo de pausas = tiempo detenido"));
     return wrap;
 };
 
 export function detalleDia(rutina: Rutina, fecha: string, pintar: Pintar): void {
     const m = modal(`📆 ${fechaLegible(fecha)}`, `${DIAS_LARGO[diaSemana(fecha) - 1] ?? ""}`);
+    ponerX(m, "Cerrar detalles del día");
+    m.cab.classList.add("gym-cal-detalle-cab");
     const cajaD = el("div");
     m.caja.appendChild(cajaD);
 

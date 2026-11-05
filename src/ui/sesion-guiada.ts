@@ -7,16 +7,52 @@ import {
     tipoEjercicioDe, tipoSerieDe, tipoSerieDeRutina, ultimosValores,
 } from "../datos";
 import type { BaseRecordesPersonales, RecordeDetectado } from "../datos";
-import type { EjercicioDef, EjercicioSesion, Rutina, SerieSesion, Sesion, TipoSerie } from "../tipos";
+import type {
+    EjercicioDef, EjercicioSesion, Rutina, SerieSesion, Sesion, TipoBloqueEspecial, TipoSerie,
+} from "../tipos";
 import { pesoACampo, pesoAKg, pesoTexto } from "../unidades";
 import { aNumero, dos, esc, fechaLegible, hoy, msgError } from "../util";
 import { btn, confirmar, el, modal, pedirTexto, ponerX, toast } from "./componentes";
 import { controlDescanso, elegirEjercicio, pedirDescanso } from "./ejercicios-ui";
 import { ofrecerAjustesPlan, tieneAjustesSugeridos } from "./sugerencias-plan";
-import { reiniciarCuentaAtras, sonarCuentaAtras, sonarDescanso, sonarTemporizador, vibrar } from "./sonido";
+import {
+    prepararAudio, reiniciarCuentaAtras, sonarCuentaAtras, sonarDescanso, sonarTemporizador, vibrar,
+} from "./sonido";
 import type { Pintar } from "./pintar";
 
 const sesionesAbiertas = new Set<() => void>();
+let retomarSesionMinimizada: (() => void) | null = null;
+
+const actualizarBotonesSesionGuiada = (): void => {
+    const minimizada = retomarSesionMinimizada !== null;
+    for (const boton of document.querySelectorAll<HTMLButtonElement>("[data-gym-sesion-guiada]")) {
+        boton.textContent = minimizada
+            ? boton.dataset.gymTextoRetomar ?? "🎯 ↩ Retomar sesión guiada"
+            : boton.dataset.gymTextoInicio ?? "🎯 Empezar sesión guiada";
+        boton.title = minimizada
+            ? "Retomar sesión guiada minimizada"
+            : boton.dataset.gymTituloInicio ?? "Empezar sesión guiada";
+        boton.setAttribute("aria-label", boton.title);
+        boton.classList.toggle("gym-btn-retomar", minimizada);
+    }
+};
+
+export const prepararBotonSesionGuiada = (
+    boton: HTMLButtonElement,
+    textoRetomar: string,
+): void => {
+    boton.dataset.gymSesionGuiada = "true";
+    boton.dataset.gymTextoInicio = boton.textContent ?? "🎯 Empezar sesión guiada";
+    boton.dataset.gymTituloInicio = boton.title;
+    boton.dataset.gymTextoRetomar = textoRetomar;
+    actualizarBotonesSesionGuiada();
+};
+
+export const retomarSesionGuiadaMinimizada = (): boolean => {
+    if (!retomarSesionMinimizada) return false;
+    retomarSesionMinimizada();
+    return true;
+};
 
 export const cerrarSesionesAbiertas = (): void => {
     for (const cierre of [...sesionesAbiertas]) cierre();
@@ -24,7 +60,8 @@ export const cerrarSesionesAbiertas = (): void => {
 
 type ObjetivoSesion = Pick<EjercicioDef,
     "series" | "repsObjetivo" | "tipoSerie" | "pesoObjetivo" | "descansoSeg" | "notas"
-    | "tipoEjercicio" | "duracionObjetivo" | "repsPesoDuranteTiempo" | "trabajoSeg" | "transicionSeg">;
+    | "tipoEjercicio" | "tipoBloqueEspecial" | "duracionObjetivo" | "repsPesoDuranteTiempo"
+    | "trabajoSeg" | "transicionSeg">;
 
 interface DefSesion {
     id: string;
@@ -35,6 +72,7 @@ interface DefSesion {
     series: SerieSesion[];
     planDeRutina?: boolean;
     tipoSiguiente?: TipoSerie | null;
+    inicioBloqueMs?: number;
     notas: string;
 }
 
@@ -51,6 +89,9 @@ const letraTipoSerie = (tipo: TipoSerie): string =>
 
 const tipoSerieSiguiente = (d: DefSesion): TipoSerie =>
     d.tipoSiguiente ?? tipoSerieDe(d.objetivo);
+
+const nombreBloqueEspecial = (tipo: TipoBloqueEspecial): string =>
+    tipo === "calentamiento" ? "Calentamiento" : "Estiramiento";
 
 const nombreMetricaRecorde = (recorde: RecordeDetectado): string => {
     switch (recorde.metrica) {
@@ -111,6 +152,7 @@ const pedirCiclo = (trabajo: number | null, descanso: number | null):
 });
 
 export function elegirDiaGuiada(rutina: Rutina, pintar: Pintar): void {
+    if (retomarSesionGuiadaMinimizada()) return;
 
     if (esLibre(rutina)) {
         const enCurso = (rutina.sesiones ?? []).find(s => s.enCurso);
@@ -160,7 +202,7 @@ const aSerieGuardada = (s: SerieSesion): SerieSesion => ({
     ...(s.ejecMs != null ? { ejecMs: s.ejecMs } : {}),
 });
 
-const aEjercicioGuardado = (d: DefSesion): EjercicioSesion => {
+const aEjercicioGuardado = (d: DefSesion, transcurridoMs?: number): EjercicioSesion => {
     const ej: EjercicioSesion = {
         ejercicioId: d.id,
         nombre: d.nombre,
@@ -175,6 +217,12 @@ const aEjercicioGuardado = (d: DefSesion): EjercicioSesion => {
         } : {}),
     };
 
+    if (d.objetivo.tipoBloqueEspecial) {
+        ej.tipoBloqueEspecial = d.objetivo.tipoBloqueEspecial;
+        if (d.inicioBloqueMs != null && !d.series.length && transcurridoMs != null) {
+            ej.bloqueEspecialTranscurridoMs = Math.max(0, transcurridoMs - d.inicioBloqueMs);
+        }
+    }
     const descSeg = d.objetivo?.descansoSeg;
     const desc = Number(descSeg);
     if (descSeg != null && (desc > 0 || tipoEjercicioDe(d.objetivo) === "intervalo"))
@@ -194,7 +242,7 @@ const aEjercicioGuardado = (d: DefSesion): EjercicioSesion => {
     if (tipoEjercicioDe(d.objetivo) === "intervalo")
         ej.transicionSeg = Math.max(0, Math.round(Number(tra) || 0));
     else if (tra != null) ej.transicionSeg = Math.round(Number(tra));
-    if (!ej.series.length && !ej.notas) ej.sinRegistrar = true;
+    if (!ej.series.length && !ej.notas && ej.bloqueEspecialTranscurridoMs == null) ej.sinRegistrar = true;
     return ej;
 };
 
@@ -236,6 +284,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
 
     let ciclo: { fase: "trabajo" | "descanso"; n: number; ej: number; restanteMs: number; totalMs: number; trabajoSeg: number } | null = null;
     let iniciada = false, inicio = 0;
+    let inicioRealMs: number | null = null;
 
     let pausaAcum = 0, pausaPend: number | null = null, pausaT0 = 0;
     const pausas: { t: number; ms: number }[] = [];
@@ -296,6 +345,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                             descansoSeg: desc, notas: "",
 
                             tipoEjercicio: g.tipoEjercicio ?? null,
+                            tipoBloqueEspecial: g.tipoBloqueEspecial ?? null,
                             duracionObjetivo: g.duracionObjetivo ?? null,
                             repsPesoDuranteTiempo: g.repsPesoDuranteTiempo === true,
                             trabajoSeg: g.trabajoSeg ?? null,
@@ -316,8 +366,20 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             }
 
             idx = Math.min(Math.max(0, Number(parcialGuard.idx) || 0), Math.max(0, defs.length - 1));
+            pausas.push(...(parcialGuard.pausas ?? []));
+            pausaAcum = pausas.reduce((total, pausa) => total + Math.max(0, Number(pausa.ms) || 0), 0);
             const msParcial = Number(parcialGuard.transcurridoMs) || 0;
-            if (msParcial > 0) { iniciada = true; inicio = Date.now() - msParcial; }
+            if (msParcial > 0) {
+                iniciada = true;
+                inicio = Date.now() - msParcial + pausaAcum;
+                inicioRealMs = Number(parcialGuard.inicioRealMs) || null;
+            }
+            for (const d of defs) {
+                const guardado = (parcialGuard.ejercicios ?? []).find(x => x.ejercicioId === d.id);
+                if (d.objetivo.tipoBloqueEspecial && guardado?.bloqueEspecialTranscurridoMs != null) {
+                    d.inicioBloqueMs = msParcial - guardado.bloqueEspecialTranscurridoMs;
+                }
+            }
         }
     }
 
@@ -337,6 +399,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
     overlay.id = "gym-modo-activo";
     const cajaM = el("div", "gym-modo-caja");
     overlay.appendChild(cajaM);
+    let minimizada = false;
 
     const cab = el("div", "gym-modo-cab");
     const titCab = el("div", "flex:1;min-width:0;");
@@ -369,11 +432,39 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
     const btnPausa = el("button", "gym-btn-g gym-btn-pausa gym-btn-descanso-pausa", "⏸ Pausa"); btnPausa.type = "button";
     btnPausa.title = "Pausa: congela el cronómetro y el descanso";
     btnPausa.setAttribute("aria-label", "Pausar sesión");
+    const btnMinimizar = el("button", "gym-btn-g gym-cerrar-x", "−"); btnMinimizar.type = "button";
+    btnMinimizar.title = "Minimizar sesión guiada";
+    btnMinimizar.setAttribute("aria-label", "Minimizar sesión guiada");
     const btnCerrar = el("button", "gym-btn-g gym-cerrar-x gym-x44", "✕"); btnCerrar.type = "button";
     btnCerrar.title = "Salir sin guardar";
     cab.appendChild(titCab); cab.appendChild(relojEl);
-    cab.appendChild(btnCerrar);
+    cab.append(btnMinimizar, btnCerrar);
     cajaM.appendChild(cab);
+
+    const btnRestaurar = el("button", "gym-sesion-restaurar", "🎯 Volver a la sesión");
+    btnRestaurar.type = "button";
+    btnRestaurar.title = "Mostrar la sesión guiada";
+    btnRestaurar.setAttribute("aria-label", "Mostrar la sesión guiada");
+    const restaurar = (): void => {
+        minimizada = false;
+        if (retomarSesionMinimizada === restaurar) retomarSesionMinimizada = null;
+        actualizarBotonesSesionGuiada();
+        overlay.classList.remove("gym-modo-minimizado");
+        overlay.removeAttribute("aria-hidden");
+        btnRestaurar.remove();
+        btnMinimizar.focus();
+    };
+    const minimizarSesion = (): void => {
+        minimizada = true;
+        retomarSesionMinimizada = restaurar;
+        actualizarBotonesSesionGuiada();
+        overlay.classList.add("gym-modo-minimizado");
+        overlay.setAttribute("aria-hidden", "true");
+        document.body.appendChild(btnRestaurar);
+        btnRestaurar.focus();
+    };
+    btnMinimizar.onclick = minimizarSesion;
+    btnRestaurar.onclick = restaurar;
 
     const cuerpo = el("div", "gym-modo-cuerpo");
     const progreso = el("div", "gym-modo-progreso");
@@ -406,6 +497,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
 
     let cajaCiclo: HTMLDivElement | null = null, tCiclo: HTMLDivElement | null = null;
     let barraCiclo: HTMLDivElement | null = null;
+    let lecturaBloque: HTMLElement | null = null;
     let confirmarCancelarCiclo = false;
     let cajaHold: HTMLDivElement | null = null, tHold: HTMLDivElement | null = null;
     let valorHold: HTMLSpanElement | null = null;
@@ -459,8 +551,11 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
 
     const iniciar = () => {
         if (iniciada || pausado) return;
+        prepararAudio();
         iniciada = true;
         inicio = Date.now();
+        inicioRealMs ??= Date.now();
+        if (defs[idx]?.objetivo.tipoBloqueEspecial) defs[idx].inicioBloqueMs ??= transcurridoMs();
         sincronizaPantalla();
         pintarEjercicio();
     };
@@ -691,13 +786,31 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
 
         if (descanso && descanso.restanteMs <= 0) descanso = null;
         idx = n;
+        if (iniciada && defs[idx]?.objetivo.tipoBloqueEspecial && !defs[idx].series.length)
+            defs[idx].inicioBloqueMs ??= transcurridoMs();
         tipoSerieAbierto = null;
         inReps = []; inPeso = []; inDuracion = [];
         pintarEjercicio();
     };
-    const siguiente = () => {
-        if (idx + 1 >= defs.length) return terminar();
+    const siguiente = (): void => {
+        if (idx + 1 >= defs.length) {
+            void terminar();
+            return;
+        }
         irAEjercicio(idx + 1);
+    };
+    const completarBloqueEspecial = (): void => {
+        const ej = defs[idx];
+        if (!ej?.objetivo.tipoBloqueEspecial || ej.series.length || !iniciada || pausado) return;
+        const ahora = transcurridoMs();
+        const duracion = Math.floor((ahora - (ej.inicioBloqueMs ?? ahora)) / 1000);
+        if (duracion < 1) {
+            toast("⏱ Espera al menos un segundo antes de marcarlo como hecho.", false);
+            return;
+        }
+        ej.series = [{ duracionSeg: duracion, t: ahora }];
+        ej.inicioBloqueMs = undefined;
+        siguiente();
     };
 
     const anadirEjercicioBoton = (): HTMLButtonElement => {
@@ -774,7 +887,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         if (!ej) return;
         actualProgreso.textContent = String(idx + 1);
         totalProgreso.textContent = String(defs.length);
-        pasosProgreso.setAttribute("aria-label", `Progreso de ejercicios: ${idx + 1} de ${defs.length}`);
+        pasosProgreso.setAttribute("aria-label", `Progreso de bloques y ejercicios: ${idx + 1} de ${defs.length}`);
         while (indicadoresProgreso.length < defs.length) {
             const paso = el("span", "gym-modo-paso");
             paso.setAttribute("role", "img");
@@ -797,7 +910,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                     : estado === "omitido" ? "omitido"
                         : estado === "parcial" ? "en curso" : "pendiente";
             const paso = indicadoresProgreso[i];
-            paso.className = `gym-modo-paso ${estado}`;
+            paso.className = `gym-modo-paso${def.objetivo.tipoBloqueEspecial ? " especial" : ""} ${estado}`;
             paso.title = `${def.nombre}: ${descripcion}`;
             paso.setAttribute("aria-label", `${def.nombre}: ${descripcion}`);
             if (i === idx) paso.setAttribute("aria-current", "step");
@@ -823,6 +936,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         });
         inReps = []; inPeso = []; inDuracion = [];
         contEj.empty();
+        lecturaBloque = null;
 
         pie.style.display = defs.length ? "" : "none";
         if (!ej) {
@@ -853,6 +967,46 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             contEj.appendChild(bAnadir0);
             barraAccion.replaceChildren();
             bVolver.disabled = true;
+            return;
+        }
+
+        if (ej.objetivo.tipoBloqueEspecial) {
+            const tipoBloque = ej.objetivo.tipoBloqueEspecial;
+            contEj.appendChild(el("div", "gym-modo-seccion gym-modo-bloque-especial", `🔹 ${nombreBloqueEspecial(tipoBloque)}`));
+            contEj.appendChild(el("div", "gym-modo-bloque-ayuda",
+                "Este bloque va antes de los ejercicios. El cronómetro empieza al iniciar y no hay descanso al terminar."));
+            const bloqueOmitido = Boolean(ej.series[0]?.saltada);
+            const tiempoRegistrado = bloqueOmitido ? undefined : ej.series[0]?.duracionSeg;
+            const inicioBloque = ej.inicioBloqueMs ?? transcurridoMs();
+            lecturaBloque = el("div", "gym-modo-bloque-tiempo",
+                bloqueOmitido ? "⏭ Bloque omitido"
+                    : tiempoRegistrado != null ? `⏱ Duración registrada: ${tiempoRegistrado} s`
+                        : `⏱ ${relojTexto(Math.max(0, transcurridoMs() - inicioBloque))}`);
+            contEj.appendChild(lecturaBloque);
+            bSaltar.textContent = "⏭ Saltar bloque";
+            bSaltar.disabled = !iniciada || pausado || ej.series.length > 0;
+
+            if (!iniciada) {
+                btnAccion = el("button", "gym-btn-g gym-btn-accion primario", "▶ Iniciar sesión");
+                btnAccion.onclick = () => iniciar();
+            } else if (pausado) {
+                btnAccion = el("button", "gym-btn-g gym-btn-accion pausa", "⏸ EN PAUSA — pulsa para continuar");
+                btnAccion.onclick = () => btnPausa.click();
+            } else if (tiempoRegistrado != null || bloqueOmitido) {
+                const texto = idx + 1 >= defs.length ? "🏁 Terminar" : "⏭ Siguiente ejercicio";
+                btnAccion = el("button", "gym-btn-g gym-btn-accion verde", texto);
+                btnAccion.onclick = () => { void siguiente(); };
+            } else {
+                btnAccion = el("button", "gym-btn-g gym-btn-accion primario", "✔ Hecho");
+                btnAccion.onclick = () => completarBloqueEspecial();
+            }
+            btnAccion.type = "button";
+            barraAccion.replaceChildren();
+            barraAccion.classList.remove("descansando");
+            if (iniciada && !pausado) barraAccion.appendChild(btnPausa);
+            barraAccion.appendChild(btnAccion);
+            bVolver.disabled = idx === 0;
+            bSiguiente.disabled = (tiempoRegistrado == null && !bloqueOmitido) || idx >= defs.length - 1;
             return;
         }
 
@@ -1010,13 +1164,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             bSaltar.title = "Saltar descanso";
             bSaltar.setAttribute("aria-label", "Saltar descanso");
             bSaltar.onclick = () => {
-
-                const due = descanso?.ej ?? -1;
-                ejecDesde = transcurridoMs();
-                ejecDesdeEj = due;
-                descanso = null;
-                if (due >= 0 && due !== idx && due < defs.length && !animando) deslizarA(due);
-                else pintarEjercicio();
+                finalizarDescanso(descanso?.ej ?? -1);
             };
             fDesc.appendChild(btnPausa);
             fDesc.append(bMenos, centroDescanso, bMas, bSaltar);
@@ -1153,12 +1301,17 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                 fila.title = "Serie extra — fuera del plan";
             } else cN.textContent = String(i + 1);
             celdaNumero.appendChild(cN);
+            if (registrada && s) {
+                const tipoRegistrado = tipoSerieDe(ej.objetivo, s);
+                const indicadorTipo = el("span", "gym-modo-set-tipo", letraTipoSerie(tipoRegistrado));
+                indicadorTipo.title = `Tipo de serie: ${etiquetaTipoSerie(tipoRegistrado)}`;
+                indicadorTipo.setAttribute("aria-label", indicadorTipo.title);
+                celdaNumero.appendChild(indicadorTipo);
+            }
             fila.appendChild(celdaNumero);
             if (saltada) {
-
-                const txtS = el("div", "font-size:.92em;font-style:italic;");
-                txtS.appendChild(el("span", "gym-chip gym-chip-mini", etiquetaTipoSerie(tipoSerieDe(ej.objetivo, s))));
-                txtS.append(" ⏭ Saltada");
+                const txtS = el("div", "gym-modo-set-valor gym-modo-set-saltada");
+                txtS.textContent = "⏭ Saltada";
                 fila.appendChild(txtS);
                 fila.appendChild(el("div"));
                 const cierreS = el("div", "cierre");
@@ -1169,14 +1322,27 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                 fila.appendChild(cierreS);
             } else if (registrada) {
 
-                const txt = el("div", "font-size:.95em;");
-                txt.appendChild(el("span", "gym-chip gym-chip-mini", etiquetaTipoSerie(tipoSerieDe(ej.objetivo, s))));
-                const detalleSerie = tipoEjercicioDe(ej.objetivo) === "tiempo"
-                    && ej.objetivo.repsPesoDuranteTiempo
-                    ? `${s.reps ?? "–"} reps × ${s.peso != null ? pesoTexto(s.peso) : "sin peso"} · ${s.duracionSeg ?? "–"} s`
+                const tipoRegistro = tipoEjercicioDe(ej.objetivo);
+                const cronometradaConPeso = tipoRegistro === "tiempo"
+                    && ej.objetivo.repsPesoDuranteTiempo;
+                const txt = el("div", "gym-modo-set-valor");
+                const detalleSerie = cronometradaConPeso
+                    ? `${s.reps ?? "–"} reps · ${s.duracionSeg ?? "–"} s`
                     : s.duracionSeg != null ? `${s.duracionSeg} s`
-                        : `${s.reps ?? "–"} reps × ${s.peso != null ? pesoTexto(s.peso) : "sin peso"}`;
-                txt.append(" " + detalleSerie);
+                        : `${s.reps ?? "–"} reps`;
+                txt.textContent = detalleSerie;
+                const cicloEnDescanso = tipoRegistro === "intervalo"
+                    && ciclo?.fase === "descanso" && ciclo.ej === idx && ciclo.n === i + 1;
+                if (cicloEnDescanso) {
+                    fila.appendChild(cajaCiclo ?? el("div"));
+                    fila.appendChild(el("div"));
+                } else {
+                    fila.appendChild(txt);
+                    fila.appendChild(tipoRegistro === "peso" || cronometradaConPeso
+                        ? el("div", "gym-modo-set-peso gym-modo-set-valor",
+                            s.peso != null ? pesoACampo(s.peso) : "–")
+                        : el("div"));
+                }
                 logrosSerie = recordes.filter(r => r.indiceEjercicio === idx && r.indiceSerie === i);
                 if (logrosSerie.length) {
                     const abierto = logrosAbiertos === i;
@@ -1193,13 +1359,6 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                         pintarEjercicio();
                         contEj.querySelector<HTMLButtonElement>(`.gym-modo-logros-btn[data-serie="${i}"]`)?.focus();
                     };
-                }
-                if (tipoEjercicioDe(ej.objetivo) === "intervalo"
-                    && ciclo?.fase === "descanso" && ciclo.ej === idx && ciclo.n === i + 1) {
-                    fila.appendChild(cajaCiclo ?? el("div"));
-                } else {
-                    fila.appendChild(txt);
-                    fila.appendChild(el("div"));
                 }
                 const cierre = el("div", "cierre");
                 if (botonLogros) cierre.appendChild(botonLogros);
@@ -1466,12 +1625,21 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
     };
     const bSiguiente = el("button", "gym-btn-g", "⏭ Siguiente"); bSiguiente.type = "button";
     bSiguiente.onclick = () => {
+        if (defs[idx]?.objetivo.tipoBloqueEspecial && !defs[idx].series.length) return;
         if (idx + 1 < defs.length) deslizarA(idx + 1);
     };
     const bSaltar = el("button", "gym-btn-g", "⏭ Saltar ejercicio"); bSaltar.type = "button";
     bSaltar.title = "No hacer este ejercicio: sus series quedan registradas como saltadas";
     bSaltar.onclick = () => {
         const ej = defs[idx];
+        if (ej.objetivo.tipoBloqueEspecial) {
+            if (!iniciada || pausado || ej.series.length) return;
+            ej.series.push({ saltada: true, t: transcurridoMs() });
+            ej.inicioBloqueMs = undefined;
+            toast(`⏭ ${nombreBloqueEspecial(ej.objetivo.tipoBloqueEspecial)}: sin registrar`);
+            siguiente();
+            return;
+        }
         if (descanso && descanso.ej === idx) descanso = null;
         if (hold?.ej === idx) {
             hold = null;
@@ -1524,6 +1692,19 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         }, 190);
     };
 
+    const finalizarDescanso = (due: number): void => {
+        descanso = null;
+        const ejercicio = defs[due];
+        const siguientePendiente = ejercicio && ejercicio.series.length >= ejercicio.plan
+            ? defs.findIndex((def, i) => i > due && def.series.length < def.plan)
+            : -1;
+        const destino = siguientePendiente >= 0 ? siguientePendiente : due;
+        ejecDesde = transcurridoMs();
+        ejecDesdeEj = destino;
+        if (destino !== idx && destino >= 0 && destino < defs.length && !animando) deslizarA(destino);
+        else pintarEjercicio();
+    };
+
     btnPausa.onclick = () => {
         if (!iniciada) return;
         pausado = !pausado;
@@ -1554,17 +1735,22 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         document.removeEventListener("keydown", onKey);
         pantalla.quitar();
         sesionesAbiertas.delete(cerrar);
+        if (retomarSesionMinimizada === restaurar) {
+            retomarSesionMinimizada = null;
+            actualizarBotonesSesionGuiada();
+        }
+        btnRestaurar.remove();
         overlay.remove();
     };
     sesionesAbiertas.add(cerrar);
     const onKey = (e: KeyboardEvent) => {
-        if (e.key !== "Escape") return;
+        if (e.key !== "Escape" || minimizada) return;
 
         if (document.getElementById("gym-confirm-activo") || document.getElementById("gym-modal-activo")) return;
         btnCerrar.click();
     };
     btnCerrar.onclick = async () => {
-        const hay = defs.some(d => d.series.length || d.notas);
+        const hay = defs.some(d => d.series.length || d.notas || d.inicioBloqueMs != null);
         if (hay) {
             const msg = parcialGuard
                 ? "¿Salir? Tu progreso ya está guardado: al volver a abrir este día continuarás donde lo dejaste.\n\nSe pierde solo lo hecho desde el último Guardar."
@@ -1577,7 +1763,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
 
     const guardarProgreso = async () => {
         if (!iniciada) return toast("⚠️ Pulsa ▶ Iniciar sesión antes de guardar.", false);
-        const conDatos = defs.filter(d => d.series.length || d.notas);
+        const conDatos = defs.filter(d => d.series.length || d.notas || d.inicioBloqueMs != null);
         if (!conDatos.length) return toast("⚠️ Aún no hay nada que guardar: completa una serie o añade una nota.", false);
         const totalSeries = conDatos.reduce((t, d) => t + seriesHechas(d).length, 0);
         const totalSaltadas = conDatos.reduce((t, d) => t + d.series.filter(esSaltada).length, 0);
@@ -1589,6 +1775,9 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             (totalSinRegistrar ? `\n· ${totalSinRegistrar} ejercicio${totalSinRegistrar > 1 ? "s" : ""} sin registrar (se guardan marcados como no hechos)` : "") + "\n\n" +
             "La sesión no se cierra. Si se cierra la app, al volver a abrir este día podrás continuar donde lo dejaste.",
             "Guardar", "Cancelar"))) return;
+        const pausasGuardadas = pausaPend != null
+            ? [...pausas, { t: pausaT0, ms: Date.now() - pausaPend }]
+            : pausas;
         const sesion: Sesion = {
             fecha: hoy(),
             diaId: dia.id,
@@ -1597,9 +1786,10 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             enCurso: true,           // marca de progreso sin terminar: se retira al Terminar
             idx,                     // por qué ejercicio ibas (para reanudar)
             transcurridoMs: transcurridoMs(),   // reloj activo acumulado (para que al reanudar siga contando)
-            ...(pausas.length ? { pausas } : {}),   // las pausas viajan con la sesión
+            ...(inicioRealMs != null ? { inicioRealMs } : {}),
+            ...(pausasGuardadas.length ? { pausas: pausasGuardadas } : {}),   // las pausas viajan con la sesión
 
-            ejercicios: defs.map(aEjercicioGuardado),
+            ejercicios: defs.map(d => aEjercicioGuardado(d, transcurridoMs())),
         };
         try {
             const iP = parcialGuard ? rutina.sesiones.indexOf(parcialGuard) : -1;
@@ -1675,10 +1865,16 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             "Terminar y guardar", "Seguir entrenando"))) return;
         const recordesFinales = recordesDeSesion();
         const duracionRealMs = transcurridoMs();
+        if (pausaPend != null) {
+            pausas.push({ t: pausaT0, ms: Date.now() - pausaPend });
+            pausaPend = null;
+        }
         const sesion: Sesion = {
             fecha: hoy(),
             diaId: dia.id,
             duracionMin,
+            transcurridoMs: duracionRealMs,
+            ...(inicioRealMs != null ? { inicioRealMs } : {}),
             anotaciones: "",
             ...(pausas.length ? { pausas } : {}),   // las pausas viajan con la sesión
 
@@ -1704,12 +1900,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         if (!descanso) return;
         sonarDescanso();
         vibrar();
-        const due = descanso.ej;
-        descanso = null;
-        ejecDesde = transcurridoMs();
-        ejecDesdeEj = due;
-        if (due !== idx && due >= 0 && due < defs.length && !animando) deslizarA(due);
-        else pintarEjercicio();
+        finalizarDescanso(descanso.ej);
     };
 
     const idReloj = window.setInterval(() => {
@@ -1717,6 +1908,11 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         const dt = Math.max(0, ahora - ultimoTick);
         ultimoTick = ahora;
         relojEl.textContent = `⏱ ${relojTexto(transcurridoMs())}`;
+        const bloqueActual = defs[idx];
+        if (lecturaBloque && bloqueActual?.objetivo.tipoBloqueEspecial && !bloqueActual.series.length) {
+            const inicioBloque = bloqueActual.inicioBloqueMs ?? transcurridoMs();
+            lecturaBloque.textContent = `⏱ ${relojTexto(Math.max(0, transcurridoMs() - inicioBloque))}`;
+        }
         if (pausado) return;
         if (descanso && descanso.restanteMs > 0) {
             descanso.restanteMs -= dt;

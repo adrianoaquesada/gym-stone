@@ -24,7 +24,7 @@ export const rutinaVacia = (): Rutina => ({
 });
 
 export const ejercicioVacio = (): EjercicioDef =>
-    ({ id: "", nombre: "", grupos: [], tipoEjercicio: null, series: 3, repsObjetivo: 8, pesoObjetivo: null,
+    ({ id: "", nombre: "", grupos: [], tipoEjercicio: null, tipoBloqueEspecial: null, series: 3, repsObjetivo: 8, pesoObjetivo: null,
        duracionObjetivo: null, descansoSeg: 90, trabajoSeg: null, transicionSeg: null,
        notas: "", tipoSerie: null });
 
@@ -39,8 +39,8 @@ export const diaVacio = (): DiaRutina =>
     ({ id: "", nombre: "", diasSemana: [], ejercicios: [], etiquetasPersonalizadas: [] });
 
 export const tipoEjercicioDe =
-    (ej: Pick<EjercicioDef, "tipoEjercicio"> | undefined | null): TipoEjercicio =>
-        ej?.tipoEjercicio ?? "peso";
+    (ej: Pick<EjercicioDef, "tipoEjercicio" | "tipoBloqueEspecial"> | undefined | null): TipoEjercicio =>
+        ej?.tipoBloqueEspecial ? "tiempo" : ej?.tipoEjercicio ?? "peso";
 
 export const tipoSerieDe = (
     plan: Pick<EjercicioDef, "tipoSerie"> | undefined | null,

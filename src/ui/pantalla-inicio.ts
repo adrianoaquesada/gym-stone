@@ -10,11 +10,13 @@ import { pintarGestionEjercicios } from "./ejercicios-ui";
 import { formularioMedidas } from "./registro";
 import { seccionMedidas } from "./estadisticas";
 import { pintarResumenProgresion } from "./progresion";
-import { elegirDiaGuiada } from "./sesion-guiada";
+import {
+    elegirDiaGuiada, prepararBotonSesionGuiada, retomarSesionGuiadaMinimizada,
+} from "./sesion-guiada";
 import { abrirTemporizador } from "./temporizador";
 import { abrirFormulario, abrirRutina } from "./vistas";
 
-type SeccionInicio = "rutinas" | "progresion" | "medidas" | "ejercicios";
+type SeccionInicio = "rutinas" | "estadisticas" | "medidas" | "ejercicios";
 
 export class PantallaInicio {
 
@@ -34,8 +36,8 @@ export class PantallaInicio {
         const botones: BotonNav[] = [
             { texto: "📋 Rutinas", activo: this.seccion === "rutinas",
               alPulsar: () => this.irA("rutinas") },
-            { texto: "📈 Progresión", activo: this.seccion === "progresion",
-              alPulsar: () => this.irA("progresion") },
+            { texto: "📊 Estadísticas", activo: this.seccion === "estadisticas",
+              alPulsar: () => this.irA("estadisticas") },
             { texto: "⚖️ Medidas e IMC", activo: this.seccion === "medidas",
               alPulsar: () => this.irA("medidas") },
             { texto: "🗂 Ejercicios", activo: this.seccion === "ejercicios",
@@ -46,16 +48,18 @@ export class PantallaInicio {
             botones.push({ texto: "＋ Registrar medidas", principal: true, alPulsar: () => void this.abrirMedidas() });
         } else if (this.seccion === "rutinas") {
             botones.push({ texto: "＋ Nueva rutina", principal: true, alPulsar: () => void abrirFormulario({ modo: "crear" }) });
+        } else if (this.seccion === "estadisticas") {
+            botones.push({ texto: "＋ Registrar medidas", principal: true, alPulsar: () => void this.abrirMedidas() });
         }
         botones.push({ texto: "⏱ Temporizador", alPulsar: () => void abrirTemporizador(), derecha: true });
         pintarNavegacion(cont, botones);
 
         if (this.seccion === "medidas") return this.pintarMedidas(cont);
         if (this.seccion === "ejercicios") return this.pintarEjercicios(cont);
-        if (this.seccion === "progresion") {
+        if (this.seccion === "estadisticas") {
             const contenido = el("div", "gym-inicio-contenido");
             cont.appendChild(contenido);
-            return pintarResumenProgresion(contenido);
+            return pintarResumenProgresion(contenido, { estadisticasGlobales: true });
         }
         return this.pintarRutinas(cont);
     }
@@ -144,8 +148,11 @@ export class PantallaInicio {
         fila.appendChild(principal);
 
         const acciones = fila.createDiv({ cls: "gym-fila-rutina-acciones" });
-        const bGuiada = btn("🎯", "gym-btn-icono", () => void this.sesionGuiada(f));
+        const bGuiada = btn("🎯", "gym-btn-icono", () => {
+            if (!retomarSesionGuiadaMinimizada()) void this.sesionGuiada(f);
+        });
         bGuiada.title = "🎯 Empezar sesión guiada";
+        prepararBotonSesionGuiada(bGuiada, "🎯 ↩ Retomar sesión guiada");
         acciones.appendChild(bGuiada);
         acciones.appendChild(btn("✏️", "gym-btn-icono", () => void abrirFormulario({ modo: "editar", rutinaId: f.id })));
         acciones.appendChild(btn("🗑", "gym-btn-icono", () => void this.borrar(f)));

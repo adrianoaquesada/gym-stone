@@ -108,6 +108,7 @@ export const plantillaDeRutina = (rutina: Rutina): PlantillaRutina => ({
             nombre: e.nombre,
             grupos: normalizarGrupos(e.grupos),
             tipoEjercicio: e.tipoEjercicio ?? null,
+            tipoBloqueEspecial: e.tipoBloqueEspecial ?? null,
             series: e.series,
             repsObjetivo: e.repsObjetivo,
             pesoObjetivo: e.pesoObjetivo ?? null,

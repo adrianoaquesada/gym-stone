@@ -8,6 +8,9 @@ en tu vault.
 
 - Crea rutinas semanales desde cero o a partir de plantillas.
 - Registra sesiones guiadas o manuales, con ejercicios de peso, tiempo e intervalos.
+- Añade calentamiento y estiramiento al día: la sesión guiada cronometra estos bloques antes
+  o después de los ejercicios según el orden de la rutina; el registro manual permite anotar
+  su duración.
 - Organiza ejercicios por grupos musculares y conserva su historial aunque cambies sus nombres.
 - Registra peso y talla, y consulta su evolución, el IMC, calendarios y estadísticas.
 - Usa temporizadores y cronómetro durante el entrenamiento.
@@ -38,6 +41,10 @@ estadísticas.
 En cada rutina, la sección **Estadísticas** reúne el resumen, la evolución por ejercicio y el
 historial filtrable con la comparación entre el plan y lo realizado.
 
+En Inicio, **Estadísticas** muestra el resumen global de rutinas, las medidas corporales y la
+evolución e historial de ejercicios entre rutinas. Desde ahí también puedes registrar medidas.
+La sección **Medidas e IMC** se mantiene como acceso independiente.
+
 ## Capturas
 
 Sesión guiada:
@@ -55,6 +62,14 @@ Historial de sesión y estadísticas:
 En cada ejercicio puedes definir objetivos de peso y repeticiones, duración o ciclos de
 trabajo y descanso. Las sesiones guardan los resultados para consultar el historial y la
 progresión.
+
+Al crear o editar una rutina, el botón de guardado permanece disponible al pie del formulario.
+Los ejercicios de cada día se pueden reordenar arrastrando el asa.
+Cada día admite un bloque fijo de calentamiento y otro de estiramiento; en la sesión guiada
+aparecen en el orden definido en el editor, se completan con «Hecho» y no tienen descanso.
+
+La sesión guiada puede minimizarse y restaurarse con un botón persistente; al terminar el
+descanso de la última serie de un ejercicio, avanza automáticamente al siguiente.
 
 El historial compara las series y el peso planificados con lo realizado. Al terminar una
 sesión o iniciar otra, puedes aplicar al objetivo del día actual los valores sugeridos según

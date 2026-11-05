@@ -9,7 +9,7 @@ import {
 import { aNumero, clonarJSON, esFechaValida, hoy, limpiarNombre, msgError, norm, slug, tsDe } from "../util";
 import { uid } from "../util/texto";
 import { pesoActual, pesoACampo, pesoAKg } from "../unidades";
-import type { DiaRutina, EjercicioDef, EstadoRutina, Rutina } from "../tipos";
+import type { DiaRutina, EjercicioDef, EstadoRutina, Rutina, TipoBloqueEspecial } from "../tipos";
 import { btn, confirmar, el, modal, pedirTexto, ponerX, selectorUnidad, toast } from "./componentes";
 import { abrirRutina } from "./vistas";
 import { crearComparacionPlan } from "./comparacion-plan";
@@ -75,6 +75,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
 
     const raiz = el("div", "margin:12px 0;line-height:1.45;");
     raiz.className = "gym-form";
+    raiz.classList.toggle("gym-form-hoja", enHoja);
     cont.appendChild(raiz);
 
     {   // cabecera (la hoja superpuesta ya trae la suya)
@@ -355,7 +356,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
 
     const contDias = el("div");
     campoEstructura = campo("Estructura por día de rutina", contDias,
-        "Cada día declara SUS días de la semana (p. ej. «Push» el lunes y el jueves). Los ejercicios se precargan con los objetivos que pongas aquí.");
+        "Cada día declara SUS días de la semana (p. ej. «Push» el lunes y el jueves). Los ejercicios se precargan con los objetivos que pongas aquí; puedes reordenarlos arrastrando el asa.");
 
     function nuevoDia(letra: string): DiaRutina {
         const l = String(letra || "A").toUpperCase();
@@ -512,10 +513,118 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         cajaDia.appendChild(filaEtiqueta);
 
         const contEj = el("div");
+        contEj.classList.add("gym-ej-lista");
         cajaDia.appendChild(contEj);
+
+        const ordenarEjercicio = (desde: number, hasta: number): void => {
+            if (desde < 0 || hasta < 0 || desde >= dia.ejercicios.length || hasta >= dia.ejercicios.length
+                || desde === hasta) return;
+            const [ejercicio] = dia.ejercicios.splice(desde, 1);
+            dia.ejercicios.splice(hasta, 0, ejercicio);
+            pintarEjercicios();
+            contEj.querySelector<HTMLButtonElement>(`[data-orden-handle="${hasta}"]`)?.focus();
+        };
 
         const filaEjercicio = (ej: EjercicioDef): HTMLDivElement => {
             const fila = el("div", "gym-ej");
+
+            const accionesOrden = (nombre: string): HTMLDivElement => {
+                const acciones = el("div", "gym-ej-acciones gym-ej-borrar");
+                const bBorrar = el("button", "gym-borrar gym-ej-borrar-btn", "🗑");
+                bBorrar.type = "button";
+                bBorrar.title = `Quitar ${nombre.toLocaleLowerCase("es")}`;
+                bBorrar.setAttribute("aria-label", bBorrar.title);
+                bBorrar.onclick = () => {
+                    const indice = dia.ejercicios.indexOf(ej);
+                    if (indice >= 0) dia.ejercicios.splice(indice, 1);
+                    pintarEjercicios();
+                    pintarTipoDia();
+                };
+                const bArrastrar = el("button", "gym-mini gym-ej-arrastrar", "⠿");
+                bArrastrar.type = "button";
+                bArrastrar.title = "Arrastrar para reordenar";
+                bArrastrar.setAttribute("aria-label", `Arrastrar ${nombre.toLocaleLowerCase("es")} para reordenar`);
+                bArrastrar.dataset.ordenHandle = String(dia.ejercicios.indexOf(ej));
+                let arrastre: {
+                    punteroId: number;
+                    desde: number;
+                    desplazamientoX: number;
+                    desplazamientoY: number;
+                    marcador: HTMLDivElement;
+                } | null = null;
+                const limpiarArrastre = (confirmar: boolean): void => {
+                    if (!arrastre) return;
+                    const actual = arrastre;
+                    arrastre = null;
+                    const destino = Array.from(contEj.children)
+                        .filter(elemento => elemento !== fila)
+                        .indexOf(actual.marcador);
+                    fila.classList.remove("gym-ej-arrastrando");
+                    fila.style.removeProperty("--gym-arrastre-x");
+                    fila.style.removeProperty("--gym-arrastre-y");
+                    fila.style.removeProperty("--gym-arrastre-ancho");
+                    actual.marcador.replaceWith(fila);
+                    if (confirmar) ordenarEjercicio(actual.desde, destino);
+                    else pintarEjercicios();
+                };
+                bArrastrar.onpointerdown = evento => {
+                    if (evento.button !== 0 || arrastre) return;
+                    evento.preventDefault();
+                    const limites = fila.getBoundingClientRect();
+                    const limitesLista = contEj.getBoundingClientRect();
+                    const marcador = el("div", "gym-ej-placeholder");
+                    marcador.style.setProperty("--gym-arrastre-alto", `${limites.height}px`);
+                    contEj.insertBefore(marcador, fila);
+                    arrastre = {
+                        punteroId: evento.pointerId,
+                        desde: dia.ejercicios.indexOf(ej),
+                        desplazamientoX: evento.clientX - limites.left,
+                        desplazamientoY: evento.clientY - limites.top,
+                        marcador,
+                    };
+                    fila.classList.add("gym-ej-arrastrando");
+                    fila.style.setProperty("--gym-arrastre-x", `${limites.left - limitesLista.left + contEj.scrollLeft}px`);
+                    fila.style.setProperty("--gym-arrastre-y", `${limites.top - limitesLista.top + contEj.scrollTop}px`);
+                    fila.style.setProperty("--gym-arrastre-ancho", `${limites.width}px`);
+                    bArrastrar.setPointerCapture(evento.pointerId);
+                };
+                bArrastrar.onpointermove = evento => {
+                    const actual = arrastre;
+                    if (!actual || evento.pointerId !== actual.punteroId) return;
+                    evento.preventDefault();
+                    const limitesLista = contEj.getBoundingClientRect();
+                    fila.style.setProperty("--gym-arrastre-x",
+                        `${evento.clientX - actual.desplazamientoX - limitesLista.left + contEj.scrollLeft}px`);
+                    fila.style.setProperty("--gym-arrastre-y",
+                        `${evento.clientY - actual.desplazamientoY - limitesLista.top + contEj.scrollTop}px`);
+                    const centroY = evento.clientY - actual.desplazamientoY + fila.getBoundingClientRect().height / 2;
+                    const siguientes = Array.from(contEj.children)
+                        .filter(elemento => elemento !== fila && elemento !== actual.marcador);
+                    const siguiente = siguientes.find(elemento => {
+                        const limites = elemento.getBoundingClientRect();
+                        return centroY < limites.top + limites.height / 2;
+                    });
+                    if (siguiente) contEj.insertBefore(actual.marcador, siguiente);
+                    else contEj.appendChild(actual.marcador);
+                };
+                bArrastrar.onpointerup = evento => {
+                    if (arrastre?.punteroId === evento.pointerId) limpiarArrastre(true);
+                };
+                bArrastrar.onpointercancel = evento => {
+                    if (arrastre?.punteroId === evento.pointerId) limpiarArrastre(false);
+                };
+                bArrastrar.onlostpointercapture = () => limpiarArrastre(false);
+                acciones.append(bBorrar, bArrastrar);
+                return acciones;
+            };
+
+            if (ej.tipoBloqueEspecial) {
+                fila.classList.add("gym-ej-bloque-especial");
+                const nombre = ej.tipoBloqueEspecial === "calentamiento" ? "Calentamiento" : "Estiramiento";
+                fila.appendChild(el("div", "gym-ej-bloque-especial-nombre", `🔹 ${nombre} · duración en la sesión`));
+                fila.appendChild(accionesOrden(nombre));
+                return fila;
+            }
 
             const celda = (etiqueta: string, control: HTMLElement) => {
                 const c = el("div");
@@ -822,26 +931,42 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             };
             pintaCampos();
 
-            const cBorrar = el("div");
-            cBorrar.classList.add("gym-ej-borrar");
-            const bBorrar = el("button", "gym-borrar", "🗑");
-            bBorrar.type = "button";
-            bBorrar.title = "Borrar ejercicio";
-            bBorrar.onclick = () => {
-                const p = dia.ejercicios.indexOf(ej);
-                if (p >= 0) dia.ejercicios.splice(p, 1);
-                pintarEjercicios();
-                pintarTipoDia();
-            };
-            cBorrar.appendChild(bBorrar);
-            fila.appendChild(cBorrar);
+            fila.appendChild(accionesOrden(ej.nombre || "ejercicio"));
             return fila;
         };
 
-        const pintarEjercicios = () => {
+        function pintarEjercicios(): void {
             contEj.empty();
             if (!dia.ejercicios.length) contEj.appendChild(el("div", "gym-ayuda", "Sin ejercicios todavía."));
             dia.ejercicios.forEach(ej => contEj.appendChild(filaEjercicio(ej)));
+            const anadirBloque = (tipo: TipoBloqueEspecial, texto: string): void => {
+                const existe = dia.ejercicios.some(e => e.tipoBloqueEspecial === tipo);
+                const nombre = tipo === "calentamiento" ? "Calentamiento" : "Estiramiento";
+                const b = el("button", "gym-chip", `＋ ${texto}`);
+                b.type = "button";
+                b.disabled = existe;
+                b.title = existe ? `Este día ya tiene un bloque de ${nombre.toLocaleLowerCase("es")}`
+                    : `Añadir un bloque fijo de ${nombre.toLocaleLowerCase("es")}`;
+                b.onclick = () => {
+                    if (dia.ejercicios.some(e => e.tipoBloqueEspecial === tipo)) return;
+                    dia.ejercicios.push({
+                        ...ejercicioVacio(),
+                        id: uid(`gym-stone-${tipo}`),
+                        nombre,
+                        tipoEjercicio: "tiempo",
+                        tipoBloqueEspecial: tipo,
+                        series: 1,
+                        repsObjetivo: null,
+                        descansoSeg: null,
+                    });
+                    pintarEjercicios();
+                    pintarTipoDia();
+                    limpiarError();
+                };
+                contEj.appendChild(b);
+            };
+            anadirBloque("calentamiento", "Calentamiento");
+            anadirBloque("estiramiento", "Estiramiento");
             const b = el("button", "gym-chip", "＋ Añadir ejercicio");
             b.type = "button";
             b.onclick = () => {
@@ -851,7 +976,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
                 limpiarError();
             };
             contEj.appendChild(b);
-        };
+        }
         pintarEjercicios();
         return cajaDia;
     };
@@ -980,13 +1105,13 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         };
         filaGuardar.appendChild(btnLimpiar);
     }
-    raiz.appendChild(filaGuardar);
-    raiz.appendChild(el("div", "gym-ayuda",
+    filaGuardar.appendChild(el("div", "gym-ayuda",
         estado.modo === "editar"
             ? "Se actualiza el archivo de datos (con copia .bak previa) y su fila en el índice; las sesiones no se tocan."
             : enHoja
                 ? "Al guardar se escribe el archivo de datos, se añade la rutina al índice y la hoja se cierra sobre su ficha."
                 : "Al guardar se escribe el archivo de datos, se añade la rutina al índice y esta pestaña pasa a su dashboard."));
+    raiz.appendChild(filaGuardar);
 
     const construir = (): Rutina => {
         unificaDiasSemana();
@@ -997,6 +1122,25 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             etiquetasPersonalizadas: normalizarGrupos(d.etiquetasPersonalizadas),
             ejercicios: d.ejercicios.map((e, j) => {
 
+                if (e.tipoBloqueEspecial) {
+                    return {
+                        id: e.id || uid(`gym-stone-${e.tipoBloqueEspecial}`),
+                        nombre: e.tipoBloqueEspecial === "calentamiento" ? "Calentamiento" : "Estiramiento",
+                        grupos: [],
+                        tipoEjercicio: "tiempo" as const,
+                        tipoBloqueEspecial: e.tipoBloqueEspecial,
+                        series: 1,
+                        repsObjetivo: null,
+                        pesoObjetivo: null,
+                        duracionObjetivo: null,
+                        repsPesoDuranteTiempo: false,
+                        descansoSeg: null,
+                        trabajoSeg: null,
+                        transicionSeg: null,
+                        notas: "",
+                        tipoSerie: null,
+                    };
+                }
                 const t = tipoEjercicioDe(e);
                 return {
                     id: e.id || `${slug(d.nombre || "dia")}-${slug(e.nombre || `ej-${j}`)}`,

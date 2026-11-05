@@ -28,6 +28,8 @@ export interface ParcialCronometro {
 
 export type TipoEjercicio = "peso" | "tiempo" | "intervalo";
 
+export type TipoBloqueEspecial = "calentamiento" | "estiramiento";
+
 export type TipoSerie = "calentamiento" | "trabajo" | "descenso" | "fallo";
 
 export interface EjercicioDef {
@@ -35,6 +37,7 @@ export interface EjercicioDef {
     nombre: string;
     grupos?: string[];
     tipoEjercicio?: TipoEjercicio | null;
+    tipoBloqueEspecial?: TipoBloqueEspecial | null;
     series: number;
 
     repsObjetivo: number | null;
@@ -93,6 +96,8 @@ export interface EjercicioSesion {
     notas?: string;
     descansoSeg?: number;
     tipoEjercicio?: TipoEjercicio | null;
+    tipoBloqueEspecial?: TipoBloqueEspecial | null;
+    bloqueEspecialTranscurridoMs?: number;
 
     duracionObjetivo?: number | null;
     repsPesoDuranteTiempo?: boolean;
@@ -111,6 +116,7 @@ export interface Sesion {
     enCurso?: boolean;
     idx?: number;
     transcurridoMs?: number;
+    inicioRealMs?: number;
     pausas?: { t: number; ms: number }[];
 
 }

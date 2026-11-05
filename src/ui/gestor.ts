@@ -12,7 +12,7 @@ import { textoObjetivoDe } from "./registro";
 import { pintarCabecera, pintarNavegacion } from "./cabecera";
 import { abrirFormulario, abrirLista } from "./vistas";
 import { abrirTemporizador } from "./temporizador";
-import { elegirDiaGuiada } from "./sesion-guiada";
+import { elegirDiaGuiada, prepararBotonSesionGuiada } from "./sesion-guiada";
 import { fijarPintar, type Pintar } from "./pintar";
 import { seccionCalendario } from "./calendario";
 import { abrirRegistro, formularioAnotacion, formularioMedidas } from "./registro";
@@ -68,7 +68,7 @@ export const pintarDashboard = async (
         void pintarDashboard(cont, rutinaId, { ...ops, rutina, seccion });
     };
 
-    pintarNavegacion(cont2, [
+    const navegacion = pintarNavegacion(cont2, [
         { texto: "← Inicio", alPulsar: () => void abrirLista() },
         {
             texto: "🏋️ Rutina",
@@ -87,6 +87,10 @@ export const pintarDashboard = async (
         },
         { texto: "⏱ Temporizador", alPulsar: () => void abrirTemporizador(), derecha: true },
     ]);
+    const botonSesionGuiada = [...navegacion.querySelectorAll<HTMLButtonElement>("button")]
+        .find(boton => boton.textContent === "🎯 Empezar sesión guiada");
+    if (botonSesionGuiada)
+        prepararBotonSesionGuiada(botonSesionGuiada, "🎯 ↩ Retomar sesión guiada");
 
     if (ops.seccion === "estadisticas") {
         const contenido = el("div", "gym-rutina-contenido");
