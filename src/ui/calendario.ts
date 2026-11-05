@@ -492,6 +492,10 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
         (Number(s.duracionMin) || 0) * 60000,
         60000,
     );
+    const tiempoReal = (t: number): number => t + pausas
+        .filter(pausa => pausa.t <= t)
+        .reduce((total, pausa) => total + pausa.ms, 0);
+    const finReal = tiempoReal(finActivo);
     const inicioReal = typeof s.inicioRealMs === "number" && Number.isFinite(s.inicioRealMs)
         ? s.inicioRealMs
         : null;
@@ -531,7 +535,7 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
     ventana.appendChild(contenido);
     wrap.appendChild(ventana);
 
-    const pct = (t: number): number => Math.min(100, Math.max(0, t / finActivo * 100));
+    const pct = (t: number): number => Math.min(100, Math.max(0, t / finReal * 100));
     const seccion = el("div", "margin-top:5px;");
     const marcas = [0, 0.25, 0.5, 0.75, 1];
     seccion.classList.add("gym-cal-linea-seccion");
@@ -539,11 +543,15 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
         const filaP = el("div", "display:flex;align-items:center;gap:8px;margin:3px 0;");
         filaP.appendChild(el("div", "flex:0 0 90px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.76em;opacity:.6;", "⏸ pausas"));
         const pistaP = el("div", "flex:1;position:relative;height:14px;border-radius:7px;background:var(--background-secondary);overflow:hidden;");
+        let pausasAnteriores = 0;
         for (const pausa of pausas) {
-            const marca = el("div", "position:absolute;top:0;bottom:0;width:3px;background:var(--text-faint);");
-            marca.style.left = `calc(${pct(pausa.t)}% - 1.5px)`;
-            conAyuda(marca, () => `⏸ Pausa de ${relojMs(pausa.ms)} — a los ${relojMs(pausa.t)} de sesión activa`, true);
-            pistaP.appendChild(marca);
+            const tramoPausa = el("div", "position:absolute;top:0;bottom:0;background:var(--text-faint);opacity:.65;");
+            const inicio = pausa.t + pausasAnteriores;
+            tramoPausa.style.left = `${pct(inicio)}%`;
+            tramoPausa.style.width = `${Math.max(0, pct(inicio + pausa.ms) - pct(inicio))}%`;
+            conAyuda(tramoPausa, () => `⏸ Pausa de ${relojMs(pausa.ms)} — a los ${relojMs(pausa.t)} de sesión activa`, true);
+            pistaP.appendChild(tramoPausa);
+            pausasAnteriores += pausa.ms;
         }
         filaP.appendChild(pistaP);
         seccion.appendChild(filaP);
@@ -563,13 +571,13 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
         const pista = el("div", "flex:1;position:relative;height:14px;border-radius:7px;background:var(--background-secondary);overflow:hidden;");
 
         const tramo = el("div", `position:absolute;top:0;bottom:0;border-radius:7px;background:${color};opacity:.18;`);
-        tramo.style.left = `${pct(f.evs[0].t)}%`;
-        tramo.style.width = `${Math.max(1, pct(fin.t) - pct(f.evs[0].t))}%`;
+        tramo.style.left = `${pct(tiempoReal(f.evs[0].t))}%`;
+        tramo.style.width = `${Math.max(1, pct(tiempoReal(fin.t)) - pct(tiempoReal(f.evs[0].t)))}%`;
         pista.appendChild(tramo);
 
         f.evs.forEach((ev, iS) => {
             const tick = el("div", `position:absolute;top:2px;bottom:2px;width:4px;border-radius:2px;background:${ev.hecha ? color : "var(--text-faint)"};`);
-            tick.style.left = `calc(${pct(ev.t)}% - 2px)`;
+            tick.style.left = `calc(${pct(tiempoReal(ev.t))}% - 2px)`;
             conAyuda(tick, () => `${f.nombre} · serie ${iS + 1}${ev.hecha
                 ? ev.dur != null
                     ? ` — ${Math.round(ev.dur)} s`
@@ -592,7 +600,7 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
         return { fila, valores };
     };
     const escala = crearEscala("Duración");
-    marcas.forEach(p => escala.valores.appendChild(el("span", "", relojMs(finActivo * p))));
+    marcas.forEach(p => escala.valores.appendChild(el("span", "", relojMs(finReal * p))));
     seccion.appendChild(escala.fila);
 
     const guias = el("div", "position:absolute;z-index:1;left:98px;right:0;top:0;bottom:34px;pointer-events:none;");
@@ -608,11 +616,7 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
     const escalaReal = crearEscala("Hora real");
     if (inicioReal != null) {
         marcas.forEach(p => {
-            const transcurrido = finActivo * p;
-            const pausasAnteriores = pausas
-                .filter(pausa => pausa.t < transcurrido)
-                .reduce((total, pausa) => total + pausa.ms, 0);
-            escalaReal.valores.appendChild(el("span", "", horaReal(inicioReal, transcurrido + pausasAnteriores)));
+            escalaReal.valores.appendChild(el("span", "", horaReal(inicioReal, finReal * p)));
         });
     } else {
         escalaReal.valores.appendChild(el("span", "", "No disponible"));
