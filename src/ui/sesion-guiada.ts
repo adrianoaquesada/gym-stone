@@ -22,18 +22,23 @@ import type { Pintar } from "./pintar";
 
 const sesionesAbiertas = new Set<() => void>();
 let retomarSesionMinimizada: (() => void) | null = null;
+let sesionGuiadaEnPreparacion = false;
+
+const actualizarBotonSesionGuiada = (boton: HTMLButtonElement, minimizada: boolean): void => {
+    boton.textContent = minimizada
+        ? boton.dataset.gymTextoRetomar ?? "🎯 ↩ Retomar sesión guiada"
+        : boton.dataset.gymTextoInicio ?? "🎯 Empezar sesión guiada";
+    boton.title = minimizada
+        ? "Retomar sesión guiada minimizada"
+        : boton.dataset.gymTituloInicio ?? "Empezar sesión guiada";
+    boton.setAttribute("aria-label", boton.title);
+    boton.classList.toggle("gym-btn-retomar", minimizada);
+};
 
 const actualizarBotonesSesionGuiada = (): void => {
     const minimizada = retomarSesionMinimizada !== null;
     for (const boton of document.querySelectorAll<HTMLButtonElement>("[data-gym-sesion-guiada]")) {
-        boton.textContent = minimizada
-            ? boton.dataset.gymTextoRetomar ?? "🎯 ↩ Retomar sesión guiada"
-            : boton.dataset.gymTextoInicio ?? "🎯 Empezar sesión guiada";
-        boton.title = minimizada
-            ? "Retomar sesión guiada minimizada"
-            : boton.dataset.gymTituloInicio ?? "Empezar sesión guiada";
-        boton.setAttribute("aria-label", boton.title);
-        boton.classList.toggle("gym-btn-retomar", minimizada);
+        actualizarBotonSesionGuiada(boton, minimizada);
     }
 };
 
@@ -42,15 +47,22 @@ export const prepararBotonSesionGuiada = (
     textoRetomar: string,
 ): void => {
     boton.dataset.gymSesionGuiada = "true";
-    boton.dataset.gymTextoInicio = boton.textContent ?? "🎯 Empezar sesión guiada";
-    boton.dataset.gymTituloInicio = boton.title;
+    boton.dataset.gymTextoInicio ??= boton.textContent ?? "🎯 Empezar sesión guiada";
+    boton.dataset.gymTituloInicio ??= boton.title;
     boton.dataset.gymTextoRetomar = textoRetomar;
-    actualizarBotonesSesionGuiada();
+    actualizarBotonSesionGuiada(boton, retomarSesionMinimizada !== null);
 };
 
 export const retomarSesionGuiadaMinimizada = (): boolean => {
     if (!retomarSesionMinimizada) return false;
     retomarSesionMinimizada();
+    return true;
+};
+
+const bloquearOtraSesionGuiada = (): boolean => {
+    if (retomarSesionGuiadaMinimizada()) return true;
+    if (!sesionesAbiertas.size && !sesionGuiadaEnPreparacion) return false;
+    toast("⚠️ Ya hay una sesión guiada activa. Termínala antes de iniciar otra.", false);
     return true;
 };
 
@@ -71,6 +83,10 @@ interface DefSesion {
     planOrigen: number;
     series: SerieSesion[];
     planDeRutina?: boolean;
+    objetivoHoldSeg?: number | null;
+    objetivoHoldPreparadoEnSerie?: number;
+    duracionManualPendiente?: boolean[];
+    duracionManualValor?: string[];
     tipoSiguiente?: TipoSerie | null;
     inicioBloqueMs?: number;
     notas: string;
@@ -86,6 +102,9 @@ const etiquetaTipoSerie = (t: TipoSerie): string =>
 
 const letraTipoSerie = (tipo: TipoSerie): string =>
     ({ calentamiento: "C", trabajo: "T", descenso: "D", fallo: "F" })[tipo];
+
+const objetivoHoldDe = (d: DefSesion): number | null =>
+    d.objetivoHoldSeg !== undefined ? d.objetivoHoldSeg : d.objetivo.duracionObjetivo ?? null;
 
 const tipoSerieSiguiente = (d: DefSesion): TipoSerie =>
     d.tipoSiguiente ?? tipoSerieDe(d.objetivo);
@@ -152,7 +171,7 @@ const pedirCiclo = (trabajo: number | null, descanso: number | null):
 });
 
 export function elegirDiaGuiada(rutina: Rutina, pintar: Pintar): void {
-    if (retomarSesionGuiadaMinimizada()) return;
+    if (bloquearOtraSesionGuiada()) return;
 
     if (esLibre(rutina)) {
         const enCurso = (rutina.sesiones ?? []).find(s => s.enCurso);
@@ -234,7 +253,7 @@ const aEjercicioGuardado = (d: DefSesion, transcurridoMs?: number): EjercicioSes
         const n = Number(v);
         return n > 0 ? Math.round(n) : null;
     };
-    const dur = num(d.objetivo?.duracionObjetivo);
+    const dur = num(objetivoHoldDe(d));
     if (dur != null) ej.duracionObjetivo = dur;
     const trb = num(d.objetivo?.trabajoSeg);
     if (trb != null) ej.trabajoSeg = trb;
@@ -247,6 +266,16 @@ const aEjercicioGuardado = (d: DefSesion, transcurridoMs?: number): EjercicioSes
 };
 
 export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: Pintar): Promise<void> {
+    if (bloquearOtraSesionGuiada()) return;
+    sesionGuiadaEnPreparacion = true;
+    try {
+        await crearModoSesion(rutina, diaId, pintar);
+    } finally {
+        sesionGuiadaEnPreparacion = false;
+    }
+}
+
+const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pintar): Promise<void> => {
     medirAreasSeguras();
 
     let dia = diaPorId(rutina, diaId as string)
@@ -351,6 +380,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                             trabajoSeg: g.trabajoSeg ?? null,
                             transicionSeg: g.transicionSeg ?? null,
                         },
+                        objetivoHoldSeg: g.duracionObjetivo ?? null,
                         plan: hechas, planOrigen: hechas,   // todo lo guardado ya estaba en plan
                         series: (g.series ?? []).map(aSerieGuardada),
                         notas: g.notas || "",
@@ -445,12 +475,84 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
     btnRestaurar.type = "button";
     btnRestaurar.title = "Mostrar la sesión guiada";
     btnRestaurar.setAttribute("aria-label", "Mostrar la sesión guiada");
+    let arrastre: {
+        punteroId: number;
+        xInicial: number;
+        yInicial: number;
+        izquierdaInicial: number;
+        arribaInicial: number;
+        movido: boolean;
+    } | null = null;
+    let suprimirClic = false;
+    const limitar = (valor: number, maximo: number): number =>
+        Math.max(0, Math.min(valor, Math.max(0, maximo)));
+    const colocarBoton = (izquierda: number, arriba: number): void => {
+        const limites = btnRestaurar.getBoundingClientRect();
+        btnRestaurar.style.setProperty(
+            "--gym-sesion-restaurar-izquierda",
+            `${limitar(izquierda, window.innerWidth - limites.width)}px`,
+        );
+        btnRestaurar.style.setProperty(
+            "--gym-sesion-restaurar-arriba",
+            `${limitar(arriba, window.innerHeight - limites.height)}px`,
+        );
+        btnRestaurar.classList.add("gym-sesion-restaurar-posicionada");
+    };
+    const ajustarBoton = (): void => {
+        const limites = btnRestaurar.getBoundingClientRect();
+        colocarBoton(limites.left, limites.top);
+    };
+    const finArrastre = (evento?: PointerEvent): void => {
+        if (!arrastre || (evento && evento.pointerId !== arrastre.punteroId)) return;
+        suprimirClic = arrastre.movido && evento?.type === "pointerup";
+        arrastre = null;
+        btnRestaurar.classList.remove("gym-sesion-restaurar-arrastrando");
+        if (suprimirClic) window.setTimeout(() => { suprimirClic = false; }, 0);
+    };
+    btnRestaurar.onpointerdown = evento => {
+        if (evento.button !== 0 || arrastre) return;
+        evento.preventDefault();
+        const limites = btnRestaurar.getBoundingClientRect();
+        arrastre = {
+            punteroId: evento.pointerId,
+            xInicial: evento.clientX,
+            yInicial: evento.clientY,
+            izquierdaInicial: limites.left,
+            arribaInicial: limites.top,
+            movido: false,
+        };
+        btnRestaurar.setPointerCapture(evento.pointerId);
+    };
+    btnRestaurar.onpointermove = evento => {
+        const actual = arrastre;
+        if (!actual || evento.pointerId !== actual.punteroId) return;
+        const dx = evento.clientX - actual.xInicial;
+        const dy = evento.clientY - actual.yInicial;
+        if (!actual.movido && Math.hypot(dx, dy) < 5) return;
+        actual.movido = true;
+        evento.preventDefault();
+        btnRestaurar.classList.add("gym-sesion-restaurar-arrastrando");
+        colocarBoton(actual.izquierdaInicial + dx, actual.arribaInicial + dy);
+    };
+    btnRestaurar.onpointerup = finArrastre;
+    btnRestaurar.onpointercancel = finArrastre;
+    btnRestaurar.onlostpointercapture = finArrastre;
+    const limpiarArrastre = (): void => {
+        finArrastre();
+        window.removeEventListener("resize", ajustarBoton);
+        btnRestaurar.onpointerdown = null;
+        btnRestaurar.onpointermove = null;
+        btnRestaurar.onpointerup = null;
+        btnRestaurar.onpointercancel = null;
+        btnRestaurar.onlostpointercapture = null;
+    };
     const restaurar = (): void => {
         minimizada = false;
         if (retomarSesionMinimizada === restaurar) retomarSesionMinimizada = null;
         actualizarBotonesSesionGuiada();
         overlay.classList.remove("gym-modo-minimizado");
         overlay.removeAttribute("aria-hidden");
+        window.removeEventListener("resize", ajustarBoton);
         btnRestaurar.remove();
         btnMinimizar.focus();
     };
@@ -461,10 +563,19 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         overlay.classList.add("gym-modo-minimizado");
         overlay.setAttribute("aria-hidden", "true");
         document.body.appendChild(btnRestaurar);
+        window.addEventListener("resize", ajustarBoton);
         btnRestaurar.focus();
     };
     btnMinimizar.onclick = minimizarSesion;
-    btnRestaurar.onclick = restaurar;
+    btnRestaurar.onclick = evento => {
+        if (suprimirClic) {
+            evento.preventDefault();
+            evento.stopImmediatePropagation();
+            suprimirClic = false;
+            return;
+        }
+        restaurar();
+    };
 
     const cuerpo = el("div", "gym-modo-cuerpo");
     const progreso = el("div", "gym-modo-progreso");
@@ -528,7 +639,9 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         if (!cajaHold || !tHold || !valorHold) return;
         valorHold.textContent = relojTexto(hold?.ms ?? 0);
         if (hold) {
-            const obj = Math.round(Number(defs[hold.ej]?.objetivo.duracionObjetivo) || 0);
+            const objetivo = objetivoHoldDe(defs[hold.ej]);
+            const obj = Math.round(Number(objetivo) || 0);
+            cajaHold.classList.toggle("objetivo-alcanzado", obj > 0 && hold.ms >= obj * 1000);
             if (barraHold) {
                 barraHold.style.width = obj > 0 ? Math.min(100, hold.ms / (obj * 1000) * 100).toFixed(1) + "%" : "100%";
                 barraHold.classList.toggle("superado", obj > 0 && hold.ms > obj * 1000);
@@ -705,7 +818,9 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             const cronometradaConPeso = tipo === "tiempo" && ej.objetivo.repsPesoDuranteTiempo === true;
             const dur = hold?.ej === idx
                 ? Math.floor(hold.ms / 1000)
-                : aNumero(inDuracion[iSet]?.value) ?? ej.objetivo.duracionObjetivo ?? null;
+                : (esLibre(rutina) && !ej.duracionManualPendiente?.[iSet]
+                    ? null : aNumero(inDuracion[iSet]?.value))
+                    ?? (esLibre(rutina) ? null : ej.objetivo.duracionObjetivo ?? null);
             if (dur == null || dur <= 0) {
                 toast(hold ? "⏳ Hold demasiado corto: no se registra."
                            : "✏️ Escribe los segundos mantenidos (o usa el cronómetro).", false);
@@ -1376,7 +1491,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
         } else if (hold) {
 
             const hEj = defs[hold.ej];
-            const objH = Math.max(0, Math.round(Number(hEj.objetivo.duracionObjetivo) || 0));
+            const objH = Math.max(0, Math.round(Number(objetivoHoldDe(hEj)) || 0));
             cajaHold = el("div", "gym-timer-serie");
             const etiquetaHold = el("div", "gym-timer-serie-etiqueta",
                 objH > 0 ? `⏱ Objetivo ${objH} s` : "⏱ Hold");
@@ -1472,8 +1587,8 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                 const cicloEnDescanso = tipoRegistro === "intervalo"
                     && ciclo?.fase === "descanso" && ciclo.ej === idx && ciclo.n === i + 1;
                 if (cicloEnDescanso) {
+                    fila.classList.add("con-temporizador");
                     fila.appendChild(cajaCiclo ?? el("div"));
-                    fila.appendChild(el("div"));
                 } else {
                     fila.appendChild(txt);
                     fila.appendChild(tipoRegistro === "peso" || cronometradaConPeso
@@ -1543,10 +1658,38 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                         inPeso[i] = iP;
                     }
                     if (tipoF === "tiempo") {
-                        iD = el("input"); iD.type = "number"; iD.inputMode = "numeric"; iD.min = "0";
-                        iD.placeholder = "Seg";
-                        const objT = Math.round(Number(ej.objetivo.duracionObjetivo) || 0);
-                        iD.value = (p && p.duracion !== "") ? p.duracion : (objT > 0 ? String(objT) : "");
+                        const inputDuracion = el("input");
+                        inputDuracion.type = "number";
+                        inputDuracion.inputMode = "numeric";
+                        inputDuracion.min = "0";
+                        inputDuracion.placeholder = "Seg";
+                        const objT = esLibre(rutina)
+                            ? 0
+                            : Math.round(Number(ej.objetivo.duracionObjetivo) || 0);
+                        const objetivoPreparado = esLibre(rutina)
+                            && ej.objetivoHoldPreparadoEnSerie === i
+                            ? objetivoHoldDe(ej) : null;
+                        const duracionManual = ej.duracionManualPendiente?.[i]
+                            ? ej.duracionManualValor?.[i] ?? "" : null;
+                        inputDuracion.value = duracionManual
+                            ?? (objetivoPreparado != null ? String(objetivoPreparado)
+                                : (p && p.duracion !== "") ? p.duracion
+                                    : (objT > 0 ? String(objT) : ""));
+                        inputDuracion.oninput = () => {
+                            if (!esLibre(rutina)) return;
+                            const duracion = aNumero(inputDuracion.value);
+                            ej.objetivoHoldSeg = duracion == null
+                                ? null : Math.max(0, Math.round(duracion));
+                            if (iniciada) {
+                                ej.duracionManualPendiente ??= [];
+                                ej.duracionManualValor ??= [];
+                                ej.duracionManualPendiente[i] = true;
+                                ej.duracionManualValor[i] = inputDuracion.value;
+                            } else {
+                                ej.objetivoHoldPreparadoEnSerie = i;
+                            }
+                        };
+                        iD = inputDuracion;
                         inDuracion[i] = iD;
                     }
                     const bOk = el("button", "gym-btn-g verde", "✔"); bOk.type = "button";
@@ -1570,10 +1713,17 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                         const grupo = el("div", "display:flex;gap:4px;min-width:0;");
                         grupo.append(iR, iP);
                         fila.appendChild(grupo);
-                        fila.appendChild(hold?.ej === idx && esActual ? cajaHold ?? el("div") : iD);
+                        if (hold?.ej === idx && esActual) {
+                            fila.classList.add("con-temporizador");
+                            fila.appendChild(cajaHold ?? el("div"));
+                        } else fila.appendChild(iD);
                     } else if (tipoF === "tiempo" && iD) {
-                        fila.appendChild(hold?.ej === idx && esActual ? cajaHold ?? el("div") : iD);
-                        fila.appendChild(el("div"));
+                        if (hold?.ej === idx && esActual) {
+                            fila.classList.add("con-temporizador");
+                            fila.appendChild(cajaHold ?? el("div"));
+                        } else {
+                            fila.append(iD, el("div"));
+                        }
                     } else if (iR) {
                         fila.appendChild(iR);
                         fila.appendChild(iP ?? el("div"));
@@ -1590,6 +1740,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
                     const descansoF = ej.objetivo.transicionSeg != null ? transF : descF;
                     const restoF = esUltimo ? "último ciclo" : `${descansoF} s de descanso`;
                     if (ciclo?.fase === "trabajo" && ciclo.ej === idx && ciclo.n === i + 1) {
+                        fila.classList.add("con-temporizador");
                         fila.appendChild(cajaCiclo ?? el("div"));
                     } else {
                         fila.appendChild(el("div", "font-size:.92em;opacity:.85;", `⏱ ${trabF} s de trabajo`));
@@ -1877,6 +2028,7 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
             retomarSesionMinimizada = null;
             actualizarBotonesSesionGuiada();
         }
+        limpiarArrastre();
         btnRestaurar.remove();
         overlay.remove();
     };
@@ -2084,4 +2236,4 @@ export async function modoSesion(rutina: Rutina, diaId: string | null, pintar: P
     sincronizaPantalla();
     document.addEventListener("keydown", onKey);
     document.body.appendChild(overlay);
-}
+};

@@ -762,7 +762,7 @@ export function detalleDia(rutina: Rutina, fecha: string, pintar: Pintar): void 
             acciones.appendChild(btn("✏️ Editar", "gym-mini", () => { m.cerrar(); formularioSesion(rutina, { fecha, sesion: s }, pintar); }));
             acciones.appendChild(btn("🗑 Borrar", "gym-mini peligro", async () => {
                 const okBorrar = await confirmar("🗑 Borrar sesión",
-                    "¿Borrar esta sesión? No se puede deshacer (queda copia .bak del archivo de datos).",
+                    "¿Borrar esta sesión? No se puede deshacer.",
                     "Borrar", "Cancelar");
                 if (!okBorrar) return;
                 try {

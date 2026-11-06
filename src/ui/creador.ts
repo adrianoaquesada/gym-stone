@@ -1107,7 +1107,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
     }
     filaGuardar.appendChild(el("div", "gym-ayuda",
         estado.modo === "editar"
-            ? "Se actualiza el archivo de datos (con copia .bak previa) y su fila en el índice; las sesiones no se tocan."
+            ? "Se actualiza el archivo de datos y su fila en el índice; las sesiones no se tocan."
             : enHoja
                 ? "Al guardar se escribe el archivo de datos, se añade la rutina al índice y la hoja se cierra sobre su ficha."
                 : "Al guardar se escribe el archivo de datos, se añade la rutina al índice y esta pestaña pasa a su dashboard."));

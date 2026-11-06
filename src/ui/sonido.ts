@@ -1,7 +1,7 @@
 import { conf } from "../estado";
 
 type TipoAviso = "temporizador" | "descanso";
-type Nota = { frecuencia: number; duracion: number; inicio: number };
+type Nota = { frecuencia: number; duracion: number; inicio: number; formaOnda?: OscillatorType };
 const segundosAvisados = new Map<string, number>();
 let contextoAudio: AudioContext | null = null;
 let avisoSinAudio = false;
@@ -46,7 +46,7 @@ const sintetizar = async (activo: boolean, notas: Nota[]): Promise<void> => {
         const formaOnda = conf().formaOndaSonido;
         for (const nota of notas) {
             const o = ctx.createOscillator(), g = ctx.createGain();
-            o.type = formaOnda;
+            o.type = nota.formaOnda ?? formaOnda;
             o.frequency.value = nota.frecuencia;
             g.gain.setValueAtTime(0.0001, ctx.currentTime + nota.inicio);
             g.gain.exponentialRampToValueAtTime(vol, ctx.currentTime + nota.inicio + 0.02);
@@ -71,17 +71,32 @@ const notasAviso = (): Nota[] => {
                 { frecuencia: segunda, duracion: 0.22, inicio: 0.27 },
                 { frecuencia: tercera, duracion: 0.3, inicio: 0.54 },
             ];
-        case "doble":
-            return [
-                { frecuencia: primera, duracion: 0.2, inicio: 0 },
-                { frecuencia: tercera, duracion: 0.2, inicio: 0.3 },
-            ];
+        case "alarma":
+            return [0, 0.28, 0.56, 0.84, 1.12, 1.4]
+                .map(inicio => ({ frecuencia: tercera, duracion: 0.2, inicio }));
+        case "doblete":
+            return [0, 0.22, 0.84, 1.06, 1.68, 1.9]
+                .map(inicio => ({ frecuencia: tercera, duracion: 0.16, inicio }));
+        case "triplete":
+            return [0, 0.22, 0.44, 0.98, 1.2, 1.42]
+                .map(inicio => ({ frecuencia: tercera, duracion: 0.16, inicio }));
+        case "timbreAgudo":
+        case "timbreAgudoSenoidal":
+            {
+                const graveConfigurada = Math.min(segunda, tercera);
+                const agudaConfigurada = Math.max(segunda, tercera);
+                const grave = agudaConfigurada > graveConfigurada
+                    ? graveConfigurada : Math.max(100, Math.round(graveConfigurada * 2 / 3));
+                const aguda = agudaConfigurada > graveConfigurada
+                    ? agudaConfigurada : Math.min(2000, Math.round(graveConfigurada * 1.5));
+                const formaOndaTimbre = conf().patronSonido === "timbreAgudo" ? "square" : undefined;
+                return [
+                    { frecuencia: grave, duracion: 0.15, inicio: 0, formaOnda: formaOndaTimbre },
+                    { frecuencia: aguda, duracion: 0.25, inicio: 0.18, formaOnda: formaOndaTimbre },
+                ];
+            }
         default:
-            return [
-                { frecuencia: primera, duracion: 0.26, inicio: 0 },
-                { frecuencia: tercera, duracion: 0.26, inicio: 0.32 },
-                { frecuencia: primera, duracion: 0.3, inicio: 0.64 },
-            ];
+            return [{ frecuencia: segunda, duracion: 0.3, inicio: 0 }];
     }
 };
 

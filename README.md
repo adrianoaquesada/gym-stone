@@ -94,9 +94,9 @@ su nueva ubicación.
 | `gym-stone/datos/ejercicios.gym-stone.md` | Catálogo y grupos musculares |
 | `gym-stone/plantillas/<nombre>.md` | Plantillas |
 
-Antes de sobrescribir un archivo de datos, el complemento conserva una copia `.bak`. El peso
-se almacena en kilogramos y la talla en centímetros; las unidades elegidas en los ajustes se
-usan para mostrar e introducir valores.
+Al guardar cambios, el complemento actualiza directamente los archivos de datos y no conserva
+copias `.bak`. El peso se almacena en kilogramos y la talla en centímetros; las unidades
+elegidas en los ajustes se usan para mostrar e introducir valores.
 
 ## Desarrollo
 

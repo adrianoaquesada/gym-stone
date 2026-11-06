@@ -57,10 +57,6 @@ export const escribirSeguro = async (ruta: string, contenido: string): Promise<v
     const previo = await vault.read(existente);
     if (previo === contenido) return;
 
-    const bak = `${ruta}.bak`;
-    const fb = vault.getAbstractFileByPath(bak);
-    if (fb instanceof TFile) await vault.modify(fb, previo);
-    else await vault.create(bak, previo);
     await vault.modify(existente, contenido);
 };
 

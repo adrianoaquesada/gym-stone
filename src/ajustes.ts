@@ -10,8 +10,9 @@ export interface AjustesGym {
     sonidoTemporizador: boolean;
     sonidoDescanso: boolean;
     volumenSonido: number;
-    formaOndaSonido: OscillatorType;
-    patronSonido: "clasico" | "unico" | "ascendente" | "doble";
+    formaOndaSonido: "sine";
+    patronSonido: "unico" | "ascendente" | "alarma" | "doblete" | "triplete"
+        | "timbreAgudo" | "timbreAgudoSenoidal";
     frecuenciasSonido: [number, number, number];
     avisosCuentaAtras: 0 | 3 | 5;
     opcionesRapidasTemporizador: number[];
@@ -28,7 +29,7 @@ export const AJUSTES_POR_DEFECTO: AjustesGym = {
     volumenSonido: 30,
     formaOndaSonido: "sine",
     patronSonido: "ascendente",
-    frecuenciasSonido: [660, 880, 1175],
+    frecuenciasSonido: [660, 880, 1320],
     avisosCuentaAtras: 0,
     opcionesRapidasTemporizador: [60_000, 180_000, 300_000, 600_000, 900_000, 1_800_000],
 };
@@ -59,12 +60,13 @@ export function normalizarAjustes(
         out.volumenSonido = Number.isFinite(vol)
             ? Math.min(100, Math.max(0, Math.round(vol)))
             : AJUSTES_POR_DEFECTO.volumenSonido;
-        if (d.formaOndaSonido === "sine" || d.formaOndaSonido === "triangle"
-            || d.formaOndaSonido === "square" || d.formaOndaSonido === "sawtooth") {
+        if (d.formaOndaSonido === "sine") {
             out.formaOndaSonido = d.formaOndaSonido;
         }
-        if (d.patronSonido === "clasico" || d.patronSonido === "unico"
-            || d.patronSonido === "ascendente" || d.patronSonido === "doble") {
+        if (d.patronSonido === "unico" || d.patronSonido === "ascendente"
+            || d.patronSonido === "alarma" || d.patronSonido === "doblete"
+            || d.patronSonido === "triplete" || d.patronSonido === "timbreAgudo"
+            || d.patronSonido === "timbreAgudoSenoidal") {
             out.patronSonido = d.patronSonido;
         }
         if (Array.isArray(d.frecuenciasSonido) && d.frecuenciasSonido.length === 3) {

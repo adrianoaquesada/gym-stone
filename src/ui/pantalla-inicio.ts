@@ -167,12 +167,12 @@ export class PantallaInicio {
 
     private async borrar(f: IndiceRutina): Promise<void> {
         const ok = await confirmar("🗑 Borrar rutina",
-            `¿Borrar «${f.nombre}»? Se elimina su archivo de datos (queda copia .bak en la misma carpeta) y su fila del índice. Las plantillas y las medidas no se tocan.`,
+            `¿Borrar «${f.nombre}»? Se eliminarán su archivo de datos y su fila del índice. Esta acción no se puede deshacer. Las plantillas y las medidas no se tocan.`,
             "Borrar", "Cancelar", true);
         if (!ok) return;
         try {
             await borrarRutina(f.id);
-            toast(`🗑 Rutina «${f.nombre}» borrada (copia .bak guardada)`);
+            toast(`🗑 Rutina «${f.nombre}» borrada`);
             this.alRepintar();
         } catch (e: unknown) {
             console.error("[Gym Stone borrar]", e);

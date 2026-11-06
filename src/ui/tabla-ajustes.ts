@@ -152,30 +152,30 @@ export class GymStoneTab extends PluginSettingTab {
 
         new Setting(seccionSonido)
             .setName("Tipo de sonido")
-            .setDesc("Elige la forma de onda del sintetizador.")
+            .setDesc("Forma de onda senoidal para los avisos.")
             .addDropdown(d => d
-                .addOption("sine", "Senoidal · suave")
-                .addOption("triangle", "Triangular · redonda")
-                .addOption("square", "Cuadrada · marcada")
-                .addOption("sawtooth", "Diente de sierra · brillante")
+                .addOption("sine", "Senoidal")
                 .setValue(conf().formaOndaSonido)
                 .onChange(async v => {
-                    if (v === "sine" || v === "triangle" || v === "square" || v === "sawtooth") {
-                        await this.guardar("formaOndaSonido", v);
-                    }
+                    if (v === "sine") await this.guardar("formaOndaSonido", v);
                 }));
 
         new Setting(seccionSonido)
             .setName("Patrón del aviso")
             .setDesc("Elige la secuencia de notas al terminar.")
             .addDropdown(d => d
-                .addOption("clasico", "Tres notas")
                 .addOption("unico", "Pitido único")
                 .addOption("ascendente", "Ascendente")
-                .addOption("doble", "Doble")
+                .addOption("alarma", "Alarma repetida")
+                .addOption("doblete", "Dobletes repetidos")
+                .addOption("triplete", "Tripletes repetidos")
+                .addOption("timbreAgudo", "Timbre agudo")
+                .addOption("timbreAgudoSenoidal", "Timbre agudo senoidal")
                 .setValue(conf().patronSonido)
                 .onChange(async v => {
-                    if (v === "clasico" || v === "unico" || v === "ascendente" || v === "doble") {
+                    if (v === "unico" || v === "ascendente" || v === "alarma"
+                        || v === "doblete" || v === "triplete" || v === "timbreAgudo"
+                        || v === "timbreAgudoSenoidal") {
                         await this.guardar("patronSonido", v);
                     }
                 }));
@@ -402,12 +402,7 @@ export class GymStoneTab extends PluginSettingTab {
                         desc: "Elige la forma de onda del sintetizador.",
                         control: {
                             key: "formaOndaSonido", type: "dropdown",
-                            options: {
-                                sine: "Senoidal · suave",
-                                triangle: "Triangular · redonda",
-                                square: "Cuadrada · marcada",
-                                sawtooth: "Diente de sierra · brillante",
-                            },
+                            options: { sine: "Senoidal" },
                         },
                     },
                     {
@@ -416,10 +411,13 @@ export class GymStoneTab extends PluginSettingTab {
                         control: {
                             key: "patronSonido", type: "dropdown",
                             options: {
-                                clasico: "Tres notas",
                                 unico: "Pitido único",
                                 ascendente: "Ascendente",
-                                doble: "Doble",
+                                alarma: "Alarma repetida",
+                                doblete: "Dobletes repetidos",
+                                triplete: "Tripletes repetidos",
+                                timbreAgudo: "Timbre agudo",
+                                timbreAgudoSenoidal: "Timbre agudo senoidal",
                             },
                         },
                     },

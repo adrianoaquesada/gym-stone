@@ -248,8 +248,14 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
   bottom:calc(var(--gym-safe-bottom,env(safe-area-inset-bottom,0px)) + 12px); z-index:9998;
   box-sizing:border-box; min-height:44px; padding:8px 12px; border:1px solid var(--background-modifier-border);
   border-radius:12px; background:var(--background-primary); color:var(--text-normal);
-  box-shadow:0 4px 14px rgba(0,0,0,.3); font:inherit; font-weight:700; cursor:pointer;
+  box-shadow:0 4px 14px rgba(0,0,0,.3); font:inherit; font-weight:700; cursor:grab;
+  touch-action:none; user-select:none;
 }
+.gym-sesion-restaurar-posicionada {
+  right:auto; bottom:auto;
+  left:var(--gym-sesion-restaurar-izquierda); top:var(--gym-sesion-restaurar-arriba);
+}
+.gym-sesion-restaurar-arrastrando { cursor:grabbing; }
 .gym-modo-caja { background:var(--background-primary); width:min(560px,100%); height:min(96vh,100%);
   display:flex; flex-direction:column; overflow:hidden;
   border:1px solid var(--background-modifier-border); border-radius:14px; }
@@ -343,6 +349,18 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
     box-sizing:border-box; display:grid; grid-template-columns:auto minmax(0,1fr) 28px;
     grid-template-rows:auto auto; grid-column:2 / 4; align-items:center; gap:0 8px;
     width:100%; min-width:0; margin:0; padding:0;
+}
+.gym-modo-set.con-temporizador { align-items:start; }
+.gym-modo-set.con-temporizador > .gym-modo-numero,
+.gym-modo-set.con-temporizador > .cierre { align-self:start; }
+.gym-timer-serie.objetivo-alcanzado {
+    padding:4px; border:1px solid color-mix(in srgb,#2ecc71 42%,var(--background-modifier-border));
+    border-radius:8px; background:color-mix(in srgb,#2ecc71 9%,var(--background-secondary));
+}
+.gym-timer-serie.objetivo-alcanzado .gym-timer-serie-tiempo { color:#2ecc71; }
+.gym-timer-serie.objetivo-alcanzado .gym-timer-serie-progreso { background:#2ecc71; }
+.gym-timer-serie.objetivo-alcanzado .gym-hold-diferencia {
+    background:color-mix(in srgb,#2ecc71 18%,var(--background-secondary)); color:#2ecc71;
 }
 .gym-timer-serie-etiqueta { grid-column:1 / 3; grid-row:1; min-width:0; font-size:.68em; line-height:1.1;
     color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }

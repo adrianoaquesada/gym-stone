@@ -114,10 +114,6 @@ export const borrarRutina = async (id: string): Promise<void> => {
         if (!esRutinaFormatoActual(lectura.datos)) {
             throw new Error(`El archivo ${ruta} usa un formato anterior; no se modifica.`);
         }
-        const previo = await aplicacion().vault.read(f);
-        const bak = aplicacion().vault.getAbstractFileByPath(`${ruta}.bak`);
-        if (bak instanceof TFile) await aplicacion().vault.modify(bak, previo);
-        else await aplicacion().vault.create(`${ruta}.bak`, previo);
         await aplicacion().fileManager.trashFile(f);
     }
     await quitarDeIndice(id);
