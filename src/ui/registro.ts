@@ -22,6 +22,9 @@ interface EjercicioTrabajo {
     nombre: string;
     series: SerieSesion[];
     objetivoPlan?: ObjetivoPlanSesion;
+    puestoPlanificado?: EjercicioSesion["puestoPlanificado"];
+    ejercicioPlanificado?: EjercicioSesion["ejercicioPlanificado"];
+    configuracionSesion?: EjercicioSesion["configuracionSesion"];
     ajusteAplicado?: EjercicioSesion["ajusteAplicado"];
     notas?: string;
     descansoSeg?: number | null;
@@ -314,6 +317,9 @@ export function formularioSesion(
         const cEj = el("div");
         cEj.title = `${pista} · cada variante cuenta aparte en el historial`;
         cEj.appendChild(el("label", null, "Ejercicio"));
+        if (ej.ejercicioPlanificado) {
+            cEj.appendChild(el("div", "gym-td-sub", `Planificado: ${ej.ejercicioPlanificado.nombre}`));
+        }
         cEj.appendChild(inEj);
         const selTipo = el("select", "margin-top:4px;");
         for (const [valor, texto] of TIPOS_EJERCICIO) selTipo.appendChild(nuevaOp(valor, texto));
@@ -497,10 +503,11 @@ export function formularioSesion(
         filaChips.append(chipObj);
         if (!ej.tipoBloqueEspecial) filaChips.appendChild(chipDesc);
         filaChips.append(chipVol, chipNoReg);
-        cabE.append(
-            el("div", "gym-ej-nombre", ej.nombre || ej.ejercicioId),
-            filaChips,
-        );
+        cabE.appendChild(el("div", "gym-ej-nombre", ej.nombre || ej.ejercicioId));
+        if (ej.ejercicioPlanificado) {
+            cabE.appendChild(el("div", "gym-td-sub", `Planificado: ${ej.ejercicioPlanificado.nombre}`));
+        }
+        cabE.appendChild(filaChips);
         chipDesc.onclick = async () => {
             const v = await pedirDescanso(descSeg());
             if (v == null) return;
@@ -786,6 +793,9 @@ export function formularioSesion(
                 const out: EjercicioSesion = {
                     ejercicioId: e.ejercicioId, nombre: e.nombre, notas: e.notas ?? "", series: serie,
                 };
+                if (e.puestoPlanificado != null) out.puestoPlanificado = e.puestoPlanificado;
+                if (e.ejercicioPlanificado) out.ejercicioPlanificado = { ...e.ejercicioPlanificado };
+                if (e.configuracionSesion) out.configuracionSesion = { ...e.configuracionSesion };
                 const objetivoPlan = e.objetivoPlan ?? (!esEdicion ? objetivoPlanDe(defDia) : undefined);
                 if (tipo === "peso" && objetivoPlan) out.objetivoPlan = objetivoPlan;
                 if (e.ajusteAplicado) out.ajusteAplicado = e.ajusteAplicado;

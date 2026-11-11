@@ -3,7 +3,7 @@ import { normalizarAjustes, rutaIndice, type AjustesGym } from "./ajustes";
 import { asegurarCarpeta } from "./datos/archivos";
 import { reiniciarDespierta } from "./despierta";
 import { iniciarEstado, actualizarAjustes } from "./estado";
-import { limpiarOverlays, toast } from "./ui/componentes";
+import { enfocarCamposAlTocar, limpiarOverlays, toast } from "./ui/componentes";
 import {
     abrirTemporizador, observarTemporizadoresActivos, pararTemporizador, restaurarEstadoTemporizadores,
 } from "./ui/temporizador";
@@ -32,6 +32,7 @@ export default class GymStone extends Plugin {
         iniciarEstado(this.app, this.ajustes, ajustes => this.guardarAjustes(ajustes));
         if (typeof datosGuardados?.carpetaRaiz !== "string") await asegurarCarpeta(rutaIndice());
         restaurarEstadoTemporizadores();
+        this.register(enfocarCamposAlTocar());
 
         this.registerView(VISTA_APP, leaf => new VistaApp(leaf));
 

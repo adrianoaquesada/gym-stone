@@ -87,11 +87,20 @@ export interface AjustePlanAplicado {
     pesoObjetivo: number | null;
 }
 
+export interface EjercicioPlanificadoSesion {
+    ejercicioId: string;
+    nombre: string;
+    indice: number;
+}
+
 export interface EjercicioSesion {
     ejercicioId: string;
     nombre: string;
     series: SerieSesion[];
     objetivoPlan?: ObjetivoPlanSesion;
+    puestoPlanificado?: number;
+    ejercicioPlanificado?: EjercicioPlanificadoSesion;
+    configuracionSesion?: Omit<EjercicioDef, "id" | "nombre">;
     ajusteAplicado?: AjustePlanAplicado;
     notas?: string;
     descansoSeg?: number;

@@ -372,7 +372,9 @@ function seccionSeguimientoEjercicio(c: HTMLElement, rutina: Rutina): void {
             const fila = [
                 fechaLegible(sesion.fecha),
                 nombreDia(rutina, sesion.diaId),
-                ejercicio.nombre || ejercicios.find(e => e.id === ejercicio.ejercicioId)?.nombre || ejercicio.ejercicioId,
+                (ejercicio.nombre || ejercicios.find(e => e.id === ejercicio.ejercicioId)?.nombre || ejercicio.ejercicioId) +
+                    (ejercicio.ejercicioPlanificado
+                        ? ` · planificado: ${ejercicio.ejercicioPlanificado.nombre}` : ""),
                 seriesTxt,
                 diferencia,
                 volumen,

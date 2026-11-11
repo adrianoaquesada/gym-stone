@@ -245,7 +245,7 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-modo.gym-modo-minimizado { display:none; }
 .gym-sesion-restaurar {
   position:fixed; right:calc(var(--gym-safe-right,env(safe-area-inset-right,0px)) + 12px);
-  bottom:calc(var(--gym-safe-bottom,env(safe-area-inset-bottom,0px)) + 12px); z-index:9998;
+  bottom:calc(var(--gym-safe-bottom,env(safe-area-inset-bottom,0px)) + 64px); z-index:9998;
   box-sizing:border-box; min-height:44px; padding:8px 12px; border:1px solid var(--background-modifier-border);
   border-radius:12px; background:var(--background-primary); color:var(--text-normal);
   box-shadow:0 4px 14px rgba(0,0,0,.3); font:inherit; font-weight:700; cursor:grab;
@@ -259,14 +259,22 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-modo-caja { background:var(--background-primary); width:min(560px,100%); height:min(96vh,100%);
   display:flex; flex-direction:column; overflow:hidden;
   border:1px solid var(--background-modifier-border); border-radius:14px; }
-.gym-modo-cab { display:flex; align-items:center; gap:8px; padding:8px 12px; flex-wrap:wrap;
+.gym-modo-cab { display:grid; grid-template-columns:minmax(0,1fr) auto auto auto;
+  align-items:center; gap:6px 8px; padding:8px 12px;
   border-bottom:1px solid var(--background-modifier-border); }
+.gym-modo-cab > :first-child { grid-column:1; grid-row:1; }
+.gym-modo-cab > .gym-modo-reloj { grid-column:2; grid-row:1; }
+.gym-modo-cab > .gym-cerrar-x:not(.gym-x44) { grid-column:3; grid-row:1; }
+.gym-modo-cab > .gym-cerrar-x.gym-x44 { grid-column:4; grid-row:1; }
+.gym-modo-cab > .gym-modo-tipo-dia { grid-column:1 / -1; grid-row:2; margin-top:0; }
 
 .gym-modo-cuerpo { flex:1 1 auto; overflow:auto; overflow-x:hidden; padding:12px 14px 14px; -webkit-overflow-scrolling:touch; touch-action:pan-y; }
-.gym-modo-progreso { flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px;
-  margin:0; padding:8px 14px; border-bottom:1px solid var(--background-modifier-border); }
+.gym-modo-progreso { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-start;
+  justify-content:flex-start; gap:4px;
+  margin:0; padding:6px 14px 8px; border-bottom:1px solid var(--background-modifier-border); }
+.gym-modo-progreso > .gym-et { margin:0; line-height:normal; }
 .gym-modo-progreso-actual { color:#F99624; font-weight:800; }
-.gym-modo-pasos { display:flex; align-items:center; justify-content:flex-end; gap:5px; flex-wrap:wrap; }
+.gym-modo-pasos { display:flex; align-items:center; justify-content:flex-start; gap:5px; flex-wrap:wrap; }
 .gym-modo-paso { display:block; width:18px; height:4px; border-radius:3px; background:var(--background-modifier-border); }
 .gym-modo-paso.actual { background:#F99624; }
 .gym-modo-paso.completado { background:#2ecc71; }
@@ -280,9 +288,10 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-modo-bloque-especial { color:#3498db; }
 .gym-modo-bloque-tiempo { color:#3498db; font-weight:800; font-variant-numeric:tabular-nums; }
 .gym-modo-anadir { display:flex; flex-wrap:wrap; gap:8px; margin:4px 0; }
-.gym-btn-bloque-especial { border-color:#3498db; background:color-mix(in srgb,#3498db 14%,var(--background-secondary));
-  color:#3498db; }
-.gym-btn-bloque-especial:hover:not(:disabled) { border-color:#3498db; background:color-mix(in srgb,#3498db 22%,var(--background-secondary)); }
+.gym-btn-bloque-especial { border-color:color-mix(in srgb,#3498db 35%,var(--background-modifier-border));
+  background:color-mix(in srgb,#3498db 9%,var(--background-secondary)); }
+.gym-btn-bloque-especial:hover:not(:disabled) { border-color:color-mix(in srgb,#3498db 55%,var(--background-modifier-border));
+  background:color-mix(in srgb,#3498db 15%,var(--background-secondary)); }
 .gym-btn-bloque-especial:disabled { opacity:.45; cursor:not-allowed; }
 .gym-selector-bloque-especial { box-sizing:border-box; display:flex; align-items:center; width:100%;
   min-width:0; min-height:42px; margin:0; padding:8px 12px; border:0;
@@ -324,20 +333,35 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-btn-g.pausa { background:color-mix(in srgb, #e74c3c 16%, transparent);
   border-color:#e74c3c; color:#e74c3c; }
 .gym-btn-g:disabled { opacity:.4; cursor:default; }
+button.gym-btn-g.gym-modo-saltar-confirmable.gym-salto-confirmando:not(:disabled) {
+  border-color:#e74c3c; background:color-mix(in srgb,#e74c3c 16%,var(--background-secondary));
+  color:#e74c3c; outline:2px solid color-mix(in srgb,#e74c3c 55%,transparent); outline-offset:1px;
+}
 
 .gym-cerrar-x { box-sizing:border-box; flex:0 0 var(--x,44px); width:var(--x,44px); height:var(--x,44px);
   min-width:var(--x,44px); min-height:0; padding:0; display:flex; align-items:center;
   justify-content:center; border-radius:12px; font-size:1.05em; }
 .gym-modo-ej-cab {
-    display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center;
+    display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center;
     gap:2px 12px; min-width:0;
 }
 .gym-modo-ej-cab > .gym-modo-ej { grid-column:1; min-width:0; overflow-wrap:anywhere; }
+.gym-modo-tipo-plan { grid-column:2; grid-row:1; display:grid; gap:6px; }
+.gym-modo-tipo-plan > .gym-modo-tipo-btn { justify-self:center; }
+.gym-modo-cambiar-ejercicio {
+    grid-column:3; grid-row:1; justify-self:end; align-self:center;
+    box-sizing:border-box; width:34px; min-width:34px; height:34px; min-height:34px;
+    padding:0; display:flex; align-items:center; justify-content:center;
+    font-size:.95em; line-height:1;
+}
 .gym-modo-ej-meta {
     grid-column:1; display:flex; flex-wrap:wrap; align-items:center; gap:2px;
     min-width:0; font-size:.9em; opacity:.8; overflow-wrap:anywhere;
 }
 .gym-modo-ej-meta-intervalo { grid-column:1 / -1; }
+.gym-modo-series-cab { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.gym-modo-series-cab > .gym-modo-seccion { margin:16px 0 8px; }
+.gym-modo-series-cab > button { flex:0 0 auto; }
 .gym-modo-intervalo-controles {
     display:flex; flex-wrap:wrap; align-items:center; gap:8px;
     min-width:0; margin:4px 0;
@@ -475,9 +499,15 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-resumen-nota { margin-top:10px; }
 .gym-modo-set.extra .n { opacity:1; color:#F99624; line-height:1.05; }
 .gym-modo-set.extra .n .ext { display:block; font-size:.5em; font-weight:800; letter-spacing:.03em; text-transform:uppercase; }
-.gym-descanso { text-align:center; border:1px dashed #F99624; border-radius:12px; padding:12px 10px; margin:12px 0; }
+.gym-descanso {
+  text-align:center; border:1px dashed #F99624; border-radius:12px; padding:12px 10px; margin:12px 0;
+  background:color-mix(in srgb,#F99624 9%,var(--background-primary));
+}
 .gym-descanso .t { font-size:2.5em; font-weight:800; font-variant-numeric:tabular-nums; color:#F99624; line-height:1.05; }
-.gym-descanso.listo { border-color:#2ecc71; border-style:solid; }
+.gym-descanso.listo {
+  border-color:#2ecc71; border-style:solid;
+  background:color-mix(in srgb,#2ecc71 9%,var(--background-primary));
+}
 .gym-descanso.listo .t { color:#2ecc71; }
 
 .gym-colaps-tit { user-select:none; display:flex; align-items:center; justify-content:space-between;
@@ -495,8 +525,9 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
   .gym-modal-caja > .gym-cal-detalle-cab { top:-14px; margin:-14px -14px 12px; padding:10px 14px; }
   .gym-modo { background:var(--background-primary); }
   .gym-modo-caja { width:100%; height:100%; border:none; border-radius:0; }
-  .gym-modo-progreso { align-items:flex-start; flex-direction:column; gap:2px; }
-  .gym-modo-pasos { justify-content:flex-start; }
+  .gym-modo-progreso { align-items:flex-start; flex-direction:column; gap:4px; }
+  .gym-modo-progreso > .gym-et { text-align:left; }
+  .gym-modo-pasos { justify-content:flex-start; width:auto; }
   .gym-descanso-controles { grid-template-columns:minmax(0,1fr) 44px minmax(64px,auto) 44px minmax(0,1fr); gap:4px; }
   .gym-descanso-controles > .gym-btn-g { height:44px; min-height:44px; padding:5px 3px; font-size:.78em; }
   .gym-descanso-controles > .gym-btn-g:nth-child(2),

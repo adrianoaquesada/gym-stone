@@ -15,6 +15,21 @@ export function el<K extends keyof HTMLElementTagNameMap>(
     return e;
 }
 
+export const enfocarCamposAlTocar = (): (() => void) => {
+    const alTocar = (evento: PointerEvent): void => {
+        if (evento.pointerType === "mouse") return;
+        const campo = evento.target;
+        if (!(campo instanceof HTMLInputElement || campo instanceof HTMLTextAreaElement)
+            || campo.disabled || campo.readOnly
+            || !campo.closest(".gym-vista, .gym-modal, #gym-confirm-activo, .gym-hoja-overlay, .gym-modo, .gym-ajustes")) {
+            return;
+        }
+        if (document.activeElement !== campo) campo.focus({ preventScroll: true });
+    };
+    document.addEventListener("pointerdown", alTocar, true);
+    return () => document.removeEventListener("pointerdown", alTocar, true);
+};
+
 export const parrafo = (raiz: HTMLElement, texto: string): HTMLDivElement => {
     const d = el("div", "gym-parrafo", texto);
     raiz.appendChild(d);

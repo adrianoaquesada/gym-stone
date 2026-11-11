@@ -1,7 +1,7 @@
 import { CONFIG, DIAS, DIAS_LARGO } from "../config";
 import { carpetaPlantillas, rutaIndice } from "../ajustes";
 import {
-    escribirRutina, ejercicioVacio, finDesde,
+    escribirRutina, ejercicioVacio, finDesde, camposVisiblesEjercicio,
     listarPlantillas, leerPlantilla, plantillaDeRutina, plantillaExiste,
     rutaDatosDe, rutinaVacia, escribirPlantilla, tipoEjercicioDe, tipoSerieDe,
     catalogoGestion, normalizarGrupos, etiquetasDeDia,
@@ -883,6 +883,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
 
             const pintaCampos = () => {
                 const t = tipoEjercicioDe(ej);
+                const campos = camposVisiblesEjercicio(ej);
                 if (t === "intervalo" && ej.transicionSeg == null && ej.descansoSeg != null) {
                     ej.transicionSeg = ej.descansoSeg;
                 }
@@ -895,23 +896,22 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
                 etqSeries.textContent = t === "intervalo" ? "Ciclos" : "Series";
                 inSeries.title = t === "intervalo" ? "Ciclos objetivo (cada ciclo es una serie)" : "Series objetivo";
 
-                celdaReps.c.style.display = t === "peso" ? "" : "none";
-                inReps.style.display = t !== "peso" || tipoSerieDe(ej) === "fallo" ? "none" : "";
+                celdaReps.c.style.display = campos.reps ? "" : "none";
+                inReps.style.display = campos.objetivoReps ? "" : "none";
                 inReps.placeholder = "Reps";
                 inReps.title = tipoSerieDe(ej) === "fallo"
                     ? "Al fallo no hay reps objetivo: se anota lo hecho en cada serie"
                     : "Repeticiones objetivo";
 
-                celdaTiempo.c.style.display = t === "peso" ? "none" : "";
-                celdaPeso.c.style.display =
-                    t === "peso" || (t === "tiempo" && ej.repsPesoDuranteTiempo === true) ? "" : "none";
-                celdaModoTiempoPeso.c.style.display = t === "tiempo" ? "" : "none";
+                celdaTiempo.c.style.display = campos.duracion || campos.trabajo || campos.transicion ? "" : "none";
+                celdaPeso.c.style.display = campos.peso ? "" : "none";
+                celdaModoTiempoPeso.c.style.display = campos.registroTiempo ? "" : "none";
                 chkTiempoPeso.checked = ej.repsPesoDuranteTiempo === true;
 
                 inDesc.title = t === "intervalo"
                     ? "Descanso entre series (segundos)"
                     : "Descanso entre series (segundos)";
-                celdaDescanso.c.style.display = t === "intervalo" ? "none" : "";
+                celdaDescanso.c.style.display = campos.descanso ? "" : "none";
 
                 etqTiempo.textContent = t === "intervalo" ? "Trabajo · descanso entre intervalos (s)" : "Duración (s)";
                 etqTiempo.style.display = t === "peso" ? "none" : "";

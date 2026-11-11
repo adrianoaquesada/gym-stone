@@ -1,12 +1,13 @@
 import { CONFIG } from "../config";
 import {
     catalogoEjercicios, catalogoEjerciciosTodas, descansoDe, historialEjercicioGlobal,
-    idEjercicioLibre, ultimosValores, type EntradaHistorialGlobal,
+    idEjercicioLibre, tipoEjercicioDeRutina, tipoSerieDeRutina, ultimosValores, type EntradaHistorialGlobal,
 } from "../datos/calculos";
+import { camposVisiblesEjercicio } from "../datos/rutinas";
 import { catalogoGestion, renombrarEjercicio, type EjercicioGestion } from "../datos/ejercicios";
 import { fijarGrupos, gruposEnMemoria, purgarGruposSinUsar } from "../datos/grupos";
-import type { EjercicioCatalogo, Rutina, TipoBloqueEspecial, TipoEjercicio } from "../tipos";
-import { pesoActual, pesoMostrar, pesoTexto } from "../unidades";
+import type { EjercicioCatalogo, EjercicioDef, Rutina, TipoBloqueEspecial, TipoEjercicio, TipoSerie } from "../tipos";
+import { pesoACampo, pesoAKg, pesoActual, pesoMostrar, pesoTexto } from "../unidades";
 import { aNumero, fechaLegible, limpiarNombre, msgError, norm, tsDe } from "../util";
 import { confirmar, KPI, modal, pedirTexto, ponerX, toast, el } from "./componentes";
 import { grafica } from "./grafica";
@@ -802,4 +803,245 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
         cargando = false;
         pintar();
     })();
+};
+
+export const editarEjercicioSesion = async (
+    rutina: Rutina,
+    inicial: EjercicioDef,
+): Promise<EjercicioDef | null> => {
+    let catalogo: EjercicioCatalogo[];
+    try {
+        catalogo = await catalogoEjerciciosTodas(rutina);
+    } catch (e: unknown) {
+        console.error("[Gym Stone editor de ejercicio]", e);
+        toast("⚠️ No pude cargar el catálogo de ejercicios: " + msgError(e), false);
+        return null;
+    }
+    let gruposPorId = new Map<string, string[]>();
+    try {
+        gruposPorId = new Map((await catalogoGestion()).map(e => [e.id, e.grupos]));
+    } catch (e: unknown) {
+        console.error("[Gym Stone grupos del editor de ejercicio]", e);
+        toast("⚠️ No pude cargar los grupos musculares; podrás cambiar el ejercicio sin ellos.", false);
+    }
+
+    const m = modal("Cambiar ejercicio", "El cambio se aplicará solo a esta sesión.");
+    const caja = el("div", "display:grid;gap:10px;max-width:620px;");
+    const textoEstilo = "box-sizing:border-box;width:100%;min-height:34px;padding:5px 8px;border-radius:8px;" +
+        "border:1px solid var(--background-modifier-border);background:var(--background-secondary);" +
+        "color:var(--text-normal);font:inherit;";
+    const etiqueta = (texto: string, control: HTMLElement): HTMLElement => {
+        const fila = el("label", "display:grid;gap:4px;font-size:.88em;");
+        fila.append(el("span", "opacity:.8;", texto), control);
+        return fila;
+    };
+    const numero = (valor: number | null | undefined, min: number, step = 1): HTMLInputElement => {
+        const campo = el("input", textoEstilo);
+        campo.type = "number";
+        campo.min = String(min);
+        campo.step = String(step);
+        campo.value = valor == null ? "" : String(valor);
+        return campo;
+    };
+    const nombre = el("input", textoEstilo);
+    nombre.type = "text";
+    nombre.value = inicial.nombre;
+    nombre.placeholder = "Nombre del ejercicio";
+    nombre.setAttribute("aria-label", "Nombre del ejercicio");
+    const sugerencias = el("div", "display:grid;gap:4px;max-height:140px;overflow:auto;");
+
+    const tipo = el("select", textoEstilo);
+    for (const [valor, titulo] of [["peso", "Peso"], ["tiempo", "Tiempo"], ["intervalo", "Intervalo"]] as const) {
+        const opcion = el("option", null, titulo);
+        opcion.value = valor;
+        tipo.appendChild(opcion);
+    }
+    tipo.value = inicial.tipoBloqueEspecial
+        ? "tiempo" : inicial.tipoEjercicio ?? tipoEjercicioDeRutina(rutina, inicial.id);
+    const tipoSerie = el("select", textoEstilo);
+    const tiposSerie: [TipoSerie | "", string][] = [
+        ["", "Trabajo"], ["calentamiento", "Calentamiento"], ["descenso", "Descenso"], ["fallo", "Fallo"],
+    ];
+    for (const [valor, titulo] of tiposSerie) {
+        const opcion = el("option", null, titulo);
+        opcion.value = valor;
+        tipoSerie.appendChild(opcion);
+    }
+    tipoSerie.value = inicial.tipoSerie ?? tipoSerieDeRutina(rutina, inicial.id) ?? "";
+    const series = numero(inicial.series || 1, 1);
+    const reps = numero(inicial.repsObjetivo, 1);
+    const peso = numero(null, 0, 0.5);
+    peso.value = pesoACampo(inicial.pesoObjetivo) ?? "";
+    peso.placeholder = `Opcional (${pesoActual()})`;
+    const duracion = numero(inicial.duracionObjetivo, 1);
+    const trabajo = numero(inicial.trabajoSeg, 1);
+    const transicion = numero(inicial.transicionSeg ?? inicial.descansoSeg, 0);
+    const descanso = numero(inicial.descansoSeg, 0);
+    const repeticionesDuranteTiempo = el("input");
+    repeticionesDuranteTiempo.type = "checkbox";
+    repeticionesDuranteTiempo.checked = inicial.repsPesoDuranteTiempo === true;
+    const chkTiempo = el("label", "display:flex;align-items:center;gap:7px;font-size:.88em;");
+    chkTiempo.append(repeticionesDuranteTiempo, "Registrar repeticiones y peso durante el tiempo");
+    const notas = el("input", textoEstilo);
+    notas.type = "text";
+    notas.value = inicial.notas ?? "";
+    notas.placeholder = "Notas (opcional)";
+
+    const campos = {
+        nombre: etiqueta("Ejercicio", nombre),
+        tipo: etiqueta("Tipo de ejercicio", tipo),
+        series: etiqueta("Series o ciclos", series),
+        tipoSerie: etiqueta("Tipo de serie", tipoSerie),
+        reps: etiqueta("Repeticiones objetivo", reps),
+        peso: etiqueta(`Peso objetivo (${pesoActual()})`, peso),
+        duracion: etiqueta("Duración del hold (s)", duracion),
+        trabajo: etiqueta("Trabajo por ciclo (s)", trabajo),
+        transicion: etiqueta("Descanso entre ciclos (s)", transicion),
+        descanso: etiqueta("Descanso entre series (s)", descanso),
+        chkTiempo,
+        notas: etiqueta("Notas", notas),
+    };
+    const tituloSeries = campos.series.querySelector("span");
+    caja.append(campos.nombre, sugerencias, campos.tipo, campos.series, campos.tipoSerie,
+        campos.reps, campos.peso, campos.duracion, campos.chkTiempo, campos.trabajo,
+        campos.transicion, campos.descanso, campos.notas);
+
+    let seleccionadoId = inicial.id;
+    let grupos = [...(inicial.grupos ?? [])];
+    const pintarCampos = (): void => {
+        const estado = camposVisiblesEjercicio({
+            tipoEjercicio: tipo.value === "peso" ? null : tipo.value as TipoEjercicio,
+            tipoSerie: tipoSerie.value === "fallo" ? "fallo" : null,
+            repsPesoDuranteTiempo: repeticionesDuranteTiempo.checked,
+        });
+        if (tituloSeries) tituloSeries.textContent = estado.tipo === "intervalo" ? "Ciclos" : "Series";
+        campos.tipoSerie.hidden = !estado.reps;
+        campos.reps.hidden = !estado.objetivoReps;
+        campos.peso.hidden = !estado.peso;
+        campos.duracion.hidden = !estado.duracion;
+        campos.chkTiempo.hidden = !estado.registroTiempo;
+        campos.trabajo.hidden = !estado.trabajo;
+        campos.transicion.hidden = !estado.transicion;
+        campos.descanso.hidden = !estado.descanso;
+    };
+    const aplicarEjercicioElegido = (e: EjercicioCatalogo): void => {
+        seleccionadoId = e.id;
+        nombre.value = e.nombre;
+        const plan = rutina.dias.flatMap(d => d.ejercicios ?? []).find(x => x.id === e.id);
+        const ultimo = ultimosValores(rutina, e.id);
+        grupos = [...(plan?.grupos ?? gruposPorId.get(e.id) ?? [])];
+        tipo.value = plan ? tipoEjercicioDeRutina(rutina, e.id) : ultimo?.tipoEjercicio ?? "peso";
+        tipoSerie.value = plan?.tipoSerie ?? tipoSerieDeRutina(rutina, e.id) ?? "";
+        series.value = String(plan?.series ?? ultimo?.series ?? 3);
+        reps.value = plan?.repsObjetivo == null ? String(ultimo?.reps ?? "") : String(plan.repsObjetivo);
+        peso.value = pesoACampo(plan?.pesoObjetivo ?? ultimo?.peso ?? null) ?? "";
+        duracion.value = String(plan?.duracionObjetivo ?? "");
+        trabajo.value = String(plan?.trabajoSeg ?? "");
+        transicion.value = String(plan?.transicionSeg ?? plan?.descansoSeg ?? "");
+        descanso.value = String(plan?.descansoSeg ?? descansoDe(rutina, e.id) ?? 90);
+        repeticionesDuranteTiempo.checked = plan?.repsPesoDuranteTiempo === true;
+        notas.value = plan?.notas ?? "";
+        pintarCampos();
+        pintarSugerencias();
+    };
+    const pintarSugerencias = (): void => {
+        sugerencias.empty();
+        const q = norm(nombre.value);
+        const exacto = catalogo.find(e => norm(e.nombre) === q);
+        if (exacto) {
+            seleccionadoId = exacto.id;
+            grupos = [...(rutina.dias.flatMap(d => d.ejercicios ?? [])
+                .find(x => x.id === exacto.id)?.grupos
+                ?? gruposPorId.get(exacto.id)
+                ?? (exacto.id === inicial.id ? inicial.grupos : undefined)
+                ?? [])];
+        } else if (seleccionadoId !== inicial.id || nombre.value !== inicial.nombre) {
+            seleccionadoId = "";
+            grupos = [];
+        }
+        const resultados = q ? catalogo.filter(e => norm(e.nombre).includes(q)).slice(0, 5) : [];
+        for (const e of resultados) {
+            const opcion = el("button", "gym-btn", e.nombre + (e.rutina ? ` · ${e.rutina}` : ""));
+            opcion.type = "button";
+            opcion.onclick = () => aplicarEjercicioElegido(e);
+            sugerencias.appendChild(opcion);
+        }
+    };
+    nombre.oninput = () => {
+        const exacto = catalogo.find(e => norm(e.nombre) === norm(nombre.value));
+        if (exacto && exacto.id !== seleccionadoId) aplicarEjercicioElegido(exacto);
+        else pintarSugerencias();
+    };
+    tipo.onchange = pintarCampos;
+    tipoSerie.onchange = pintarCampos;
+    repeticionesDuranteTiempo.onchange = pintarCampos;
+    pintarSugerencias();
+    pintarCampos();
+
+    const filaBotones = el("div", "display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;");
+    const cancelar = el("button", "gym-btn", "Cancelar");
+    cancelar.type = "button";
+    const aplicar = el("button", "gym-btn-g gym-btn-mini-g", "Usar ejercicio");
+    aplicar.type = "button";
+    filaBotones.append(cancelar, aplicar);
+    caja.appendChild(filaBotones);
+    m.caja.appendChild(caja);
+
+    return await new Promise<EjercicioDef | null>(resolve => {
+        let resuelto = false;
+        const observer = new MutationObserver(() => {
+            if (!m.overlay.isConnected) cerrar(null);
+        });
+        observer.observe(document.body, { childList: true });
+        const cerrar = (resultado: EjercicioDef | null): void => {
+            if (resuelto) return;
+            resuelto = true;
+            observer.disconnect();
+            m.cerrar();
+            resolve(resultado);
+        };
+        cancelar.onclick = () => cerrar(null);
+        aplicar.onclick = () => {
+            const nombreLimpio = limpiarNombre(nombre.value);
+            if (!nombreLimpio) {
+                toast("⚠️ Escribe el nombre del ejercicio.", false);
+                nombre.focus();
+                return;
+            }
+            const elegido = catalogo.find(e => e.id === seleccionadoId && norm(e.nombre) === norm(nombreLimpio))
+                ?? catalogo.find(e => norm(e.nombre) === norm(nombreLimpio));
+            const usados = new Set(catalogo.map(e => e.id));
+            let id = elegido?.id ?? idEjercicioLibre(nombreLimpio);
+            let sufijo = 2;
+            while (!elegido && usados.has(id)) id = `${idEjercicioLibre(nombreLimpio)}-${sufijo++}`;
+            const esPeso = tipo.value === "peso";
+            const esTiempo = tipo.value === "tiempo";
+            const esIntervalo = tipo.value === "intervalo";
+            const serie = tipoSerie.value;
+            const valor = (campo: HTMLInputElement): number | null => {
+                const n = Number(campo.value);
+                return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+            };
+            const actual: EjercicioDef = {
+                id,
+                nombre: elegido?.nombre ?? nombreLimpio,
+                grupos,
+                tipoEjercicio: esPeso ? null : tipo.value as TipoEjercicio,
+                tipoBloqueEspecial: null,
+                series: Math.max(1, Math.round(Number(series.value) || 1)),
+                repsObjetivo: esPeso && serie !== "fallo" ? valor(reps) : null,
+                pesoObjetivo: esPeso || (esTiempo && repeticionesDuranteTiempo.checked)
+                    ? pesoAKg(peso.value) : null,
+                duracionObjetivo: esTiempo ? valor(duracion) : null,
+                repsPesoDuranteTiempo: esTiempo && repeticionesDuranteTiempo.checked,
+                descansoSeg: esIntervalo ? null : Math.max(0, Math.round(Number(descanso.value) || 0)),
+                trabajoSeg: esIntervalo ? valor(trabajo) : null,
+                transicionSeg: esIntervalo ? Math.max(0, Math.round(Number(transicion.value) || 0)) : null,
+                notas: notas.value.trim(),
+                tipoSerie: esPeso && (serie === "calentamiento" || serie === "descenso" || serie === "fallo")
+                    ? serie : null,
+            };
+            cerrar(actual);
+        };
+    });
 };

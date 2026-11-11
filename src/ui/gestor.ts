@@ -1,7 +1,7 @@
 import { CONFIG, DIAS_LARGO } from "../config";
 import { rutaMedidas } from "../ajustes";
 import {
-    catalogoEjercicios, escribirRutina, esLibre,
+    catalogoEjercicios, etiquetasDeDia, escribirRutina, esLibre,
     leerMedidas, leerRutina, medidasVacias, resumenLibre, rutaDatosDe, semanaActual,
     semanasTotales, tipoEjercicioDe, transcurrida,
 } from "../datos";
@@ -162,6 +162,24 @@ const seccionDetalles = (c: HTMLElement, rutina: Rutina, pintar: Pintar): void =
             const diasTxt = (d.diasSemana ?? []).map(n => DIAS_LARGO[(Number(n) || 1) - 1]).filter(Boolean).join(", ");
             box.append(el("div", "gym-tit-naranja", d.nombre));
             box.append(el("div", "gym-caja-dias", diasTxt || "sin días asignados"));
+
+            const etiquetas = etiquetasDeDia(d);
+            if (etiquetas.todas.length) {
+                const filaTipo = el("div", "gym-cal-tipo-dia");
+                filaTipo.appendChild(el("span", "gym-cal-tipo-dia-titulo", "Tipo de día"));
+                for (const etiqueta of etiquetas.todas) {
+                    const clave = etiqueta.toLocaleLowerCase("es");
+                    const esGrupo = etiquetas.gruposDerivados.some(g => g.toLocaleLowerCase("es") === clave);
+                    const esPersonalizada = etiquetas.personalizadas.some(g => g.toLocaleLowerCase("es") === clave);
+                    const chip = el("span", "gym-chip gym-chip-mini" + (esGrupo ? " gym-grupo" : ""), etiqueta);
+                    chip.title = esGrupo && esPersonalizada
+                        ? "Grupo derivado de los ejercicios y etiqueta personalizada"
+                        : esGrupo ? "Grupo derivado de los ejercicios del día" : "Etiqueta personalizada";
+                    filaTipo.appendChild(chip);
+                }
+                box.appendChild(filaTipo);
+            }
+
             const ul = el("ul", "gym-caja-ul");
             for (const e of d.ejercicios ?? []) {
                 const li = el("li");

@@ -302,7 +302,9 @@ export async function pintarResumenProgresion(
             }
             const fila = [
                 fechaLegible(h.fecha),
-                `${h.rutinaNombre} · ${h.diaNombre || h.diaId}`,
+                `${h.rutinaNombre} · ${h.diaNombre || h.diaId}` +
+                    (ejercicioSesion?.ejercicioPlanificado
+                        ? ` · planificado: ${ejercicioSesion.ejercicioPlanificado.nombre}` : ""),
                 series || "–",
                 mejor,
             ];

@@ -140,7 +140,7 @@ export class GymStoneTab extends PluginSettingTab {
 
         new Setting(seccionSonido)
             .setName("Sonido del temporizador")
-            .setDesc("Reproduce un pitido al terminar el temporizador libre.")
+            .setDesc("Reproduce un pitido al terminar el temporizador libre y al alcanzar el objetivo de un ejercicio de tiempo.")
             .addToggle(t => t.setValue(conf().sonidoTemporizador)
                 .onChange(async v => this.guardar("sonidoTemporizador", v)));
 
@@ -389,7 +389,7 @@ export class GymStoneTab extends PluginSettingTab {
                 items: [
                     {
                         name: "Sonido del temporizador",
-                        desc: "Reproduce un pitido al terminar el temporizador libre.",
+                        desc: "Reproduce un pitido al terminar el temporizador libre y al alcanzar el objetivo de un ejercicio de tiempo.",
                         control: { key: "sonidoTemporizador", type: "toggle" },
                     },
                     {

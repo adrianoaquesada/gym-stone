@@ -464,7 +464,16 @@ const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
 };
 
 const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
-    type Ev = { t: number; hecha: boolean; reps: number | null; peso: number | null; dur: number | null; descansoMs?: number; ejecMs?: number };
+    type Ev = {
+        t: number;
+        hecha: boolean;
+        reps: number | null;
+        peso: number | null;
+        dur: number | null;
+        bloqueEspecial: boolean;
+        descansoMs?: number;
+        ejecMs?: number;
+    };
     const filas: { nombre: string; evs: Ev[] }[] = [];
     let lejos = 0;
     for (const e of s.ejercicios ?? []) {
@@ -476,6 +485,7 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
                 t: x.t, hecha: !saltada,
                 reps: saltada ? null : (Number(x.reps) || 0), peso: saltada ? null : (x.peso ?? null),
                 dur: saltada ? null : (x.duracionSeg ?? null),
+                bloqueEspecial: Boolean(e.tipoBloqueEspecial ?? e.configuracionSesion?.tipoBloqueEspecial),
                 ...(x.descansoMs != null ? { descansoMs: x.descansoMs } : {}),
                 ...(x.ejecMs != null ? { ejecMs: x.ejecMs } : {}),
             });
@@ -570,10 +580,46 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
         fila.appendChild(nom);
         const pista = el("div", "flex:1;position:relative;height:14px;border-radius:7px;background:var(--background-secondary);overflow:hidden;");
 
+        const primera = f.evs[0];
+        const duracionPrimera = primera.ejecMs
+            ?? (primera.bloqueEspecial && primera.dur != null ? primera.dur * 1000 : 0);
+        const inicioTramo = tiempoReal(Math.max(0, primera.t - duracionPrimera));
+        const finTramo = tiempoReal(fin.t);
         const tramo = el("div", `position:absolute;top:0;bottom:0;border-radius:7px;background:${color};opacity:.18;`);
-        tramo.style.left = `${pct(tiempoReal(f.evs[0].t))}%`;
-        tramo.style.width = `${Math.max(1, pct(tiempoReal(fin.t)) - pct(tiempoReal(f.evs[0].t)))}%`;
+        tramo.style.left = `${pct(inicioTramo)}%`;
+        tramo.style.width = `${Math.max(1, pct(finTramo) - pct(inicioTramo))}%`;
         pista.appendChild(tramo);
+
+        const anadirTramoEjecucion = (desde: number, hasta: number): void => {
+            let cursor = desde;
+            let pausasAcumuladas = 0;
+            const anadirSegmento = (inicioActivo: number, finActivo: number, pausaAcumulada: number): void => {
+                if (finActivo <= inicioActivo) return;
+                const segmento = el("div", `position:absolute;top:3px;bottom:3px;border-radius:3px;background:${color};opacity:.95;`);
+                segmento.style.left = `${pct(inicioActivo + pausaAcumulada)}%`;
+                segmento.style.width = `${Math.max(0, pct(finActivo + pausaAcumulada) - pct(inicioActivo + pausaAcumulada))}%`;
+                conAyuda(segmento, () => `Tiempo haciendo ${f.nombre}: ${relojMs(finActivo - inicioActivo)}`, true);
+                pista.appendChild(segmento);
+            };
+            for (const pausa of pausas) {
+                if (pausa.t <= desde) {
+                    pausasAcumuladas += pausa.ms;
+                    continue;
+                }
+                if (pausa.t >= hasta) break;
+                anadirSegmento(cursor, pausa.t, pausasAcumuladas);
+                cursor = pausa.t;
+                pausasAcumuladas += pausa.ms;
+            }
+            anadirSegmento(cursor, hasta, pausasAcumuladas);
+        };
+        f.evs.forEach(ev => {
+            const duracionEjecucion = ev.ejecMs ?? (ev.bloqueEspecial && ev.dur != null ? ev.dur * 1000 : null);
+            if (ev.hecha && duracionEjecucion != null
+                && Number.isFinite(duracionEjecucion) && duracionEjecucion > 0) {
+                anadirTramoEjecucion(Math.max(0, ev.t - duracionEjecucion), ev.t);
+            }
+        });
 
         f.evs.forEach((ev, iS) => {
             const tick = el("div", `position:absolute;top:2px;bottom:2px;width:4px;border-radius:2px;background:${ev.hecha ? color : "var(--text-faint)"};`);
@@ -584,8 +630,11 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
                     : ` — ${ev.reps} reps${ev.peso != null ? ` × ${pesoTexto(ev.peso)}` : ""}`
                 : " — ⏭ saltada"} · ${relojMs(ev.t)}` +
                 (iS > 0 ? ` · ${relojMs(ev.t - f.evs[iS - 1].t)} después de la anterior` : " · primera del ejercicio") +
-                (ev.descansoMs != null && ev.ejecMs != null
-                    ? ` (${relojMs(ev.descansoMs)} de descanso + ${relojMs(ev.ejecMs)} de ejecución)` : ""), true);
+                (ev.descansoMs != null || ev.ejecMs != null
+                    ? ` (${[
+                        ev.descansoMs != null ? `${relojMs(ev.descansoMs)} de descanso` : null,
+                        ev.ejecMs != null ? `${relojMs(ev.ejecMs)} de ejecución` : null,
+                    ].filter(Boolean).join(" + ")})` : ""), true);
             pista.appendChild(tick);
         });
         fila.appendChild(pista);
@@ -704,7 +753,7 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
     ventana.addEventListener("pointercancel", terminarPellizco);
 
     wrap.appendChild(el("div", "font-size:.72em;opacity:.6;margin-top:3px;",
-        "■ por ejercicio · ✔ serie hecha · ⏭ saltada (tenue) · fondo de pausas = tiempo detenido"));
+        "■ por ejercicio · tramo intenso = tiempo haciendo el ejercicio · ✔ serie hecha · ⏭ saltada (tenue) · fondo de pausas = tiempo detenido"));
     return wrap;
 };
 
@@ -822,6 +871,9 @@ export function detalleDia(rutina: Rutina, fecha: string, pintar: Pintar): void 
                 }
                 const tr = createEl("tr");
                 const tdNom = el("td", "gym-td-nom", e.nombre || e.ejercicioId || "–");
+                if (e.ejercicioPlanificado) {
+                    tdNom.appendChild(el("div", "gym-td-sub", `Planificado: ${e.ejercicioPlanificado.nombre}`));
+                }
                 if (sinReg) tdNom.appendChild(el("div", "gym-sinreg gym-td-sub", "⏳ sin registrar"));
                 else if (nSaltadas) tdNom.appendChild(el("div", "gym-td-sub",
                     `${nHechas} de ${(e.series ?? []).length} hechas`));

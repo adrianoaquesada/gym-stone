@@ -47,6 +47,23 @@ export const tipoSerieDe = (
     serie?: Pick<SerieSesion, "tipoSerie"> | null,
 ): TipoSerie => serie?.tipoSerie ?? plan?.tipoSerie ?? "trabajo";
 
+export const camposVisiblesEjercicio = (
+    ejercicio: Pick<EjercicioDef, "tipoEjercicio" | "tipoBloqueEspecial" | "tipoSerie" | "repsPesoDuranteTiempo">,
+) => {
+    const tipo = tipoEjercicioDe(ejercicio);
+    return {
+        tipo,
+        reps: tipo === "peso",
+        objetivoReps: tipo === "peso" && tipoSerieDe(ejercicio) !== "fallo",
+        peso: tipo === "peso" || (tipo === "tiempo" && ejercicio.repsPesoDuranteTiempo === true),
+        duracion: tipo === "tiempo",
+        registroTiempo: tipo === "tiempo",
+        trabajo: tipo === "intervalo",
+        transicion: tipo === "intervalo",
+        descanso: tipo !== "intervalo",
+    };
+};
+
 export const repsObjetivoDe =
     (ej: Pick<EjercicioDef, "repsObjetivo" | "tipoSerie"> | undefined | null): number | null =>
         tipoSerieDe(ej) === "fallo" ? null : ej?.repsObjetivo ?? null;
