@@ -1248,6 +1248,95 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         });
     };
 
+    type CampoSerieEditable = "reps" | "peso" | "duracion";
+
+    const serieSePuedeEditar = (): boolean => hold?.ej !== idx && ciclo?.ej !== idx;
+
+    const valorModeloSerie = (serie: SerieSesion, campo: CampoSerieEditable): string => {
+        if (campo === "reps") return serie.reps != null ? String(serie.reps) : "";
+        if (campo === "peso") return pesoACampo(serie.peso);
+        return serie.duracionSeg != null ? String(serie.duracionSeg) : "";
+    };
+
+    const guardarCampoSerie = (
+        iSet: number,
+        campo: CampoSerieEditable,
+        entrada: HTMLInputElement,
+    ): void => {
+        const ej = defs[idx];
+        const serie = ej?.series[iSet];
+        if (!serie || serie.saltada) return;
+        if (!serieSePuedeEditar()) {
+            entrada.value = valorModeloSerie(serie, campo);
+            toast("⏳ No puedes editar una serie mientras su hold o ciclo está activo.", false);
+            return;
+        }
+        const texto = entrada.value.trim();
+        if (campo === "reps") {
+            if (texto === "") { serie.reps = null; return; }
+            const reps = aNumero(texto);
+            if (reps == null || reps < 0) {
+                entrada.value = valorModeloSerie(serie, campo);
+                toast("✏️ Las repeticiones deben ser un número igual o mayor que 0.", false);
+                return;
+            }
+            serie.reps = Math.round(reps);
+            entrada.value = valorModeloSerie(serie, campo);
+            return;
+        }
+        if (campo === "peso") {
+            if (texto === "") { serie.peso = null; return; }
+            const kg = pesoAKg(texto);
+            if (kg == null || kg < 0) {
+                entrada.value = valorModeloSerie(serie, campo);
+                toast("✏️ El peso debe ser un número igual o mayor que 0.", false);
+                return;
+            }
+            serie.peso = kg;
+            entrada.value = valorModeloSerie(serie, campo);
+            return;
+        }
+        const segundos = aNumero(texto);
+        if (segundos == null || segundos <= 0) {
+            entrada.value = valorModeloSerie(serie, campo);
+            toast("✏️ Los segundos deben ser un número mayor que 0.", false);
+            return;
+        }
+        serie.duracionSeg = Math.round(segundos);
+        entrada.value = valorModeloSerie(serie, campo);
+    };
+
+    const entradaSerie = (
+        iSet: number,
+        campo: CampoSerieEditable,
+        valor: string,
+        etiqueta: string,
+    ): HTMLInputElement => {
+        const entrada = el("input", "gym-modo-set-editar");
+        entrada.type = "number";
+        entrada.inputMode = campo === "peso" ? "decimal" : "numeric";
+        entrada.min = "0";
+        if (campo === "peso") entrada.step = "0.5";
+        entrada.value = valor;
+        entrada.placeholder = "–";
+        entrada.title = `Editar ${etiqueta.toLocaleLowerCase("es")}`;
+        entrada.setAttribute("aria-label", `${etiqueta} de la serie ${iSet + 1}`);
+        entrada.disabled = !serieSePuedeEditar();
+        entrada.onchange = () => guardarCampoSerie(iSet, campo, entrada);
+        entrada.onkeydown = evento => {
+            if (evento.key !== "Enter") return;
+            evento.preventDefault();
+            entrada.blur();
+        };
+        entrada.onblur = (evento: FocusEvent) => {
+            if (!entrada.isConnected) return;
+            const destino = evento.relatedTarget;
+            if (destino instanceof Node && contEj.contains(destino)) return;
+            pintarEjercicio();
+        };
+        return entrada;
+    };
+
     const pintarEjercicio = () => {
         const ej = defs[idx];
         const puedeRestaurar = Boolean(ej?.series.some(esSaltada));
@@ -1770,23 +1859,35 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
                 const tipoRegistro = tipoEjercicioDe(ej.objetivo);
                 const cronometradaConPeso = tipoRegistro === "tiempo"
                     && ej.objetivo.repsPesoDuranteTiempo;
-                const txt = el("div", "gym-modo-set-valor");
-                const detalleSerie = cronometradaConPeso
-                    ? `${s.reps ?? "–"} reps · ${s.duracionSeg ?? "–"} s`
-                    : s.duracionSeg != null ? `${s.duracionSeg} s`
-                        : `${s.reps ?? "–"} reps`;
-                txt.textContent = detalleSerie;
+                const celdaValor = el("div", "gym-modo-set-valor");
+                const grupoValor = el("div", "gym-modo-set-grupo");
+                const usaPeso = tipoRegistro === "peso" || cronometradaConPeso;
+                if (usaPeso) {
+                    grupoValor.appendChild(entradaSerie(i, "reps",
+                        s.reps != null ? String(s.reps) : "", "Repeticiones"));
+                    if (cronometradaConPeso) {
+                        grupoValor.appendChild(entradaSerie(i, "duracion",
+                            s.duracionSeg != null ? String(s.duracionSeg) : "", "Segundos"));
+                    }
+                } else {
+                    grupoValor.appendChild(entradaSerie(i, "duracion",
+                        s.duracionSeg != null ? String(s.duracionSeg) : "", "Segundos"));
+                }
+                celdaValor.appendChild(grupoValor);
                 const cicloEnDescanso = tipoRegistro === "intervalo"
                     && ciclo?.fase === "descanso" && ciclo.ej === idx && ciclo.n === i + 1;
                 if (cicloEnDescanso) {
                     fila.classList.add("con-temporizador");
                     fila.appendChild(cajaCiclo ?? el("div"));
                 } else {
-                    fila.appendChild(txt);
-                    fila.appendChild(tipoRegistro === "peso" || cronometradaConPeso
-                        ? el("div", "gym-modo-set-peso gym-modo-set-valor",
-                            s.peso != null ? pesoACampo(s.peso) : "–")
-                        : el("div"));
+                    fila.appendChild(celdaValor);
+                    if (usaPeso) {
+                        const celdaPeso = el("div", "gym-modo-set-peso gym-modo-set-valor");
+                        celdaPeso.appendChild(entradaSerie(i, "peso", pesoACampo(s.peso), "Peso"));
+                        fila.appendChild(celdaPeso);
+                    } else {
+                        fila.appendChild(el("div"));
+                    }
                 }
                 logrosSerie = recordes.filter(r => r.indiceEjercicio === idx && r.indiceSerie === i);
                 if (logrosSerie.length) {

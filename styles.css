@@ -422,6 +422,21 @@ button.gym-btn-g.gym-modo-saltar-confirmable.gym-salto-confirmando:not(:disabled
   gap:8px; align-items:center; margin-bottom:8px; padding:4px; border:1px solid transparent; border-radius:12px; }
 .gym-modo-set-peso { min-width:0; font-size:.95em; font-variant-numeric:tabular-nums; white-space:nowrap; }
 .gym-modo-set-valor { min-width:0; text-align:center; font-variant-numeric:tabular-nums; }
+.gym-modo-set-grupo { display:flex; gap:4px; min-width:0; }
+.gym-modo-set input.gym-modo-set-editar {
+  box-sizing:border-box; width:100%; min-width:0; height:30px; min-height:30px;
+  padding:0 2px; text-align:center; font-size:.9em; font-weight:600;
+  font-variant-numeric:tabular-nums; border:1px solid transparent; border-radius:6px;
+  background:transparent; color:var(--text-normal); cursor:text;
+}
+.gym-modo-set input.gym-modo-set-editar:hover { border-color:var(--background-modifier-border); }
+.gym-modo-set input.gym-modo-set-editar:focus {
+  outline:none; border-color:#F99624; background:var(--background-secondary);
+}
+.gym-modo-set input.gym-modo-set-editar:disabled { opacity:.7; cursor:default; }
+.gym-modo-set input.gym-modo-set-editar::-webkit-outer-spin-button,
+.gym-modo-set input.gym-modo-set-editar::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+.gym-modo-set input.gym-modo-set-editar[type=number] { -moz-appearance:textfield; appearance:textfield; }
 .gym-modo-numero { display:flex; align-items:center; justify-content:center; gap:4px; min-width:0; }
 .gym-modo-tipo-btn { box-sizing:border-box; width:34px; height:34px; min-height:0; flex:0 0 34px; padding:0;
   border:1px solid var(--background-modifier-border); border-radius:6px; background:var(--background-secondary);
