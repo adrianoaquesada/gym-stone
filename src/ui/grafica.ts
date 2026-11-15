@@ -16,8 +16,8 @@ export interface SerieGrafica {
 }
 
 const NS_SVG = "http://www.w3.org/2000/svg";
-const svgEl = (tag: string, attrs: Record<string, string>): SVGElement => {
-    const n = document.createElementNS(NS_SVG, tag);
+const svgEl = (doc: Document, tag: string, attrs: Record<string, string>): SVGElement => {
+    const n = doc.createElementNS(NS_SVG, tag);
     for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
     return n;
 };
@@ -48,18 +48,19 @@ export const grafica = (
     const x = (t: number) => mg.l + (t - t0) / spanT * iw;
     const y = (v: number) => mg.t + (vMax - v) / (vMax - vMin) * ih;
 
-    const svg = document.createElementNS(NS_SVG, "svg");
+    const doc = raiz.ownerDocument;
+    const svg = doc.createElementNS(NS_SVG, "svg");
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     svg.setAttribute("class", "gym-graf-svg");
 
     const paso = (vMax - vMin) / 4;
     for (let i = 0; i <= 4; i++) {
         const v = vMin + paso * i, py = y(v);
-        svg.appendChild(svgEl("line", {
+        svg.appendChild(svgEl(doc, "line", {
             x1: String(mg.l), y1: py.toFixed(1), x2: String(W - mg.r), y2: py.toFixed(1),
             stroke: CONFIG.BORDE, opacity: ".6",
         }));
-        const texto = svgEl("text", {
+        const texto = svgEl(doc, "text", {
             x: String(mg.l - 7), y: (py + 3.5).toFixed(1), "text-anchor": "end",
             "font-size": "10", fill: "currentColor", opacity: ".6",
         });
@@ -86,14 +87,14 @@ export const grafica = (
     for (const s of series) {
         const ordenados = [...s.puntos].sort((a, b) => a.ts - b.ts);
         if (ordenados.length > 1) {
-            svg.appendChild(svgEl("polyline", {
+            svg.appendChild(svgEl(doc, "polyline", {
                 points: ordenados.map(p => `${x(p.ts).toFixed(1)},${y(p.v).toFixed(1)}`).join(" "),
                 fill: "none", stroke: s.color, "stroke-width": "2.2",
                 "stroke-linejoin": "round", "stroke-linecap": "round",
             }));
         }
         for (const p of ordenados) {
-            svg.appendChild(svgEl("circle", {
+            svg.appendChild(svgEl(doc, "circle", {
                 cx: x(p.ts).toFixed(1), cy: y(p.v).toFixed(1), r: "3.2",
                 fill: s.color, stroke: "var(--background-primary)", "stroke-width": "1.2",
             }));
