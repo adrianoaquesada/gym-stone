@@ -25,7 +25,7 @@ export function abrirAjustesOpcionesRapidas(app: App): boolean {
     ajustes.open();
     ajustes.openTabById("gym-stone");
     window.setTimeout(() => {
-        document.querySelector<HTMLElement>(".gym-ajustes-opciones-rapidas-setting")
+        activeDocument.querySelector<HTMLElement>(".gym-ajustes-opciones-rapidas-setting")
             ?.scrollIntoView({ block: "center" });
     }, 0);
     return true;
