@@ -199,10 +199,9 @@ const medirAreasSeguras = (): void => {
     const doc = activeDocument;
     const vista = doc.defaultView ?? window;
     const lee = (lado: string): number => {
-        const s = doc.createElement("div");
+        const s = doc.body.createEl("div");
         s.style.cssText = `position:absolute;top:-9999px;left:-9999px;visibility:hidden;`
             + `padding-${lado}:env(safe-area-inset-${lado},0px);`;
-        doc.body.appendChild(s);
         const v = (lado === "top" || lado === "bottom") ? s.offsetHeight : s.offsetWidth;
         s.remove();
         return v;
