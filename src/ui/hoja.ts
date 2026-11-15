@@ -16,6 +16,7 @@ export const hojaFormulario = async ({ modo, rutinaId = null }: OpcionesHoja): P
         inicial = r.datos as Rutina;
     }
 
+    const doc = activeDocument;
     const overlay = el("div", "gym-hoja-overlay");
     const hoja = el("div", "gym-hoja");
     const cab = el("div", "gym-hoja-cab");
@@ -39,21 +40,21 @@ export const hojaFormulario = async ({ modo, rutinaId = null }: OpcionesHoja): P
     hoja.appendChild(cab);
     hoja.appendChild(cuerpo);
     overlay.appendChild(hoja);
-    document.body.appendChild(overlay);
+    doc.body.appendChild(overlay);
 
     const cerrar = () => {
-        document.removeEventListener("keydown", onKey, true);
+        doc.removeEventListener("keydown", onKey, true);
         overlay.remove();
     };
 
     const onKey = (e: KeyboardEvent) => {
         if (e.key !== "Escape") return;
         // Si hay un modal o un diálogo de confirmación encima, los deja cerrarlos a ellos.
-        if (document.querySelector(".gym-modal, #gym-confirm-activo")) return;
+        if (doc.querySelector(".gym-modal, #gym-confirm-activo")) return;
         e.stopPropagation();
         cerrar();
     };
-    document.addEventListener("keydown", onKey, true);
+    doc.addEventListener("keydown", onKey, true);
     btnCerrar.onclick = cerrar;
 
     const alGuardar = () => cerrar();
