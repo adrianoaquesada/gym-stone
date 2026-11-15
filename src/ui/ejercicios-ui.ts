@@ -218,21 +218,22 @@ export const textoDescanso = (n: number | null | undefined): string =>
 
 export const pedirDescanso = (segActual: number | null): Promise<number | null> => new Promise(resolve => {
     const m = modal("⏳ Descanso", "segundos entre series de este ejercicio", true);
+    const doc = m.overlay.ownerDocument;
     let resuelto = false;
     const listo = (v: number | null) => {
         if (resuelto) return;
         resuelto = true;
-        document.removeEventListener("keydown", onKey);
+        doc.removeEventListener("keydown", onKey);
         m.cerrar();
         resolve(v);
     };
     const onKey = (e: KeyboardEvent) => {
         if (e.key !== "Escape") return;
-        if (document.getElementById("gym-confirm-activo")) return;
+        if (doc.getElementById("gym-confirm-activo")) return;
         listo(null);
     };
     m.overlay.onclick = e => { if (e.target === m.overlay) listo(null); };
-    document.addEventListener("keydown", onKey);
+    doc.addEventListener("keydown", onKey);
     ponerX(m, "Cerrar sin cambiar").onclick = () => listo(null);
 
     const ctrl = controlDescanso(segActual);
@@ -277,6 +278,7 @@ export function elegirEjercicio(
     let catalogo = catalogoEjercicios(rutina).filter(x => !excluir.includes(x.id));
     const m = modal("＋ Añadir ejercicio", "busca un ejercicio guardado o escribe uno nuevo",
         true);
+    const doc = m.overlay.ownerDocument;
 
     let resuelto = false;
     const listo = (r: { id: string; nombre: string } | EleccionBloqueEspecial | null) => {
@@ -295,7 +297,7 @@ export function elegirEjercicio(
         if (document.getElementById("gym-confirm-activo")) return;
 
         if (m.overlay.isConnected) {
-            const modales = [...document.body.children].filter(n => /^gym-modal/.test(n.className || ""));
+            const modales = [...doc.body.children].filter(n => /^gym-modal/.test(n.className || ""));
             if (modales.length && modales[modales.length - 1] !== m.overlay) return;
         }
         listo(null);
@@ -992,7 +994,7 @@ export const editarEjercicioSesion = async (
         const observer = new MutationObserver(() => {
             if (!m.overlay.isConnected) cerrar(null);
         });
-        observer.observe(document.body, { childList: true });
+        observer.observe(m.overlay.ownerDocument.body, { childList: true });
         const cerrar = (resultado: EjercicioDef | null): void => {
             if (resuelto) return;
             resuelto = true;
