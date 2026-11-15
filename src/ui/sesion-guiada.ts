@@ -950,6 +950,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
             serie.ejecMs = t0 - ejecDesde;
         }
         ej.series[iSet] = serie;
+        if (ej.borradoresSeries) ej.borradoresSeries[iSet] = undefined;
         ej.tipoSiguiente = null;
         ejecDesde = null;
         if (hold?.ej === idx) {
@@ -2443,7 +2444,8 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     const guardarProgreso = async () => {
         capturarBorradoresActuales();
         if (!iniciada) return toast("⚠️ Pulsa ▶ Iniciar sesión antes de guardar.", false);
-        const conDatos = defs.filter(d => d.series.length || d.notas || d.inicioBloqueMs != null);
+        const conDatos = defs.filter(d => d.series.length || d.notas || d.inicioBloqueMs != null
+            || d.borradoresSeries?.some(b => b && Object.values(b).some(v => v !== undefined && v !== "")));
         if (!conDatos.length) return toast("⚠️ Aún no hay nada que guardar: completa una serie o añade una nota.", false);
         const totalSeries = conDatos.reduce((t, d) => t + seriesHechas(d).length, 0);
         const totalSaltadas = conDatos.reduce((t, d) => t + d.series.filter(esSaltada).length, 0);
