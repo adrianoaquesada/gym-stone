@@ -3,6 +3,7 @@ import { conf } from "./estado";
 let n = 0;
 let pendiente = false;
 let candado: WakeLockSentinel | null = null;
+let documentoVisibilidad: Document | null = null;
 
 const permitido = (): boolean => {
     try { return conf().mantenerDespierta !== false; }
@@ -24,7 +25,7 @@ const pedir = (): void => {
     if (!permitido() || n === 0 || candado || pendiente) return;
     const w = api();
 
-    if (!w || document.visibilityState !== "visible") return;
+    if (!w || activeDocument.visibilityState !== "visible") return;
     pendiente = true;
     void w.request("screen").then(
         c => {
@@ -43,7 +44,7 @@ const pedir = (): void => {
 };
 
 const alCambiarVisibilidad = (): void => {
-    if (document.visibilityState === "visible") pedir();
+    if ((documentoVisibilidad ?? activeDocument).visibilityState === "visible") pedir();
 };
 
 export const refrescarDespierta = (): void => {
@@ -52,7 +53,8 @@ export const refrescarDespierta = (): void => {
 
 export const reiniciarDespierta = (): void => {
     n = 0;
-    document.removeEventListener("visibilitychange", alCambiarVisibilidad);
+    documentoVisibilidad?.removeEventListener("visibilitychange", alCambiarVisibilidad);
+    documentoVisibilidad = null;
     soltar();
 };
 
@@ -63,7 +65,10 @@ export class ReclamoDespierta {
         if (this.poniendo) return;
         this.poniendo = true;
         n++;
-        if (n === 1) document.addEventListener("visibilitychange", alCambiarVisibilidad);
+        if (n === 1) {
+            documentoVisibilidad = activeDocument;
+            documentoVisibilidad.addEventListener("visibilitychange", alCambiarVisibilidad);
+        }
         pedir();
     }
 
@@ -73,7 +78,8 @@ export class ReclamoDespierta {
         if (n === 0) return;
         n--;
         if (n === 0) {
-            document.removeEventListener("visibilitychange", alCambiarVisibilidad);
+            documentoVisibilidad?.removeEventListener("visibilitychange", alCambiarVisibilidad);
+            documentoVisibilidad = null;
             soltar();
         }
     }
