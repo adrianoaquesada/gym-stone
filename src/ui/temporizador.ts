@@ -388,7 +388,7 @@ export function abrirTemporizador(): void {
     const R = 88, C = 2 * Math.PI * R;
     svg.append(
         svgEl(doc, "circle", { cx: "100", cy: "100", r: String(R), class: "pista" }),
-        svgEl("circle", { cx: "100", cy: "100", r: String(R), class: "barra" }),
+        svgEl(doc, "circle", { cx: "100", cy: "100", r: String(R), class: "barra" }),
     );
     const barra = svg.lastElementChild as SVGElement;
     barra.style.strokeDasharray = String(C);
