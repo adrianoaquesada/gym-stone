@@ -952,6 +952,13 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
             confirmarCancelarHold = false;
         }
         arrancarDescanso(Number(ej.objetivo.descansoSeg) || 90);
+        // Al terminar las series planificadas, muestra ya el siguiente ejercicio;
+        // el descanso sigue contando y pertenece al ejercicio que acaba de terminar.
+        if (ej.series.length >= ej.plan) {
+            const siguientePendiente = defs.findIndex((def, i) =>
+                i > idx && def.series.length < def.plan);
+            if (siguientePendiente >= 0 && !animando) deslizarA(siguientePendiente);
+        }
     };
 
     const saltarSerie = (iSet: number) => {
@@ -1332,6 +1339,8 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
             if (!entrada.isConnected) return;
             const destino = evento.relatedTarget;
             if (destino instanceof Node && contEj.contains(destino)) return;
+            // Confirma el valor en el modelo antes de reconstruir la vista o cambiar de ejercicio.
+            guardarCampoSerie(iSet, campo, entrada);
             pintarEjercicio();
         };
         return entrada;
@@ -2246,6 +2255,12 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         }
         if (ej.objetivo.tipoBloqueEspecial) {
             saltarBloqueEspecial(bSaltar);
+            return;
+        }
+        // Si el ejercicio ya está completo, «Saltar» equivale a pasar al siguiente.
+        if (ej.series.length >= ej.plan) {
+            confirmarSaltarEjercicio = false;
+            siguiente();
             return;
         }
         if (!confirmarSaltarEjercicio) {
