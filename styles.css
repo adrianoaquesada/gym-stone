@@ -86,7 +86,7 @@
   box-shadow:0 -8px 18px rgba(0,0,0,.18);
 }
 .gym-form.gym-form-hoja .gym-fila-guardar { margin:12px -16px -18px; padding-inline:16px; }
-.gym-hoja-cuerpo:has(.gym-form-hoja) { padding-bottom:0; }
+.gym-hoja-cuerpo-form { padding-bottom:0; }
 .gym-form .gym-fila-guardar > .gym-ayuda { flex:0 0 100%; margin-top:0; }
 .gym-form .gym-fila-guardar .gym-guardar { box-sizing:border-box; flex:1 1 200px; height:44px; min-height:44px; padding:6px 12px; border-radius:10px; border:none;
   background:#F99624; color:#101010; font-weight:800; font-size:1em; }
