@@ -76,7 +76,7 @@ export const grafica = (
         const txt = spanT > 200 * DIA_MS ? `${d.getMonth() + 1}/${String(d.getFullYear()).slice(2)}` : `${d.getDate()}/${d.getMonth() + 1}`;
         if (txt === etiquetaPrev) continue;
         etiquetaPrev = txt;
-        const etiqueta = svgEl("text", {
+        const etiqueta = svgEl(doc, "text", {
             x: x(t).toFixed(1), y: String(H - 8), "text-anchor": "middle",
             "font-size": "10", fill: "currentColor", opacity: ".6",
         });
