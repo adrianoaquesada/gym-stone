@@ -1,10 +1,10 @@
 # Progreso: compatibilidad con ventanas emergentes (popouts)
 
-**Subfase actual:** 1b · **Última actualización:** 2026-11-14
+**Subfase actual:** 1b · validación pendiente · **Última actualización:** 2026-11-14
 
 ## Estado
 - [x] 1a listeners por ventana y globo de ayuda
-- [ ] 1b overlays, modales y toasts en el documento activo
+- [ ] 1b overlays, modales y toasts en el documento activo (implementación subida; falta lint/build)
 - [ ] 2a hoja, gráfica y ajustes
 - [ ] 2b creador y ejercicios
 - [ ] 2c despierta (wake lock)
@@ -14,6 +14,14 @@
 - [ ] 4b versión 1.0.10
 
 ## Bitácora (la más reciente arriba)
+- 2026-11-14 · 1b · implementación subida en dos commits: `2451343` y
+  `881c7f7`. `toast`, `confirmar`, `modal` y `pedirTexto` crean y consultan
+  sus elementos en `activeDocument`, y los temporizadores usan la ventana del documento.
+  `limpiarOverlays()` recorre documentos conocidos por los listeners de ventana,
+  documentos con overlays y el documento principal/activo, para limpiar también popouts.
+  Se conserva el comportamiento visual y funcional. Validación local pendiente: este
+  entorno de GitHub permite editar/consultar el repositorio, pero no ejecutar `eslint`,
+  `npm run build` ni pruebas manuales; no hay checks de CI asociados a estos commits.
 - 2026-11-14 · 1a · `escucharEnVentanas` instala y retira listeners en la ventana principal y
   en cada popout, con dedupe por documento y `offref` al descargar; `enfocarCamposAlTocar`
   usa `instanceOf` y el documento del campo; el globo de ayuda se monta en el documento de
@@ -26,8 +34,8 @@
   0.6.0 · archivos: `docs/cambios/2026-11-14-compatibilidad-popouts/`, `AGENTS.md`
 
 ## Pendiente / problemas conocidos
-- En 1b hay que decidir si `limpiarOverlays()` recorre todas las ventanas (no solo la
-  activa) al descargar el plugin, para no dejar overlays huérfanos en popouts.
+- La limpieza de overlays ya recorre los documentos conocidos de las ventanas abiertas;
+  confirmar en pruebas manuales que no quedan overlays huérfanos al descargar el plugin.
 - `npm audit` mantiene 10 alertas moderadas de desarrollo (`minimatch` en
   `typescript-eslint` y `eslint-plugin-n`), sin corrección compatible publicada; 0 alertas
   en producción (`npm audit --omit=dev`).
