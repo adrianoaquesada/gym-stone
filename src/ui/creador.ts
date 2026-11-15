@@ -733,7 +733,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             inEj.onfocus = pintarResultados;
             inEj.onblur = () => {
                 window.setTimeout(() => {
-                    if (!celdaNombre.contains(document.activeElement)) cerrarResultados();
+                    if (!celdaNombre.contains(inEj.ownerDocument.activeElement)) cerrarResultados();
                 }, 0);
             };
             inEj.onkeydown = evento => {
