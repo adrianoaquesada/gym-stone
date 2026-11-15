@@ -13,12 +13,14 @@ const elEn = <K extends keyof HTMLElementTagNameMap>(doc: Document, tag: K, clas
     return e;
 };
 const documentosConOverlays = new Set<Document>();
+const documentosConocidos = new Set<Document>();
 
 /** Instala un listener en la ventana principal y en cada ventana emergente. */
 const escucharEnVentanas = (instalar: (doc: Document) => Baja): Baja => {
     const bajas = new Map<Document, Baja>();
     const alta = (win: Window): void => {
         const doc = win.document;
+        documentosConocidos.add(doc);
         if (bajas.has(doc)) return;
         bajas.set(doc, instalar(doc));
     };
@@ -31,6 +33,7 @@ const escucharEnVentanas = (instalar: (doc: Document) => Baja): Baja => {
         if (!baja) return;
         baja();
         bajas.delete(win.document);
+        documentosConocidos.delete(win.document);
     });
     return () => {
         for (const baja of bajas.values()) baja();
@@ -478,7 +481,8 @@ export const selectorUnidad = (alCambiar?: (u: UnidadPeso) => void): HTMLElement
 };
 
 export const limpiarOverlays = (): void => {
-    const documentos = new Set([...documentosConOverlays, activeDocument]);
+    const documentos = new Set([...documentosConocidos, ...documentosConOverlays, activeDocument,
+        aplicacion().workspace.containerEl.ownerDocument]);
     for (const doc of documentos) {
         for (const s of [".gym-modal", ".gym-modo", "#gym-confirm-activo", ".gym-hoja-overlay", ".gym-toast"]) {
             doc.querySelectorAll(s).forEach(n => n.remove());
