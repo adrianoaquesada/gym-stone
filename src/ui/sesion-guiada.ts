@@ -2374,7 +2374,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         reiniciarCuentaAtras("sesion-descanso");
         reiniciarCuentaAtras("sesion-ciclo-trabajo");
         reiniciarCuentaAtras("sesion-ciclo-descanso");
-        document.removeEventListener("keydown", onKey);
+        doc.removeEventListener("keydown", onKey);
         doc.removeEventListener("pointerdown", cancelarConfirmacionSaltoBloque, true);
         pantalla.quitar();
         sesionesAbiertas.delete(cerrar);
@@ -2653,7 +2653,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     pintarEjercicio();
     relojEl.textContent = `⏱ ${relojTexto(transcurridoMs())}`;
     sincronizaPantalla();
-    document.addEventListener("keydown", onKey);
+    doc.addEventListener("keydown", onKey);
     doc.addEventListener("pointerdown", cancelarConfirmacionSaltoBloque, true);
     doc.body.appendChild(overlay);
 };
