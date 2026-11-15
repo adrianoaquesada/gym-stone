@@ -20,6 +20,7 @@ export const hojaFormulario = async ({ modo, rutinaId = null }: OpcionesHoja): P
     const hoja = el("div", "gym-hoja");
     const cab = el("div", "gym-hoja-cab");
     const cuerpo = el("div", "gym-hoja-cuerpo");
+    cuerpo.addClass("gym-hoja-cuerpo-form");
 
     const btnCerrar = el("button", "gym-hoja-x", "✕");
     btnCerrar.type = "button";
