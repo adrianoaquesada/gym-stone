@@ -7,7 +7,8 @@ type Baja = () => void;
 
 /** Crea elementos en el documento de la ventana que recibirá el overlay. */
 const elEn = <K extends keyof HTMLElementTagNameMap>(doc: Document, tag: K, claseOCss?: string | null, texto?: string): HTMLElementTagNameMap[K] => {
-    const e = doc.createElement(tag);
+    const e = doc.body.createEl(tag);
+    e.remove();
     if (claseOCss) { if (claseOCss.includes(":")) e.style.cssText = claseOCss; else e.className = claseOCss; }
     if (texto !== undefined) e.textContent = texto;
     return e;
@@ -414,9 +415,10 @@ export const pedirTexto = (
     input.value = inicial ?? "";
     if (sugerencias?.length) {
         const id = `gym-sug-${++dlN}`;
-        const dl = doc.createElement("datalist"); dl.id = id;
+        const dl = doc.body.createEl("datalist"); dl.id = id;
+        dl.remove();
         for (const s of sugerencias) {
-            const o = doc.createElement("option"); o.value = s;
+            const o = dl.createEl("option"); o.value = s;
             dl.appendChild(o);
         }
         input.setAttribute("list", id);
