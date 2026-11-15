@@ -371,22 +371,23 @@ const fmtTotal = (ms: number): string => {
 };
 
 const NS_SVG = "http://www.w3.org/2000/svg";
-const svgEl = (tag: string, attrs: Record<string, string>): SVGElement => {
-    const n = document.createElementNS(NS_SVG, tag);
+const svgEl = (doc: Document, tag: string, attrs: Record<string, string>): SVGElement => {
+    const n = doc.createElementNS(NS_SVG, tag);
     for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
     return n;
 };
 
 export function abrirTemporizador(): void {
     const m = modal("⏱ Temporizador", "cuentas atrás independientes · al cerrarlo siguen corriendo");
+    const doc = m.overlay.ownerDocument;
     m.caja.classList.add("gym-temp-caja");
     ponerX(m, "Cerrar (la cuenta atrás sigue corriendo)");
 
     const anillo = el("div", "gym-temp-anillo");
-    const svg = svgEl("svg", { viewBox: "0 0 200 200", "aria-hidden": "true" });
+    const svg = svgEl(doc, "svg", { viewBox: "0 0 200 200", "aria-hidden": "true" });
     const R = 88, C = 2 * Math.PI * R;
     svg.append(
-        svgEl("circle", { cx: "100", cy: "100", r: String(R), class: "pista" }),
+        svgEl(doc, "circle", { cx: "100", cy: "100", r: String(R), class: "pista" }),
         svgEl("circle", { cx: "100", cy: "100", r: String(R), class: "barra" }),
     );
     const barra = svg.lastElementChild as SVGElement;
@@ -597,8 +598,8 @@ export function abrirTemporizador(): void {
     };
     m.caja.addEventListener("click", evento => {
         if (temporizadorPendienteEliminarId === null
-            || !(evento.target instanceof Element)
-            || evento.target.closest(".gym-temp-fila-eliminar")) return;
+            || !evento.targetNode?.instanceOf(Element)
+            || evento.targetNode.closest(".gym-temp-fila-eliminar")) return;
         temporizadorPendienteEliminarId = null;
         notificar();
     });
@@ -851,8 +852,9 @@ export function abrirTemporizador(): void {
                 const duracion = el("span", "gym-temp-fila-duracion");
                 metadatos.append(alarma, el("span", "gym-temp-fila-separador", "·"), duracion);
                 elemento.onclick = evento => {
-                    if (!(evento.target instanceof Element)
-                        || evento.target.closest(".gym-temp-fila-acciones")) return;
+                    const objetivo = evento.targetNode;
+                    if (!objetivo?.instanceOf(Element)
+                        || objetivo.closest(".gym-temp-fila-acciones")) return;
                     if (temporizadorPendienteEliminarId !== temporizador.id) {
                         temporizadorPendienteEliminarId = null;
                     }
