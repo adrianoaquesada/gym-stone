@@ -1,6 +1,6 @@
 {
   "name": "gym-stone",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Sistema de rutinas de gimnasio para Obsidian.",
   "author": "adrianoaquesada",
   "main": "main.js",
