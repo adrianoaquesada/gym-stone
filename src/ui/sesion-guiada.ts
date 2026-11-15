@@ -84,6 +84,7 @@ interface DefSesion {
     planOrigen: number;
     grupos?: string[];
     series: SerieSesion[];
+    borradoresSeries?: { reps?: string; peso?: string; duracion?: string }[];
     planDeRutina?: boolean;
     indicePlan?: number;
     ejercicioPlanificado?: EjercicioPlanificadoSesion;
@@ -231,6 +232,9 @@ const aEjercicioGuardado = (d: DefSesion, transcurridoMs?: number): EjercicioSes
         nombre: d.nombre,
         notas: d.notas || "",
         series: d.series.map(aSerieGuardada),
+        ...(d.borradoresSeries?.length ? {
+            borradoresSeries: d.borradoresSeries.map(b => ({ ...b })),
+        } : {}),
         ...(d.planDeRutina && d.indicePlan != null ? { puestoPlanificado: d.indicePlan } : {}),
         ...(d.ejercicioPlanificado ? {
             ejercicioPlanificado: { ...d.ejercicioPlanificado },
@@ -449,6 +453,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
                 const g = guardadoDe(d);
                 if (g && Array.isArray(g.series)) {
                     d.series = g.series.map(aSerieGuardada);
+                    d.borradoresSeries = g.borradoresSeries?.map(b => ({ ...b }));
                     if (g.notas) d.notas = g.notas;
                 }
             }
@@ -1265,6 +1270,25 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         return serie.duracionSeg != null ? String(serie.duracionSeg) : "";
     };
 
+    const capturarBorradoresActuales = (): void => {
+        const ej = defs[idx];
+        if (!ej) return;
+        ej.borradoresSeries ??= [];
+        const max = Math.max(inReps.length, inPeso.length, inDuracion.length);
+        for (let i = ej.series.length; i < max; i++) {
+            const reps = inReps[i]?.value;
+            const peso = inPeso[i]?.value;
+            const duracion = inDuracion[i]?.value;
+            if (reps !== undefined || peso !== undefined || duracion !== undefined) {
+                ej.borradoresSeries[i] = {
+                    ...(reps !== undefined ? { reps } : {}),
+                    ...(peso !== undefined ? { peso } : {}),
+                    ...(duracion !== undefined ? { duracion } : {}),
+                };
+            }
+        }
+    };
+
     const guardarCampoSerie = (
         iSet: number,
         campo: CampoSerieEditable,
@@ -1347,6 +1371,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     };
 
     const pintarEjercicio = () => {
+        capturarBorradoresActuales();
         const ej = defs[idx];
         const puedeRestaurar = Boolean(ej?.series.some(esSaltada));
         bSaltar.classList.toggle("gym-modo-saltar-confirmable", !puedeRestaurar);
@@ -1943,7 +1968,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
                 const cierreF = el("div", "cierre");
 
                 if (tipoF !== "intervalo") {
-                    const p = prev[i];
+                    const p = prev[i] ?? ej.borradoresSeries?.[i];
                     const cronometradaConPeso = tipoF === "tiempo" && ej.objetivo.repsPesoDuranteTiempo === true;
                     let iR: HTMLInputElement | undefined;
                     let iP: HTMLInputElement | undefined;
@@ -2416,6 +2441,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     };
 
     const guardarProgreso = async () => {
+        capturarBorradoresActuales();
         if (!iniciada) return toast("⚠️ Pulsa ▶ Iniciar sesión antes de guardar.", false);
         const conDatos = defs.filter(d => d.series.length || d.notas || d.inicioBloqueMs != null);
         if (!conDatos.length) return toast("⚠️ Aún no hay nada que guardar: completa una serie o añade una nota.", false);
