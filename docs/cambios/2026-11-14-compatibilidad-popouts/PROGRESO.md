@@ -1,19 +1,21 @@
 # Progreso: compatibilidad con ventanas emergentes (popouts)
 
-**Subfase actual:** 2c · implementación subida; validación local pendiente · **Última actualización:** 2026-11-14
+**Subfase actual:** 3a · pendiente implementación · **Última actualización:** 2026-11-14
 
 ## Estado
 - [x] 1a listeners por ventana y globo de ayuda
 - [x] 1b overlays, modales y toasts en el documento activo (build y `git diff --check` correctos; lint sin errores, 30 avisos restantes)
 - [x] 2a hoja, gráfica y ajustes (implementación subida; falta confirmar lint/build)
 - [x] 2b creador y ejercicios (implementación subida; falta confirmar lint/build)
-- [ ] 2c despierta (wake lock)
+- [x] 2c despierta (wake lock; implementación subida, validación local pendiente)
 - [ ] 3a temporizador
 - [ ] 3b sesión guiada
 - [ ] 4a prueba en ventana emergente y documentación
 - [ ] 4b versión 1.0.10
 
 ## Bitácora (la más reciente arriba)
+- 2026-11-14 · 2c · `despierta.ts` consulta la visibilidad mediante `activeDocument` y conserva la referencia al documento que recibió el listener `visibilitychange` para retirarlo del mismo documento al liberar o reiniciar el wake lock. Sin cambios en la lógica de activación del bloqueo. Commit: `6806799`. Validación local pendiente.
+
 - 2026-11-14 · 2a · `hoja.ts` captura `activeDocument` al montar y usa ese documento para el overlay y el listener Escape; `grafica.ts` crea los nodos SVG en `raiz.ownerDocument`; `tabla-ajustes.ts` consulta el elemento de opciones rápidas en `activeDocument`. Sin cambios visuales ni de flujo. Validación local pendiente.
 - 2026-11-14 · 2b · `creador.ts` comprueba el foco con `inEj.ownerDocument.activeElement`; `ejercicios-ui.ts` registra y consulta eventos/elementos en el documento propietario de cada modal y observa el `body` de ese documento. Sin cambios visuales ni de flujo. Validación local pendiente.
 - 2026-11-14 · 2a · `hoja.ts` captura `activeDocument` al montar y usa ese documento para el overlay y el listener Escape; `grafica.ts` crea los nodos SVG en `raiz.ownerDocument`; `tabla-ajustes.ts` consulta el elemento de opciones rápidas en `activeDocument`. Sin cambios visuales ni de flujo. Validación pendiente tras subir los cambios.
