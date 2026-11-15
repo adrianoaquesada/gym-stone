@@ -38,7 +38,7 @@ const actualizarBotonSesionGuiada = (boton: HTMLButtonElement, minimizada: boole
 
 const actualizarBotonesSesionGuiada = (): void => {
     const minimizada = retomarSesionMinimizada !== null;
-    for (const boton of document.querySelectorAll<HTMLButtonElement>("[data-gym-sesion-guiada]")) {
+    for (const boton of activeDocument.querySelectorAll<HTMLButtonElement>("[data-gym-sesion-guiada]")) {
         actualizarBotonSesionGuiada(boton, minimizada);
     }
 };
@@ -148,21 +148,22 @@ const enPlanDe = (rutina: Rutina, id: string): EjercicioDef | null =>
 const pedirCiclo = (trabajo: number | null, descanso: number | null):
     Promise<{ trabajo: number; transicion: number } | null> => new Promise(resolve => {
     const m = modal("⏱ Ciclo de intervalo", "segundos de trabajo y de descanso entre ciclos", true);
+    const doc = m.overlay.ownerDocument;
     let resuelto = false;
     const listo = (v: { trabajo: number; transicion: number } | null) => {
         if (resuelto) return;
         resuelto = true;
-        document.removeEventListener("keydown", onKey);
+        doc.removeEventListener("keydown", onKey);
         m.cerrar();
         resolve(v);
     };
     const onKey = (e: KeyboardEvent) => {
         if (e.key !== "Escape") return;
-        if (document.getElementById("gym-confirm-activo")) return;
+        if (doc.getElementById("gym-confirm-activo")) return;
         listo(null);
     };
     m.overlay.onclick = e => { if (e.target === m.overlay) listo(null); };
-    document.addEventListener("keydown", onKey);
+    doc.addEventListener("keydown", onKey);
     ponerX(m, "Cerrar sin cambiar").onclick = () => listo(null);
     const cTrab = controlDescanso(trabajo, { etiqueta: "Trabajo de cada ciclo (segundos)" });
     const cTrans = controlDescanso(descanso, { etiqueta: "Descanso entre ciclos (segundos, 0 = ninguno)" });
@@ -195,20 +196,22 @@ export function elegirDiaGuiada(rutina: Rutina, pintar: Pintar): void {
 }
 
 const medirAreasSeguras = (): void => {
+    const doc = activeDocument;
+    const vista = doc.defaultView ?? window;
     const lee = (lado: string): number => {
-        const s = createDiv();
+        const s = doc.createElement("div");
         s.style.cssText = `position:absolute;top:-9999px;left:-9999px;visibility:hidden;`
             + `padding-${lado}:env(safe-area-inset-${lado},0px);`;
-        document.body.appendChild(s);
+        doc.body.appendChild(s);
         const v = (lado === "top" || lado === "bottom") ? s.offsetHeight : s.offsetWidth;
         s.remove();
         return v;
     };
     const t = lee("top"), b = lee("bottom"), iz = lee("left"), de = lee("right");
 
-    const tactil = matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
+    const tactil = vista.matchMedia("(pointer: coarse)").matches || vista.navigator.maxTouchPoints > 0;
     const valor = (medida: number, reserva: number): number => (medida > 0 ? medida : (tactil ? reserva : 0));
-    const r = document.documentElement.style;
+    const r = doc.documentElement.style;
 
     r.setProperty("--gym-safe-top", `${valor(t, 20)}px`);
     r.setProperty("--gym-safe-bottom", `${valor(b, 38)}px`);
@@ -488,6 +491,8 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     };
 
     const overlay = el("div", "gym-modo");
+    const doc = overlay.ownerDocument;
+    const vista = doc.defaultView ?? window;
     overlay.id = "gym-modo-activo";
     const cajaM = el("div", "gym-modo-caja");
     overlay.appendChild(cajaM);
@@ -553,11 +558,11 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         const limites = btnRestaurar.getBoundingClientRect();
         btnRestaurar.style.setProperty(
             "--gym-sesion-restaurar-izquierda",
-            `${limitar(izquierda, window.innerWidth - limites.width)}px`,
+            `${limitar(izquierda, vista.innerWidth - limites.width)}px`,
         );
         btnRestaurar.style.setProperty(
             "--gym-sesion-restaurar-arriba",
-            `${limitar(arriba, window.innerHeight - limites.height)}px`,
+            `${limitar(arriba, vista.innerHeight - limites.height)}px`,
         );
         btnRestaurar.classList.add("gym-sesion-restaurar-posicionada");
     };
@@ -602,7 +607,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     btnRestaurar.onlostpointercapture = finArrastre;
     const limpiarArrastre = (): void => {
         finArrastre();
-        window.removeEventListener("resize", ajustarBoton);
+        vista.removeEventListener("resize", ajustarBoton);
         btnRestaurar.onpointerdown = null;
         btnRestaurar.onpointermove = null;
         btnRestaurar.onpointerup = null;
@@ -625,8 +630,8 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         actualizarBotonesSesionGuiada();
         overlay.classList.add("gym-modo-minimizado");
         overlay.setAttribute("aria-hidden", "true");
-        document.body.appendChild(btnRestaurar);
-        window.addEventListener("resize", ajustarBoton);
+        doc.body.appendChild(btnRestaurar);
+        vista.addEventListener("resize", ajustarBoton);
         btnRestaurar.focus();
     };
     btnMinimizar.onclick = minimizarSesion;
@@ -1338,7 +1343,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         entrada.onblur = (evento: FocusEvent) => {
             if (!entrada.isConnected) return;
             const destino = evento.relatedTarget;
-            if (destino instanceof Node && contEj.contains(destino)) return;
+            if (destino?.instanceOf(Node) && contEj.contains(destino)) return;
             // Confirma el valor en el modelo antes de reconstruir la vista o cambiar de ejercicio.
             guardarCampoSerie(iSet, campo, entrada);
             pintarEjercicio();
@@ -2370,7 +2375,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         reiniciarCuentaAtras("sesion-ciclo-trabajo");
         reiniciarCuentaAtras("sesion-ciclo-descanso");
         document.removeEventListener("keydown", onKey);
-        document.removeEventListener("pointerdown", cancelarConfirmacionSaltoBloque, true);
+        doc.removeEventListener("pointerdown", cancelarConfirmacionSaltoBloque, true);
         pantalla.quitar();
         sesionesAbiertas.delete(cerrar);
         if (retomarSesionMinimizada === restaurar) {
@@ -2385,7 +2390,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     const onKey = (e: KeyboardEvent) => {
         if (e.key !== "Escape" || minimizada) return;
 
-        if (document.getElementById("gym-confirm-activo") || document.getElementById("gym-modal-activo")) return;
+        if (doc.getElementById("gym-confirm-activo") || doc.getElementById("gym-modal-activo")) return;
         if (confirmarSaltarEjercicio) {
             confirmarSaltarEjercicio = false;
             pintarEjercicio();
@@ -2396,7 +2401,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     const cancelarConfirmacionSaltoBloque = (evento: PointerEvent): void => {
         if (!confirmarSaltarEjercicio) return;
         const destino = evento.target;
-        if (destino instanceof Element
+        if (destino?.instanceOf(Element)
             && destino.closest(".gym-modo-saltar-confirmable")) return;
         confirmarSaltarEjercicio = false;
         window.setTimeout(() => {
@@ -2649,6 +2654,6 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     relojEl.textContent = `⏱ ${relojTexto(transcurridoMs())}`;
     sincronizaPantalla();
     document.addEventListener("keydown", onKey);
-    document.addEventListener("pointerdown", cancelarConfirmacionSaltoBloque, true);
-    document.body.appendChild(overlay);
+    doc.addEventListener("pointerdown", cancelarConfirmacionSaltoBloque, true);
+    doc.body.appendChild(overlay);
 };
