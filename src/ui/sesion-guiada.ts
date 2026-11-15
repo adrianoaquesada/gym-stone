@@ -1343,7 +1343,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         entrada.onblur = (evento: FocusEvent) => {
             if (!entrada.isConnected) return;
             const destino = evento.relatedTarget;
-            if (destino?.instanceOf(Node) && contEj.contains(destino)) return;
+            if (destino && "nodeType" in destino && contEj.contains(destino as Node)) return;
             // Confirma el valor en el modelo antes de reconstruir la vista o cambiar de ejercicio.
             guardarCampoSerie(iSet, campo, entrada);
             pintarEjercicio();
@@ -2401,8 +2401,9 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     const cancelarConfirmacionSaltoBloque = (evento: PointerEvent): void => {
         if (!confirmarSaltarEjercicio) return;
         const destino = evento.target;
-        if (destino?.instanceOf(Element)
-            && destino.closest(".gym-modo-saltar-confirmable")) return;
+        if (destino && "nodeType" in destino
+            && (destino as Node).nodeType === 1
+            && (destino as Element).closest(".gym-modo-saltar-confirmable")) return;
         confirmarSaltarEjercicio = false;
         window.setTimeout(() => {
             if (overlay.isConnected && !minimizada) pintarEjercicio();
