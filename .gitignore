@@ -8,13 +8,10 @@ node_modules/
 main.js
 
 # Notas internas de desarrollo (con rutas y datos personales)
-REANUDAR.md
-CONVERSION.md
 scripts/
 
 # Trabajo con IA (instrucciones, flujo por fases y cambios): solo local
 .opencode/
-docs/
 AGENTS.md
 
 # ── Sistema / editor ───────────────────────────────────────────────────────
