@@ -1,6 +1,6 @@
 # Progreso: compatibilidad con ventanas emergentes (popouts)
 
-**Subfase actual:** 3b · pendiente implementación · **Última actualización:** 2026-11-14
+**Subfase actual:** 3b · implementación subida, validación local pendiente · **Última actualización:** 2026-11-14
 
 ## Estado
 - [x] 1a listeners por ventana y globo de ayuda
@@ -9,11 +9,13 @@
 - [x] 2b creador y ejercicios (implementación subida; falta confirmar lint/build)
 - [x] 2c despierta (wake lock; implementación subida, validación local pendiente)
 - [x] 3a temporizador (implementación subida; validación local pendiente)
-- [ ] 3b sesión guiada
+- [x] 3b sesión guiada (implementación subida; validación local pendiente)
 - [ ] 4a prueba en ventana emergente y documentación
 - [ ] 4b versión 1.0.10
 
 ## Bitácora (la más reciente arriba)
+- 2026-11-14 · 3b · `sesion-guiada.ts` consulta los botones con `activeDocument`; mide áreas seguras en el documento activo; deriva el documento y la ventana del overlay desde `overlay.ownerDocument`; monta/restaura elementos y registra/retira listeners en ese documento. Las comprobaciones de nodos usan `instanceOf`. Se mantiene `window` para timers. Sin cambios visuales ni de flujo. Commits: `94f9870` y `3ddc2d5`. Validación local pendiente.
+
 - 2026-11-14 · 3a · `temporizador.ts` crea los nodos SVG en `m.overlay.ownerDocument` y comprueba los objetivos de eventos con `instanceOf(Element)` para admitir nodos de popouts. Los timers globales se mantienen en `window`, según el criterio acordado. Sin cambios visuales ni de flujo. Commits: `5ef585f` y `d3c6b33`. Validación local pendiente.
 
 - 2026-11-14 · 2c · `despierta.ts` consulta la visibilidad mediante `activeDocument` y conserva la referencia al documento que recibió el listener `visibilitychange` para retirarlo del mismo documento al liberar o reiniciar el wake lock. Sin cambios en la lógica de activación del bloqueo. Commit: `6806799`. Validación local pendiente.
