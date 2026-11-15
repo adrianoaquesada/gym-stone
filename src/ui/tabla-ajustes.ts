@@ -1,4 +1,4 @@
-import { AbstractInputSuggest, App, PluginSettingTab, Setting, TFolder } from "obsidian";
+import { App, PluginSettingTab, Setting } from "obsidian";
 import type { SettingDefinitionItem } from "obsidian";
 import type GymStone from "../main";
 import { normalizarAjustes, type AjustesGym } from "../ajustes";
@@ -29,47 +29,6 @@ export function abrirAjustesOpcionesRapidas(app: App): boolean {
             ?.scrollIntoView({ block: "center" });
     }, 0);
     return true;
-}
-
-class SugerenciaCarpetas extends AbstractInputSuggest<TFolder> {
-    private readonly carpetas: TFolder[];
-
-    constructor(
-        app: App,
-        inputEl: HTMLInputElement,
-        private readonly seleccionar: (carpeta: TFolder) => void,
-    ) {
-        super(app, inputEl);
-        this.limit = 50;
-        this.carpetas = [];
-
-        const recorrer = (carpeta: TFolder): void => {
-            for (const hijo of carpeta.children) {
-                if (hijo instanceof TFolder) {
-                    this.carpetas.push(hijo);
-                    recorrer(hijo);
-                }
-            }
-        };
-        recorrer(app.vault.getRoot());
-        this.carpetas.sort((a, b) => a.path.localeCompare(b.path, "es"));
-    }
-
-    protected getSuggestions(query: string): TFolder[] {
-        const busqueda = query.trim().toLowerCase();
-        return this.carpetas.filter(carpeta => carpeta.path.toLowerCase().includes(busqueda));
-    }
-
-    renderSuggestion(carpeta: TFolder, elemento: HTMLElement): void {
-        elemento.textContent = carpeta.path;
-    }
-
-    selectSuggestion(carpeta: TFolder, evento: MouseEvent | KeyboardEvent): void {
-        evento.preventDefault();
-        this.setValue(carpeta.path);
-        this.close();
-        this.seleccionar(carpeta);
-    }
 }
 
 export class GymStoneTab extends PluginSettingTab {
