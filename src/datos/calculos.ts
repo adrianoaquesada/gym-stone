@@ -6,7 +6,7 @@ import { esRutinaFormatoActual, repsObjetivoDe, semanasTotales, tipoEjercicioDe,
 import { normalizarGrupos } from "./grupos";
 import type {
     DiaRutina, EjercicioCatalogo, EjercicioDef, PlantillaRutina, Rutina, SerieSesion, Sesion,
-    TipoEjercicio, TipoSerie,
+    TipoBloqueEspecial, TipoEjercicio, TipoSerie,
 } from "../tipos";
 
 export const diaPorId = (rutina: Rutina | null | undefined, id: string): DiaRutina | null =>
@@ -575,16 +575,38 @@ export const historialEjercicioGlobal = async (ejercicioId: string): Promise<Ent
         a.fecha.localeCompare(b.fecha) || a.rutinaNombre.localeCompare(b.rutinaNombre, "es"));
 };
 
+const PREFIJOS_ID_BLOQUE_ESPECIAL = [
+    "bloque-libre:", "gym-stone-calentamiento", "gym-stone-estiramiento",
+];
+
+/**
+ * Indica si una entrada (definición de día o ejercicio de sesión) es un bloque
+ * de calentamiento/estiramiento y no un ejercicio real. Estos bloques no deben
+ * aparecer en los catálogos ni en las listas de ejercicios.
+ */
+export const esBloqueEspecial = (e: {
+    id?: string;
+    ejercicioId?: string;
+    tipoBloqueEspecial?: TipoBloqueEspecial | null;
+    configuracionSesion?: { tipoBloqueEspecial?: TipoBloqueEspecial | null } | null;
+} | null | undefined): boolean => {
+    if (!e) return false;
+    if (e.tipoBloqueEspecial || e.configuracionSesion?.tipoBloqueEspecial) return true;
+    const id = e.id ?? e.ejercicioId ?? "";
+    return PREFIJOS_ID_BLOQUE_ESPECIAL.some(p => id.startsWith(p));
+};
+
 export const ejerciciosConDatos = (rutina: Rutina): EjercicioCatalogo[] => {
     const mapa = new Map<string, EjercicioCatalogo>();
     for (const d of rutina.dias ?? []) {
         for (const e of d.ejercicios ?? []) {
+            if (esBloqueEspecial(e)) continue;
             if (!mapa.has(e.id)) mapa.set(e.id, { id: e.id, nombre: e.nombre, dia: d.nombre });
         }
     }
     for (const s of rutina.sesiones ?? []) {
         for (const e of s.ejercicios ?? []) {
-            if (!e.ejercicioId) continue;
+            if (!e.ejercicioId || esBloqueEspecial(e)) continue;
             if (!mapa.has(e.ejercicioId)) {
                 mapa.set(e.ejercicioId, {
                     id: e.ejercicioId,
