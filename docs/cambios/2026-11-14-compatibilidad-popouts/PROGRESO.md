@@ -1,11 +1,11 @@
 # Progreso: compatibilidad con ventanas emergentes (popouts)
 
-**Subfase actual:** 1b · validación pendiente · **Última actualización:** 2026-11-14
+**Subfase actual:** 2a · implementación subida; validación local pendiente · **Última actualización:** 2026-11-14
 
 ## Estado
 - [x] 1a listeners por ventana y globo de ayuda
-- [ ] 1b overlays, modales y toasts en el documento activo (implementación subida; falta lint/build)
-- [ ] 2a hoja, gráfica y ajustes
+- [x] 1b overlays, modales y toasts en el documento activo (build y `git diff --check` correctos; lint sin errores, 30 avisos restantes)
+- [x] 2a hoja, gráfica y ajustes (implementación subida; falta confirmar lint/build)
 - [ ] 2b creador y ejercicios
 - [ ] 2c despierta (wake lock)
 - [ ] 3a temporizador
@@ -14,14 +14,14 @@
 - [ ] 4b versión 1.0.10
 
 ## Bitácora (la más reciente arriba)
+- 2026-11-14 · 2a · `hoja.ts` captura `activeDocument` al montar y usa ese documento para el overlay y el listener Escape; `grafica.ts` crea los nodos SVG en `raiz.ownerDocument`; `tabla-ajustes.ts` consulta el elemento de opciones rápidas en `activeDocument`. Sin cambios visuales ni de flujo. Validación pendiente tras subir los cambios.
+- 2026-11-14 · 1b · validación local: `npm run build` correcto y `git diff --check` limpio; `npm run lint` sin errores, con 30 avisos restantes en fases 2a–3b. La implementación 1b queda validada en compilación; pendiente prueba manual de popouts.
 - 2026-11-14 · 1b · implementación subida en dos commits: `2451343` y
   `881c7f7`. `toast`, `confirmar`, `modal` y `pedirTexto` crean y consultan
   sus elementos en `activeDocument`, y los temporizadores usan la ventana del documento.
   `limpiarOverlays()` recorre documentos conocidos por los listeners de ventana,
   documentos con overlays y el documento principal/activo, para limpiar también popouts.
-  Se conserva el comportamiento visual y funcional. Validación local pendiente: este
-  entorno de GitHub permite editar/consultar el repositorio, pero no ejecutar `eslint`,
-  `npm run build` ni pruebas manuales; no hay checks de CI asociados a estos commits.
+  Se conserva el comportamiento visual y funcional. Validación local pendiente: la validación local se realizó después: build correcto y diff limpio; el lint no reportó errores, aunque quedaron avisos de fases posteriores.
 - 2026-11-14 · 1a · `escucharEnVentanas` instala y retira listeners en la ventana principal y
   en cada popout, con dedupe por documento y `offref` al descargar; `enfocarCamposAlTocar`
   usa `instanceOf` y el documento del campo; el globo de ayuda se monta en el documento de
@@ -42,8 +42,7 @@
 - La 1.0.9 ya está publicada: este cambio se entrega como 1.0.10.
 
 ## Notas para la próxima sesión
-- El lint de partida está en 0 errores y 48 avisos; tras 1a quedan 41 (39
-  `prefer-active-doc` y 2 `prefer-instanceof`).
+- Tras 1a y 1b, la validación local reportó 0 errores y 30 avisos (28 `prefer-active-doc` y 2 `prefer-instanceof`).
 - Los avisos no son autofixables: `eslint --fix` no modifica nada.
 - El patrón de listeners por ventana ya existe: `escucharEnVentanas` en
   `src/ui/componentes.ts` (privado del módulo). Si otra subfase necesita listeners
