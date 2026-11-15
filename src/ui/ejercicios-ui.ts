@@ -284,7 +284,7 @@ export function elegirEjercicio(
     const listo = (r: { id: string; nombre: string } | EleccionBloqueEspecial | null) => {
         if (resuelto) return;
         resuelto = true;
-        document.removeEventListener("keydown", onKey);
+        doc.removeEventListener("keydown", onKey);
         m.cerrar();
 
         resolve(r && ("tipoBloqueEspecial" in r
@@ -294,7 +294,7 @@ export function elegirEjercicio(
 
     const onKey = (e: KeyboardEvent) => {
         if (e.key !== "Escape") return;
-        if (document.getElementById("gym-confirm-activo")) return;
+        if (doc.getElementById("gym-confirm-activo")) return;
 
         if (m.overlay.isConnected) {
             const modales = [...doc.body.children].filter(n => /^gym-modal/.test(n.className || ""));
@@ -303,7 +303,7 @@ export function elegirEjercicio(
         listo(null);
     };
     m.overlay.onclick = e => { if (e.target === m.overlay) listo(null); };
-    document.addEventListener("keydown", onKey);
+    doc.addEventListener("keydown", onKey);
     ponerX(m, "Cerrar sin añadir").onclick = () => listo(null);
 
     const inNombre = el("input");
