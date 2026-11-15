@@ -5,6 +5,15 @@ import type { UnidadPeso } from "../tipos";
 
 type Baja = () => void;
 
+/** Crea elementos en el documento de la ventana que recibirá el overlay. */
+const elEn = <K extends keyof HTMLElementTagNameMap>(doc: Document, tag: K, claseOCss?: string | null, texto?: string): HTMLElementTagNameMap[K] => {
+    const e = doc.createElement(tag);
+    if (claseOCss) { if (claseOCss.includes(":")) e.style.cssText = claseOCss; else e.className = claseOCss; }
+    if (texto !== undefined) e.textContent = texto;
+    return e;
+};
+const documentosConOverlays = new Set<Document>();
+
 /** Instala un listener en la ventana principal y en cada ventana emergente. */
 const escucharEnVentanas = (instalar: (doc: Document) => Baja): Baja => {
     const bajas = new Map<Document, Baja>();
@@ -280,44 +289,48 @@ export const btn = (texto: string, css: string | null, accion: (() => void | Pro
 };
 
 export const toast = (txt: string, ok = true): void => {
-    const d = el("div",
+    const doc = activeDocument;
+    const win = doc.defaultView ?? activeWindow;
+    const d = elEn(doc, "div",
         `position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--background-primary);` +
         `color:var(--text-normal);border:1px solid ${ok ? CONFIG.VERDE : CONFIG.ROJO};border-radius:10px;padding:11px 20px;` +
         `z-index:10030;box-shadow:0 8px 28px rgba(0,0,0,.4);font-size:.9em;max-width:82vw;text-align:center;`, txt);
     d.className = "gym-toast";
-    document.body.appendChild(d);
-    window.setTimeout(() => {
+    documentosConOverlays.add(doc);
+    doc.body.appendChild(d);
+    win.setTimeout(() => {
         d.classList.add("gym-saliendo");
-        window.setTimeout(() => d.remove(), 500);
+        win.setTimeout(() => d.remove(), 500);
     }, 3600);
 };
 
 export const confirmar = (titulo: string, mensaje: string, textoOk = "Aceptar", textoNo = "Cancelar",
     peligro = false): Promise<boolean> =>
     new Promise(resolve => {
+        const doc = activeDocument;
         let resuelto = false;
         const terminar = (v: boolean) => {
             if (resuelto) return;
             resuelto = true;
-            document.removeEventListener("keydown", onKey, true);
+            doc.removeEventListener("keydown", onKey, true);
             overlay.remove();
             resolve(v);
         };
         const onKey = (e: KeyboardEvent) => {
             if (e.key === "Escape") { e.stopPropagation(); terminar(false); }
         };
-        const overlay = el("div",
+        const overlay = elEn(doc, "div",
             `position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10020;display:flex;` +
             `align-items:center;justify-content:center;padding:16px;`);
         overlay.id = "gym-confirm-activo";
-        const cajaM = el("div",
+        const cajaM = elEn(doc, "div",
             `background:var(--background-primary);border:1px solid var(--background-modifier-border);` +
             `border-radius:14px;padding:18px;width:min(480px,94vw);max-height:86vh;overflow:auto;` +
             `box-shadow:0 18px 50px rgba(0,0,0,.5);line-height:1.45;`);
-        const t = el("div",
+        const t = elEn(doc, "div",
             `font-weight:700;color:${CONFIG.NARANJA};border-bottom:2px solid ${CONFIG.NARANJA};padding-bottom:6px;margin-bottom:12px;`, titulo);
-        const p = el("div", "opacity:.9;white-space:pre-wrap;margin-bottom:4px;", mensaje);
-        const fila = el("div", "display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;");
+        const p = elEn(doc, "div", "opacity:.9;white-space:pre-wrap;margin-bottom:4px;", mensaje);
+        const fila = elEn(doc, "div", "display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;");
         const baseBtn = `box-sizing:border-box;height:44px;padding:6px 10px;border-radius:9px;border:1px solid var(--background-modifier-border);` +
             `background:var(--background-secondary);color:var(--text-normal);font-family:inherit;` +
             `font-size:.88em;font-weight:600;min-height:44px;cursor:pointer;`;
@@ -325,8 +338,8 @@ export const confirmar = (titulo: string, mensaje: string, textoOk = "Aceptar", 
         const estiloOk = peligro
             ? `background:${CONFIG.ROJO};border-color:${CONFIG.ROJO};color:#fff;font-weight:800;`
             : `background:${CONFIG.NARANJA};border-color:${CONFIG.NARANJA};color:#101010;font-weight:800;`;
-        const ok = el("button", baseBtn + estiloOk, textoOk);
-        const no = el("button", baseBtn, textoNo);
+        const ok = elEn(doc, "button", baseBtn + estiloOk, textoOk);
+        const no = elEn(doc, "button", baseBtn, textoNo);
         ok.type = no.type = "button";
         ok.onclick = () => terminar(true);
         no.onclick = () => terminar(false);
@@ -334,8 +347,9 @@ export const confirmar = (titulo: string, mensaje: string, textoOk = "Aceptar", 
         fila.appendChild(ok); fila.appendChild(no);
         cajaM.appendChild(t); cajaM.appendChild(p); cajaM.appendChild(fila);
         overlay.appendChild(cajaM);
-        document.addEventListener("keydown", onKey, true);
-        document.body.appendChild(overlay);
+        documentosConOverlays.add(doc);
+        doc.addEventListener("keydown", onKey, true);
+        doc.body.appendChild(overlay);
         no.focus();
     });
 
@@ -347,28 +361,30 @@ export interface ModalUI {
 }
 
 export const modal = (titulo: string, subtitulo?: string, anidado = false): ModalUI => {
-    const viejo = document.getElementById("gym-modal-activo");
+    const doc = activeDocument;
+    const viejo = doc.getElementById("gym-modal-activo");
     if (viejo && !anidado) viejo.remove();
-    const overlay = el("div", "gym-modal");
+    const overlay = elEn(doc, "div", "gym-modal");
     overlay.id = anidado ? "gym-modal-anidado" : "gym-modal-activo";
-    const cajaM = el("div", "gym-modal-caja");
+    const cajaM = elEn(doc, "div", "gym-modal-caja");
     overlay.appendChild(cajaM);
-    const cab = el("div", "gym-tit-caja");
-    cab.append(el("span", "gym-naranja", titulo));
-    if (subtitulo) cab.append(" ", el("span", "gym-sub", subtitulo));
+    const cab = elEn(doc, "div", "gym-tit-caja");
+    cab.append(elEn(doc, "span", "gym-naranja", titulo));
+    if (subtitulo) cab.append(" ", elEn(doc, "span", "gym-sub", subtitulo));
     cajaM.appendChild(cab);
-    const cerrar = () => { overlay.remove(); document.removeEventListener("keydown", onKey); };
+    const cerrar = () => { overlay.remove(); doc.removeEventListener("keydown", onKey); };
     const onKey = (e: KeyboardEvent) => {
         if (e.key !== "Escape") return;
-        if (document.getElementById("gym-confirm-activo")) return;
+        if (doc.getElementById("gym-confirm-activo")) return;
 
-        const modales = [...document.body.children].filter(n => /^gym-modal/.test(n.className || ""));
+        const modales = [...doc.body.children].filter(n => /^gym-modal/.test(n.className || ""));
         if (modales.length && modales[modales.length - 1] !== overlay) return;
         cerrar();
     };
     overlay.onclick = e => { if (e.target === overlay) cerrar(); };
-    document.addEventListener("keydown", onKey);
-    document.body.appendChild(overlay);
+    documentosConOverlays.add(doc);
+    doc.addEventListener("keydown", onKey);
+    doc.body.appendChild(overlay);
     return { overlay, caja: cajaM, cab, cerrar };
 };
 
@@ -389,39 +405,40 @@ export const pedirTexto = (
     titulo: string, inicial?: string, sugerencias?: string[], anidado = false,
 ): Promise<string | null> => new Promise(resolve => {
     const m = modal(titulo, undefined, anidado);
-    const input = el("input");
+    const doc = m.overlay.ownerDocument;
+    const input = elEn(doc, "input");
     input.type = "text";
     input.value = inicial ?? "";
     if (sugerencias?.length) {
         const id = `gym-sug-${++dlN}`;
-        const dl = createEl("datalist"); dl.id = id;
+        const dl = doc.createElement("datalist"); dl.id = id;
         for (const s of sugerencias) {
-            const o = createEl("option"); o.value = s;
+            const o = doc.createElement("option"); o.value = s;
             dl.appendChild(o);
         }
         input.setAttribute("list", id);
         m.caja.appendChild(dl);
     }
-    const c = el("div", "gym-fila");
+    const c = elEn(doc, "div", "gym-fila");
     c.appendChild(input);
     m.caja.appendChild(c);
     const onKey = (e: KeyboardEvent) => {
         if (e.key !== "Escape") return;
-        if (document.getElementById("gym-confirm-activo")) return;
+        if (doc.getElementById("gym-confirm-activo")) return;
 
         if (m.overlay.isConnected) {
-            const modales = [...document.body.children].filter(n => /^gym-modal/.test(n.className || ""));
+            const modales = [...doc.body.children].filter(n => /^gym-modal/.test(n.className || ""));
             if (modales.length && modales[modales.length - 1] !== m.overlay) return;
         }
         cerrar(null);
     };
-    document.addEventListener("keydown", onKey);
+    doc.addEventListener("keydown", onKey);
     const cerrar = (v: string | null): void => {
-        document.removeEventListener("keydown", onKey);
+        doc.removeEventListener("keydown", onKey);
         m.cerrar();
         resolve(v);
     };
-    const fila = el("div", "gym-botones");
+    const fila = elEn(doc, "div", "gym-botones");
     const ok = btn("Guardar", "primario", () => cerrar(input.value.trim()));
     const no = btn("Cancelar", null, () => cerrar(null));
     fila.appendChild(ok); fila.appendChild(no);
@@ -461,7 +478,11 @@ export const selectorUnidad = (alCambiar?: (u: UnidadPeso) => void): HTMLElement
 };
 
 export const limpiarOverlays = (): void => {
-    for (const s of [".gym-modal", ".gym-modo", "#gym-confirm-activo", ".gym-hoja-overlay", ".gym-toast"]) {
-        document.querySelectorAll(s).forEach(n => n.remove());
+    const documentos = new Set([...documentosConOverlays, activeDocument]);
+    for (const doc of documentos) {
+        for (const s of [".gym-modal", ".gym-modo", "#gym-confirm-activo", ".gym-hoja-overlay", ".gym-toast"]) {
+            doc.querySelectorAll(s).forEach(n => n.remove());
+        }
     }
+    documentosConOverlays.clear();
 };
