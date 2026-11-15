@@ -14,7 +14,7 @@
 - [ ] 4b versión 1.0.10
 
 ## Bitácora (la más reciente arriba)
-- 2026-11-14 · 3b · `sesion-guiada.ts` consulta los botones con `activeDocument`; mide áreas seguras en el documento activo; deriva el documento y la ventana del overlay desde `overlay.ownerDocument`; monta/restaura elementos y registra/retira listeners en ese documento. Las comprobaciones de nodos usan `instanceOf`. Se mantiene `window` para timers. Sin cambios visuales ni de flujo. Commits: `94f9870` y `3ddc2d5`. Validación local pendiente.
+- 2026-11-14 · 3b · `sesion-guiada.ts` consulta los botones con `activeDocument`; mide áreas seguras en el documento activo; deriva el documento y la ventana del overlay desde `overlay.ownerDocument`; monta/restaura elementos y registra/retira listeners en ese documento. Las comprobaciones de nodos usan `instanceOf`. Se mantiene `window` para timers. Sin cambios visuales ni de flujo. Commits: `94f9870`, `3ddc2d5` y `7cd5b93`. Las comprobaciones de `relatedTarget` y `target` usan `nodeType` para admitir eventos entre documentos sin llamadas inseguras. Validación local pendiente.
 
 - 2026-11-14 · 3a · `temporizador.ts` crea los nodos SVG en `m.overlay.ownerDocument` y comprueba los objetivos de eventos con `instanceOf(Element)` para admitir nodos de popouts. Los timers globales se mantienen en `window`, según el criterio acordado. Sin cambios visuales ni de flujo. Commits: `5ef585f` y `d3c6b33`. Validación local pendiente.
 
