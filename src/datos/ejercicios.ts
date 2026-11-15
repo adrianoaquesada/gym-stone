@@ -4,6 +4,7 @@ import { archivosMdEnCarpeta, leerNotaDatos } from "./archivos";
 import { esRutinaFormatoActual, escribirRutina } from "./rutinas";
 import { leerPlantilla, listarPlantillas } from "./plantillas";
 import { cargarGrupos, gruposEnMemoria, normalizarGrupos } from "./grupos";
+import { esBloqueEspecial } from "./calculos";
 import type { Rutina } from "../tipos";
 
 export interface EjercicioGestion {
@@ -60,15 +61,26 @@ export const catalogoGestion = async (): Promise<EjercicioGestion[]> => {
         if (r.error || !esRutinaFormatoActual(r.datos) || !r.datos.id) continue;
         const rut = r.datos;
         for (const d of rut.dias ?? []) {
-            for (const e of d.ejercicios ?? []) apuntar(e.id, e.nombre, rut.id, false, e.grupos);
+            for (const e of d.ejercicios ?? []) {
+                if (esBloqueEspecial(e)) continue;
+                apuntar(e.id, e.nombre, rut.id, false, e.grupos);
+            }
         }
-        for (const s of rut.sesiones ?? []) for (const e of s.ejercicios ?? []) apuntar(e.ejercicioId, e.nombre, rut.id, false);
+        for (const s of rut.sesiones ?? []) {
+            for (const e of s.ejercicios ?? []) {
+                if (esBloqueEspecial(e)) continue;
+                apuntar(e.ejercicioId, e.nombre, rut.id, false);
+            }
+        }
     }
     for (const nom of listarPlantillas()) {
         const r = await leerPlantilla(nom);
         if (r.error || !r.datos) continue;
         for (const d of r.datos.dias ?? []) {
-            for (const e of d.ejercicios ?? []) apuntar(e.id, e.nombre, nom, true, e.grupos);
+            for (const e of d.ejercicios ?? []) {
+                if (esBloqueEspecial(e)) continue;
+                apuntar(e.id, e.nombre, nom, true, e.grupos);
+            }
         }
     }
 
