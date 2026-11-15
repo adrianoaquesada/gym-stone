@@ -97,6 +97,8 @@ export interface EjercicioSesion {
     ejercicioId: string;
     nombre: string;
     series: SerieSesion[];
+    /** Valores editados en series aún no completadas durante una sesión en curso. */
+    borradoresSeries?: { reps?: string; peso?: string; duracion?: string }[];
     objetivoPlan?: ObjetivoPlanSesion;
     puestoPlanificado?: number;
     ejercicioPlanificado?: EjercicioPlanificadoSesion;
