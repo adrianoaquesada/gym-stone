@@ -98,7 +98,7 @@ export class PantallaInicio {
         if (!indice.rutinas.length) {
             cont.createDiv({
                 cls: "gym-vacio",
-                text: "🏋️ Aún no hay rutinas: pulsa «＋ Nueva rutina» para crear la primera.",
+                text: "🏋️ Aún no hay rutinas: pulsa «＋ nueva rutina» para crear la primera.",
             });
             return;
         }
