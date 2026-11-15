@@ -3,6 +3,34 @@ import { aplicacion } from "../estado";
 import { pesoActual, UNIDADES_PESO, fijarUnidadPeso } from "../unidades";
 import type { UnidadPeso } from "../tipos";
 
+type Baja = () => void;
+
+/** Instala un listener en la ventana principal y en cada ventana emergente. */
+const escucharEnVentanas = (instalar: (doc: Document) => Baja): Baja => {
+    const bajas = new Map<Document, Baja>();
+    const alta = (win: Window): void => {
+        const doc = win.document;
+        if (bajas.has(doc)) return;
+        bajas.set(doc, instalar(doc));
+    };
+    alta(activeWindow);
+    const docPrincipal = aplicacion().workspace.containerEl.ownerDocument;
+    if (docPrincipal.defaultView) alta(docPrincipal.defaultView);
+    const apertura = aplicacion().workspace.on("window-open", (_ventana, win) => alta(win));
+    const cierre = aplicacion().workspace.on("window-close", (_ventana, win) => {
+        const baja = bajas.get(win.document);
+        if (!baja) return;
+        baja();
+        bajas.delete(win.document);
+    });
+    return () => {
+        for (const baja of bajas.values()) baja();
+        bajas.clear();
+        aplicacion().workspace.offref(apertura);
+        aplicacion().workspace.offref(cierre);
+    };
+};
+
 export function el<K extends keyof HTMLElementTagNameMap>(
     tag: K, claseOCss?: string | null, texto?: string,
 ): HTMLElementTagNameMap[K] {
@@ -18,16 +46,21 @@ export function el<K extends keyof HTMLElementTagNameMap>(
 export const enfocarCamposAlTocar = (): (() => void) => {
     const alTocar = (evento: PointerEvent): void => {
         if (evento.pointerType === "mouse") return;
-        const campo = evento.target;
-        if (!(campo instanceof HTMLInputElement || campo instanceof HTMLTextAreaElement)
-            || campo.disabled || campo.readOnly
+        const objetivo = evento.targetNode;
+        if (!objetivo) return;
+        const campo = objetivo.instanceOf(HTMLInputElement) ? objetivo
+            : objetivo.instanceOf(HTMLTextAreaElement) ? objetivo : null;
+        if (!campo || campo.disabled || campo.readOnly
             || !campo.closest(".gym-vista, .gym-modal, #gym-confirm-activo, .gym-hoja-overlay, .gym-modo, .gym-ajustes")) {
             return;
         }
-        if (document.activeElement !== campo) campo.focus({ preventScroll: true });
+        const doc = campo.ownerDocument;
+        if (doc.activeElement !== campo) campo.focus({ preventScroll: true });
     };
-    document.addEventListener("pointerdown", alTocar, true);
-    return () => document.removeEventListener("pointerdown", alTocar, true);
+    return escucharEnVentanas(doc => {
+        doc.addEventListener("pointerdown", alTocar, true);
+        return () => doc.removeEventListener("pointerdown", alTocar, true);
+    });
 };
 
 export const parrafo = (raiz: HTMLElement, texto: string): HTMLDivElement => {
@@ -37,15 +70,26 @@ export const parrafo = (raiz: HTMLElement, texto: string): HTMLDivElement => {
 };
 
 let globo: HTMLDivElement | null = null;
-let globoEscuchas = false;
 let globoAncla: HTMLElement | null = null;
+let globoDoc: Document | null = null;
+let globoWin: Window | null = null;
 let globoFijo = false;
 const alInteractuarFuera = (ev: PointerEvent): void => {
-    if (ev.target instanceof Node && globoAncla?.contains(ev.target)) return;
+    const objetivo = ev.targetNode;
+    if (objetivo && globoAncla?.contains(objetivo)) return;
     cerrarGlobo();
 };
 const cerrarGlobo = (): void => {
-    if (globoFijo) document.removeEventListener("pointerdown", alInteractuarFuera, true);
+    if (globoDoc) {
+        globoDoc.removeEventListener("pointerdown", alInteractuarFuera, true);
+        globoDoc.removeEventListener("pointerdown", cerrarGlobo, true);
+    }
+    if (globoWin) {
+        globoWin.removeEventListener("scroll", cerrarGlobo, { capture: true });
+        globoWin.removeEventListener("pagehide", cerrarGlobo);
+    }
+    globoDoc = null;
+    globoWin = null;
     globoFijo = false;
     globoAncla = null;
     globo?.remove();
@@ -53,23 +97,25 @@ const cerrarGlobo = (): void => {
 };
 
 export const conAyuda = (e: HTMLElement, texto: () => string, mantenerAlPulsar = false): void => {
+    const doc = e.ownerDocument;
+    const win = doc.defaultView ?? window;
     const abrir = (): void => {
         if (globoFijo && globoAncla === e) return;
         cerrarGlobo();
         const g = el("div", "position:fixed;z-index:10040;max-width:min(280px,80vw);padding:6px 10px;border-radius:8px;background:var(--background-primary);border:1px solid var(--background-modifier-border);box-shadow:0 4px 14px rgba(0,0,0,.35);font-size:.78em;line-height:1.45;pointer-events:none;", texto());
-        document.body.appendChild(g);
+        doc.body.appendChild(g);
         const r = e.getBoundingClientRect();
         const b = g.getBoundingClientRect();
         let top = r.top - b.height - 6;
         if (top < 6) top = r.bottom + 6;
-        g.style.top = `${Math.max(6, Math.min(top, window.innerHeight - b.height - 6))}px`;
-        g.style.left = `${Math.max(6, Math.min(r.left + r.width / 2 - b.width / 2, window.innerWidth - b.width - 6))}px`;
+        g.style.top = `${Math.max(6, Math.min(top, win.innerHeight - b.height - 6))}px`;
+        g.style.left = `${Math.max(6, Math.min(r.left + r.width / 2 - b.width / 2, win.innerWidth - b.width - 6))}px`;
         globo = g;
         globoAncla = e;
-        if (!globoEscuchas) {
-            globoEscuchas = true;
-            window.addEventListener("scroll", cerrarGlobo, { passive: true, capture: true });
-        }
+        globoDoc = doc;
+        globoWin = win;
+        win.addEventListener("scroll", cerrarGlobo, { passive: true, capture: true });
+        win.addEventListener("pagehide", cerrarGlobo, { once: true });
     };
     e.classList.add("gym-con-ayuda");
     e.addEventListener("pointerenter", (ev) => { if (ev.pointerType === "mouse") abrir(); });
@@ -80,10 +126,10 @@ export const conAyuda = (e: HTMLElement, texto: () => string, mantenerAlPulsar =
         abrir();
         if (mantenerAlPulsar && globoAncla === e) {
             globoFijo = true;
-            document.addEventListener("pointerdown", alInteractuarFuera, true);
+            doc.addEventListener("pointerdown", alInteractuarFuera, true);
             return;
         }
-        window.setTimeout(() => document.addEventListener("pointerdown", cerrarGlobo, { once: true, capture: true }), 0);
+        window.setTimeout(() => doc.addEventListener("pointerdown", cerrarGlobo, { once: true, capture: true }), 0);
     });
 };
 
