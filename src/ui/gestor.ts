@@ -90,7 +90,7 @@ export const pintarDashboard = async (
     const botonSesionGuiada = [...navegacion.querySelectorAll<HTMLButtonElement>("button")]
         .find(boton => boton.textContent.includes("Empezar sesión guiada"));
     if (botonSesionGuiada)
-        prepararBotonSesionGuiada(botonSesionGuiada, "🎯 ↩ Retomar sesión guiada");
+        prepararBotonSesionGuiada(botonSesionGuiada);
 
     if (ops.seccion === "estadisticas") {
         const contenido = el("div", "gym-rutina-contenido");
