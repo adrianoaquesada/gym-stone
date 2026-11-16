@@ -16,9 +16,10 @@ const ICONOS_EMOJI: Record<string, string> = {
     "⏭": "skip-forward", "🔁": "repeat", "🕒": "clock", "📆": "calendar-days",
     "🔔": "bell", "▶": "play", "⏯": "circle-play", "✕": "x", "×": "x", "✎": "pencil",
     "📭": "inbox", "🔹": "diamond", "🏷": "tag", "↩": "corner-up-left", "🧽": "eraser",
-    "⏳": "hourglass", "🎉": "party-popper",
+    "⏳": "hourglass", "🎉": "party-popper", "⏱": "timer", "↺": "rotate-ccw",
+    "◷": "timer", "●": "circle", "＋": "plus", "⏰": "alarm-clock",
 };
-const ICONO_RE = /🏋️|📋|📊|⚖️|🗂|⚠️|🎯|✏️|🗑|⏸️?|🏁|✔|✅|🟢|📅|🏆|💾|🧹|📦|🔎|🔍|➕|＋|📝|🗒|📈|🔄|💡|⚡|⏭|🔁|🕒|📆|🔔|▶|⏯|✕|×|✎|📭|🔹|🏷|↩|🧽|⏳|🎉/gu;
+const ICONO_RE = /🏋️|📋|📊|⚖️|🗂|⚠️|🎯|✏️|🗑|⏸️?|🏁|✔|✅|🟢|📅|🏆|💾|🧹|📦|🔎|🔍|➕|＋|📝|🗒|📈|🔄|💡|⚡|⏭|🔁|🕒|📆|🔔|▶|⏯|✕|×|✎|📭|🔹|🏷|↩|🧽|⏳|🎉|⏱|↺|◷|●|⏰/gu;
 const insertarTextoConIconos = (raiz: HTMLElement, texto: string): void => {
     let inicio = 0;
     for (const coincidencia of texto.matchAll(ICONO_RE)) {
@@ -44,6 +45,11 @@ const elEn = <K extends keyof HTMLElementTagNameMap>(doc: Document, tag: K, clas
     if (texto !== undefined) insertarTextoConIconos(e, texto);
     return e;
 };
+export const ponerTextoConIconos = (elemento: HTMLElement, texto: string): void => {
+    elemento.replaceChildren();
+    insertarTextoConIconos(elemento, texto);
+};
+
 const documentosConOverlays = new Set<Document>();
 const documentosConocidos = new Set<Document>();
 
