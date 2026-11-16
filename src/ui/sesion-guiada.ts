@@ -48,7 +48,7 @@ export const prepararBotonSesionGuiada = (
     textoRetomar: string,
 ): void => {
     boton.dataset.gymSesionGuiada = "true";
-    boton.dataset.gymTextoInicio ??= boton.textContent ?? "🎯 Empezar sesión guiada";
+    boton.dataset.gymTextoInicio ||= boton.textContent?.trim() || "🎯 Empezar sesión guiada";
     boton.dataset.gymTituloInicio ??= boton.title;
     boton.dataset.gymTextoRetomar = textoRetomar;
     actualizarBotonSesionGuiada(boton, retomarSesionMinimizada !== null);
