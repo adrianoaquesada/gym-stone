@@ -71,7 +71,7 @@ export const pintarDashboard = async (
     const navegacion = pintarNavegacion(cont2, [
         { texto: "Inicio", alPulsar: () => void abrirLista() },
         {
-            texto: "🏋️ Rutina",
+            texto: "Rutina",
             activo: !ops.seccion || ops.seccion === "rutina",
             alPulsar: () => cambiarSeccion("rutina"),
         },
@@ -79,7 +79,7 @@ export const pintarDashboard = async (
         { texto: "🎯 Empezar sesión guiada", alPulsar: () => elegirDiaGuiada(rutina, pintar), principal: true },
         { texto: "＋ Registrar sesión", alPulsar: () => abrirRegistro(rutina, { fecha: hoy(), diaId: rutina.dias?.[0]?.id }, pintar) },
         { texto: "📝 Anotación", alPulsar: () => formularioAnotacion(rutina, hoy(), pintar) },
-        { texto: "⚖️ Registrar medidas", alPulsar: () => formularioMedidas(medidas, pintar) },
+        { texto: "Registrar medidas", alPulsar: () => formularioMedidas(medidas, pintar) },
         {
             texto: "Estadísticas",
             activo: ops.seccion === "estadisticas",
