@@ -1230,17 +1230,21 @@ button.gym-btn-g.gym-modo-saltar-confirmable.gym-salto-confirmando:not(:disabled
     margin-inline-start: auto;
 }
 
-/* Encabezado transparente en móvil y escritorio, conservando sus acciones. */
-.workspace-leaf:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-header,
-.workspace-leaf:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-header-container {
+/* Transparencia total del encabezado cuando hay una vista Gym Stone abierta.
+   Se ancla a body para no depender de cómo Obsidian anide el leaf y su header. */
+body:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-header,
+body:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-header-container,
+body:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-header::before,
+body:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-header::after,
+body:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-header-container::before,
+body:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-header-container::after {
     background: transparent !important;
     background-color: transparent !important;
+    background-image: none !important;
     box-shadow: none !important;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
-}
-
-/* Navegación móvil: el plugin controla el auto-ocultado al desplazar su vista. */
+}/* Navegación móvil: el plugin controla el auto-ocultado al desplazar su vista. */
 .is-phone .workspace-leaf:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-header {
     transition: transform .2s ease, opacity .2s ease;
 }
