@@ -2204,7 +2204,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         bSiguiente.disabled = idx >= defs.length - 1;
     };
 
-    const bVolver = el("button", "gym-btn-g", "⬅ Volver"); bVolver.type = "button";
+    const bVolver = el("button", "gym-btn-g", "◀ Volver"); bVolver.type = "button";
     bVolver.title = "Volver al ejercicio anterior";
     bVolver.onclick = () => deslizarA(idx - 1);
     const bNota = el("button", "gym-btn-g", "📝 Nota"); bNota.type = "button";
@@ -2213,7 +2213,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         const r = await pedirTexto(`📝 Nota — ${ej.nombre}`, ej.notas || "");
         if (r !== null) { ej.notas = r.trim(); pintarEjercicio(); }
     };
-    const bSiguiente = el("button", "gym-btn-g", "⏭ Siguiente"); bSiguiente.type = "button";
+    const bSiguiente = el("button", "gym-btn-g", "▶ Siguiente"); bSiguiente.type = "button";
     bSiguiente.onclick = () => {
         if (iniciada && defs[idx]?.objetivo.tipoBloqueEspecial && !defs[idx].series.length) return;
         if (idx + 1 < defs.length) deslizarA(idx + 1);
