@@ -9,7 +9,7 @@ import { fijarGrupos, gruposEnMemoria, purgarGruposSinUsar } from "../datos/grup
 import type { EjercicioCatalogo, EjercicioDef, Rutina, TipoBloqueEspecial, TipoEjercicio, TipoSerie } from "../tipos";
 import { pesoACampo, pesoAKg, pesoActual, pesoMostrar, pesoTexto } from "../unidades";
 import { aNumero, fechaLegible, limpiarNombre, msgError, norm, tsDe } from "../util";
-import { confirmar, KPI, modal, pedirTexto, ponerX, toast, el } from "./componentes";
+import { confirmar, KPI, modal, pedirTexto, ponerTextoConIconos, ponerX, toast, el } from "./componentes";
 import { grafica } from "./grafica";
 
 const tiempoEstadistica = (segundos: number): string => {
