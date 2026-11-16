@@ -94,7 +94,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
 
     const aviso = el("div", "gym-aviso gym-oculto");
     raiz.appendChild(aviso);
-    const error = (txt: string) => { aviso.textContent = "⚠️ " + txt; aviso.classList.remove("gym-oculto"); raiz.scrollIntoView({ block: "nearest" }); };
+    const error = (txt: string) => { ponerTextoConIconos(aviso, "⚠️ " + txt); aviso.classList.remove("gym-oculto"); raiz.scrollIntoView({ block: "nearest" }); };
     const limpiarError = () => { aviso.classList.add("gym-oculto"); };
     let gruposDisponibles: string[] = [];
     let ejerciciosCatalogo: Awaited<ReturnType<typeof catalogoGestion>> = [];
@@ -1263,7 +1263,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             console.error("[Gym Stone]", e);
             guardando = false;
             btnGuardar.disabled = false;
-            btnGuardar.textContent = estado.modo === "editar" ? "💾 Guardar cambios" : "💾 Guardar rutina";
+            ponerTextoConIconos(btnGuardar, estado.modo === "editar" ? "💾 Guardar cambios" : "💾 Guardar rutina");
             error("No se pudo guardar: " + msgError(e) + " — tus datos siguen intactos, vuelve a intentarlo.");
         }
     };
