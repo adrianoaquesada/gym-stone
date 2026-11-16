@@ -1223,6 +1223,26 @@ button.gym-btn-g.gym-modo-saltar-confirmable.gym-salto-confirmando:not(:disabled
 .workspace-leaf-content[data-type^="gym-stone-"] .view-header-title-container { display: none; }
 .workspace-leaf-content[data-type^="gym-stone-"] .view-actions { margin-inline-start: auto; }
 
+/* En teléfonos, conservar la ocultación automática nativa de Obsidian. */
+.is-phone .workspace-leaf-content[data-type^="gym-stone-"] .view-header {
+    background: transparent !important;
+    box-shadow: none;
+}
+.is-phone.is-hidden-nav .workspace-leaf-content[data-type^="gym-stone-"] .view-header {
+    transform: translateY(-100%);
+    opacity: 0;
+    pointer-events: none;
+}
+.is-phone.is-hidden-nav .mobile-navbar {
+    transform: translateY(100%);
+    opacity: 0;
+    pointer-events: none;
+}
+.is-phone .workspace-leaf-content[data-type^="gym-stone-"] .view-header,
+.is-phone .mobile-navbar {
+    transition: transform .2s ease, opacity .2s ease;
+}
+
 /* Iconografía nativa de Obsidian: compacta y alineada con el texto. */
 .gym-icono-nativo {
   display:inline-flex;
