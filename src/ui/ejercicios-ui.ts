@@ -583,7 +583,7 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
         huerfanos = Object.keys(gruposEnMemoria()).filter(id => !usados.has(id)).sort();
         btnPurga.hidden = cargando || !huerfanos.length;
         ponerTextoConIconos(btnPurga, `🧹 Purgar ${huerfanos.length} entrada${huerfanos.length > 1 ? "s" : ""} sin uso` +
-            " (ejercicios que ya no están en ninguna rutina)";
+            " (ejercicios que ya no están en ninguna rutina)");
 
         const grupos = [...new Set(cat.flatMap(x => x.grupos))]
             .sort((a, b) => a.localeCompare(b, "es"));
