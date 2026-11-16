@@ -10,7 +10,7 @@ import { aNumero, clonarJSON, esFechaValida, hoy, limpiarNombre, msgError, norm,
 import { uid } from "../util/texto";
 import { pesoActual, pesoACampo, pesoAKg } from "../unidades";
 import type { DiaRutina, EjercicioDef, EstadoRutina, Rutina, TipoBloqueEspecial } from "../tipos";
-import { btn, confirmar, el, modal, pedirTexto, ponerX, selectorUnidad, toast } from "./componentes";
+import { btn, confirmar, el, modal, pedirTexto, ponerTextoConIconos, ponerX, selectorUnidad, toast } from "./componentes";
 import { abrirRutina } from "./vistas";
 import { crearComparacionPlan } from "./comparacion-plan";
 
