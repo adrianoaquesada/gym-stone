@@ -17,7 +17,7 @@ const ICONOS_EMOJI: Record<string, string> = {
     "🔔": "bell", "▶": "play", "⏯": "circle-play", "✕": "x", "×": "x", "✎": "pencil",
     "📭": "inbox", "🔹": "diamond", "🏷": "tag", "↩": "corner-up-left", "🧽": "eraser",
     "⏳": "hourglass", "🎉": "party-popper", "⏱": "timer", "↺": "rotate-ccw",
-    "◷": "timer", "●": "circle", "＋": "plus", "⏰": "alarm-clock",
+    "◷": "timer", "●": "circle", "⏰": "alarm-clock",
     "⚠": "alert-triangle", "⏹": "square",
 };
 const ICONO_RE = /🏋️|📋|📊|⚖️|🗂|⚠️|🎯|✏️|🗑|⏸️?|🏁|✔|✅|🟢|📅|🏆|💾|🧹|📦|🔎|🔍|➕|＋|📝|🗒|📈|🔄|💡|⚡|⏭|🔁|🕒|📆|🔔|▶|⏯|✕|×|✎|📭|🔹|🏷|↩|🧽|⏳|🎉|⏱|↺|◷|●|⏰|⚠|⏹/gu;
