@@ -3,7 +3,7 @@ import { ReclamoDespierta } from "../despierta";
 import { aplicacion, conf, persistirAjustes } from "../estado";
 import { normalizarAjustes } from "../ajustes";
 import type { CronometroLibre, ParcialCronometro, TemporizadorLibre } from "../tipos";
-import { el, modal, ponerX, toast } from "./componentes";
+import { el, modal, ponerTextoConIconos, ponerX, toast } from "./componentes";
 import { prepararAudio, reiniciarCuentaAtras, sonarCuentaAtras, sonarTemporizador, vibrar } from "./sonido";
 
 let totalMs = 5 * 60000;
@@ -965,7 +965,7 @@ export function abrirTemporizador(): void {
             tTotal.textContent = "Cronómetro";
             tGrande.textContent = fmtReloj(transcurrido, false);
             tHora.textContent = "Tiempo transcurrido";
-            estado.textContent = cronometro.estado === "en-marcha" ? "● En marcha" : "⏸ En pausa";
+            ponerTextoConIconos(estado, cronometro.estado === "en-marcha" ? "● En marcha" : "⏸ En pausa");
             estado.className = "gym-temp-estado" + (cronometro.estado === "en-marcha" ? " on" : "");
         } else {
             const seleccion = temporizadores.find(t => t.id === temporizadorEnAnilloId);
@@ -987,12 +987,12 @@ export function abrirTemporizador(): void {
                 barra.style.strokeDashoffset = String(C);
                 tTotal.textContent = fmtTotal(vista);
                 tGrande.textContent = fmtReloj(vista);
-                tHora.textContent = `🔔 ${formatoHora(Date.now() + vista)}`;
+                ponerTextoConIconos(tHora, `🔔 ${formatoHora(Date.now() + vista)}`);
                 estado.textContent = "Duración de la próxima cuenta atrás";
                 estado.className = "gym-temp-estado";
             }
         }
-        bModo.textContent = esCronometro ? "◷ Cuenta atrás" : "⏱ Cronómetro";
+        ponerTextoConIconos(bModo, esCronometro ? "◷ Cuenta atrás" : "⏱ Cronómetro");
         bModo.setAttribute("aria-label", esCronometro ? "Cambiar al modo cuenta atrás" : "Cambiar al modo cronómetro");
         const hayTemporizadores = temporizadores.length > 0;
         const mostrarConfiguracion = !esCronometro
