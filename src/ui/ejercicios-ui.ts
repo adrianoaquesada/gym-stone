@@ -582,7 +582,7 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
         const usados = new Set(cat.map(x => x.id));
         huerfanos = Object.keys(gruposEnMemoria()).filter(id => !usados.has(id)).sort();
         btnPurga.hidden = cargando || !huerfanos.length;
-        btnPurga.textContent = `🧹 Purgar ${huerfanos.length} entrada${huerfanos.length > 1 ? "s" : ""} sin uso` +
+        ponerTextoConIconos(btnPurga, `🧹 Purgar ${huerfanos.length} entrada${huerfanos.length > 1 ? "s" : ""} sin uso` +
             " (ejercicios que ya no están en ninguna rutina)";
 
         const grupos = [...new Set(cat.flatMap(x => x.grupos))]
