@@ -54,7 +54,7 @@ export class VistaForm extends ItemView {
         if (this.modo === "editar" && this.rutinaId) {
             const r = await leerRutina(this.rutinaId);
             if (r.error) {
-                cont.createDiv({ cls: "gym-error-vista", text: "⚠️ " + r.error });
+                ponerTextoConIconos(cont.createDiv({ cls: "gym-error-vista" }), "⚠️ " + r.error);
                 return;
             }
             await editar(cont, r.datos as Rutina);
