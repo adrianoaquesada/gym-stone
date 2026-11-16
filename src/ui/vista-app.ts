@@ -29,6 +29,7 @@ export class VistaApp extends ItemView {
     private pintadaEn: Pantalla | null = null;
     private pintando = 0;
     private readonly inicio: PantallaInicio;
+    private ultimoDesplazamiento = 0;
 
     constructor(leaf: WorkspaceLeaf) {
         super(leaf);
@@ -69,7 +70,32 @@ export class VistaApp extends ItemView {
         this.registerEvent(aplicacion().vault.on("modify", f => this.trasCambio(f.path)));
         this.registerEvent(aplicacion().vault.on("create", f => this.trasCambio(f.path)));
         this.registerEvent(aplicacion().vault.on("delete", f => this.trasCambio(f.path)));
+        if (this.app.isMobile) {
+            this.ultimoDesplazamiento = this.contentEl.scrollTop;
+            this.registerDomEvent(this.contentEl, "scroll", () => this.actualizarNavegacionMovil());
+            this.registerEvent(this.app.workspace.on("active-leaf-change", leaf => {
+                if (leaf !== this.leaf) this.alternarNavegacionMovil(false);
+                else this.ultimoDesplazamiento = this.contentEl.scrollTop;
+            }));
+        }
         await this.pintar();
+    }
+
+    private actualizarNavegacionMovil(): void {
+        if (!this.app.isMobile || this.app.workspace.activeLeaf !== this.leaf) return;
+        const desplazamiento = this.contentEl.scrollTop;
+        const diferencia = desplazamiento - this.ultimoDesplazamiento;
+        if (desplazamiento <= 0 || diferencia < -2) this.alternarNavegacionMovil(false);
+        else if (diferencia > 2) this.alternarNavegacionMovil(true);
+        this.ultimoDesplazamiento = desplazamiento;
+    }
+
+    private alternarNavegacionMovil(ocultar: boolean): void {
+        this.contentEl.ownerDocument.body.classList.toggle("is-hidden-nav", ocultar);
+    }
+
+    async onClose(): Promise<void> {
+        this.alternarNavegacionMovil(false);
     }
 
     private trasCambio(ruta: string): void {
