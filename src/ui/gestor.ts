@@ -106,7 +106,7 @@ export const pintarDashboard = async (
 
 const pintarError = (cont: HTMLElement, msg: string): void => {
     const c = el("div", "gym-aviso");
-    c.append(`⚠️ ${msg}`, el("br"));
+    c.append(el("span", null, `⚠️ ${msg}`), el("br"));
     c.append(el("span", "gym-tenue", "No toco nada hasta que el archivo de datos vuelva a estar legible."));
     cont.appendChild(c);
 };
