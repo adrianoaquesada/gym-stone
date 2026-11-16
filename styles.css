@@ -1273,6 +1273,7 @@ body:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-header-containe
   justify-content:center;
   color:var(--icon-color,var(--text-muted));
 }
+.gym-icono-nativo.gym-icono-invertido svg { transform:scaleX(-1); }
 .gym-icono-nativo svg {
   width:1em;
   height:1em;
