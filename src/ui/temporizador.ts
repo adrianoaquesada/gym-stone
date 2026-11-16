@@ -555,12 +555,12 @@ export function abrirTemporizador(): void {
         const acumulado = tiempoCronometro();
         const parcialDisponible = estadoParciales === "listos"
             && acumulado > ultimoAcumuladoSesion();
-        bCronometro.textContent = cronometro.estado === "en-marcha"
+        ponerTextoConIconos(bCronometro, cronometro.estado === "en-marcha"
             ? "⏹ Detener"
-            : acumulado > 0 ? "▶ Reanudar" : "▶ Iniciar";
+            : acumulado > 0 ? "▶ Reanudar" : "▶ Iniciar");
         bCronometro.setAttribute("aria-label", bCronometro.textContent);
         bCronometro.classList.toggle("pausa", enMarcha);
-        bParcial.textContent = enMarcha ? "＋ Parcial" : "↺ Restablecer";
+        ponerTextoConIconos(bParcial, enMarcha ? "＋ Parcial" : "↺ Restablecer");
         bParcial.setAttribute("aria-label", bParcial.textContent);
         bParcial.title = enMarcha ? "Registrar tiempo parcial" : "Restablecer el cronómetro";
         bParcial.disabled = enMarcha
