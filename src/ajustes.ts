@@ -10,7 +10,7 @@ export interface AjustesGym {
     sonidoTemporizador: boolean;
     sonidoDescanso: boolean;
     volumenSonido: number;
-    formaOndaSonido: "sine";
+    formaOndaSonido: "sine" | "square";
     patronSonido: "unico" | "ascendente" | "alarma" | "doblete" | "triplete"
         | "timbreAgudo" | "timbreAgudoSenoidal";
     frecuenciasSonido: [number, number, number];
@@ -60,7 +60,7 @@ export function normalizarAjustes(
         out.volumenSonido = Number.isFinite(vol)
             ? Math.min(100, Math.max(0, Math.round(vol)))
             : AJUSTES_POR_DEFECTO.volumenSonido;
-        if (d.formaOndaSonido === "sine") {
+        if (d.formaOndaSonido === "sine" || d.formaOndaSonido === "square") {
             out.formaOndaSonido = d.formaOndaSonido;
         }
         if (d.patronSonido === "unico" || d.patronSonido === "ascendente"
