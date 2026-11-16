@@ -488,9 +488,9 @@ export function elegirEjercicio(
             : resolverEjercicio(catalogo, texto);
         if (pendiente) sugiereDescanso(pendiente.id);
         btnUsar.hidden = false;
-        btnUsar.textContent = exacto ? `✔ Usar «${exacto.nombre}»`
+        ponerTextoConIconos(btnUsar, exacto ? `✔ Usar «${exacto.nombre}»`
             : unico ? `✔ Usar «${unico.nombre}» (único resultado)`
-            : `＋ Crear ejercicio nuevo «${texto}»`;
+            : `＋ Crear ejercicio nuevo «${texto}»`);
     };
     inNombre.oninput = pintar;
     inNombre.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); if (pendiente) listo(pendiente); } };
