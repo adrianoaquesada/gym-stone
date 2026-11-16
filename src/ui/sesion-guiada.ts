@@ -26,9 +26,9 @@ let retomarSesionMinimizada: (() => void) | null = null;
 let sesionGuiadaEnPreparacion = false;
 
 const actualizarBotonSesionGuiada = (boton: HTMLButtonElement, minimizada: boolean): void => {
-    boton.textContent = minimizada
+    ponerTextoConIconos(boton, minimizada
         ? boton.dataset.gymTextoRetomar ?? "🎯 ↩ Retomar sesión guiada"
-        : boton.dataset.gymTextoInicio ?? "🎯 Empezar sesión guiada";
+        : boton.dataset.gymTextoInicio ?? "🎯 Empezar sesión guiada");
     boton.title = minimizada
         ? "Retomar sesión guiada minimizada"
         : boton.dataset.gymTituloInicio ?? "Empezar sesión guiada";
