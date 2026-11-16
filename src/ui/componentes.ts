@@ -9,7 +9,7 @@ const ICONOS_EMOJI: Record<string, string> = {
     "🏋️": "dumbbell", "📋": "clipboard-list", "📊": "chart-no-axes-column-increasing",
     "⚖️": "scale", "🗂": "folder-kanban", "⚠️": "alert-triangle", "🎯": "target",
     "✏️": "pencil", "🗑": "trash-2", "⏸️": "pause", "⏸": "pause", "🏁": "flag",
-    "✔": "check", "✅": "circle-check", "🟢": "circle-dot", "📅": "calendar-days",
+    "✔": "check", "◀": "play", "✅": "circle-check", "🟢": "circle-dot", "📅": "calendar-days",
     "🏆": "trophy", "💾": "save", "🧹": "eraser", "📦": "package", "🔎": "search",
     "🔍": "search", "➕": "plus", "＋": "plus", "📝": "notebook-pen", "🗒": "notebook-pen",
     "📈": "chart-no-axes-line", "🔄": "refresh-cw", "💡": "lightbulb", "⚡": "zap",
@@ -20,14 +20,14 @@ const ICONOS_EMOJI: Record<string, string> = {
     "◷": "timer", "●": "circle", "⏰": "alarm-clock",
     "⚠": "alert-triangle", "⏹": "square",
 };
-const ICONO_RE = /🏋️|📋|📊|⚖️|🗂|⚠️|🎯|✏️|🗑|⏸️?|🏁|✔|✅|🟢|📅|🏆|💾|🧹|📦|🔎|🔍|➕|＋|📝|🗒|📈|🔄|💡|⚡|⏭|🔁|🕒|📆|🔔|▶|⏯|✕|×|✎|📭|🔹|🏷|↩|🧽|⏳|🎉|⏱|↺|◷|●|⏰|⚠|⏹/gu;
+const ICONO_RE = /🏋️|📋|📊|⚖️|🗂|⚠️|🎯|✏️|🗑|⏸️?|◀|🏁|✔|✅|🟢|📅|🏆|💾|🧹|📦|🔎|🔍|➕|＋|📝|🗒|📈|🔄|💡|⚡|⏭|🔁|🕒|📆|🔔|▶|⏯|✕|×|✎|📭|🔹|🏷|↩|🧽|⏳|🎉|⏱|↺|◷|●|⏰|⚠|⏹/gu;
 const insertarTextoConIconos = (raiz: HTMLElement, texto: string): void => {
     let inicio = 0;
     for (const coincidencia of texto.matchAll(ICONO_RE)) {
         const indice = coincidencia.index ?? 0;
         if (indice > inicio) raiz.append(raiz.ownerDocument.createTextNode(texto.slice(inicio, indice)));
         const icono = raiz.ownerDocument.createElement("span");
-        icono.className = "gym-icono-nativo";
+        icono.className = "gym-icono-nativo" + (coincidencia[0] === "◀" ? " gym-icono-invertido" : "");
         icono.setAttribute("aria-hidden", "true");
         setIcon(icono, ICONOS_EMOJI[coincidencia[0]] ?? "circle-help");
         raiz.append(icono);
