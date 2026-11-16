@@ -18,8 +18,9 @@ const ICONOS_EMOJI: Record<string, string> = {
     "📭": "inbox", "🔹": "diamond", "🏷": "tag", "↩": "corner-up-left", "🧽": "eraser",
     "⏳": "hourglass", "🎉": "party-popper", "⏱": "timer", "↺": "rotate-ccw",
     "◷": "timer", "●": "circle", "＋": "plus", "⏰": "alarm-clock",
+    "⚠": "alert-triangle", "⏹": "square",
 };
-const ICONO_RE = /🏋️|📋|📊|⚖️|🗂|⚠️|🎯|✏️|🗑|⏸️?|🏁|✔|✅|🟢|📅|🏆|💾|🧹|📦|🔎|🔍|➕|＋|📝|🗒|📈|🔄|💡|⚡|⏭|🔁|🕒|📆|🔔|▶|⏯|✕|×|✎|📭|🔹|🏷|↩|🧽|⏳|🎉|⏱|↺|◷|●|⏰/gu;
+const ICONO_RE = /🏋️|📋|📊|⚖️|🗂|⚠️|🎯|✏️|🗑|⏸️?|🏁|✔|✅|🟢|📅|🏆|💾|🧹|📦|🔎|🔍|➕|＋|📝|🗒|📈|🔄|💡|⚡|⏭|🔁|🕒|📆|🔔|▶|⏯|✕|×|✎|📭|🔹|🏷|↩|🧽|⏳|🎉|⏱|↺|◷|●|⏰|⚠|⏹/gu;
 const insertarTextoConIconos = (raiz: HTMLElement, texto: string): void => {
     let inicio = 0;
     for (const coincidencia of texto.matchAll(ICONO_RE)) {
