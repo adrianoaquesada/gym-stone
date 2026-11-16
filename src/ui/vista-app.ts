@@ -3,7 +3,7 @@ import { aplicacion } from "../estado";
 import { rutaIndice } from "../ajustes";
 import { leerRutina, rutaDatosDe } from "../datos";
 import type { Rutina } from "../tipos";
-import { el } from "./componentes";
+import { el, ponerTextoConIconos } from "./componentes";
 import { pintarDashboard } from "./gestor";
 import { PantallaInicio, esRutaDeInicio } from "./pantalla-inicio";
 import { pintarResumenProgresion } from "./progresion";
@@ -111,7 +111,7 @@ export class VistaApp extends ItemView {
             if (!this.rutinaId) { void abrirLista(); return; }
             const r = await leerRutina(this.rutinaId);
             if (r.error) {
-                cont.createDiv({ cls: "gym-error-vista", text: "⚠️ " + r.error });
+                ponerTextoConIconos(cont.createDiv({ cls: "gym-error-vista" }), "⚠️ " + r.error);
             } else {
                 nombre = r.datos?.nombre || "";
 
