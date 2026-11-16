@@ -26,10 +26,12 @@ let retomarSesionMinimizada: (() => void) | null = null;
 let sesionGuiadaEnPreparacion = false;
 
 const actualizarBotonSesionGuiada = (boton: HTMLButtonElement, minimizada: boolean): void => {
-    ponerTextoConIconos(boton, minimizada ? "↩" : "🎯");
-    boton.title = minimizada
-        ? "Retomar sesión guiada minimizada"
-        : "Empezar sesión guiada";
+    const compacto = boton.dataset.gymSesionCompacta === "true";
+    const texto = minimizada
+        ? "↩ Retomar sesión guiada"
+        : compacto ? "🎯" : "🎯 Empezar sesión guiada";
+    ponerTextoConIconos(boton, texto);
+    boton.title = minimizada ? "Retomar sesión guiada minimizada" : "Empezar sesión guiada";
     boton.setAttribute("aria-label", boton.title);
     boton.classList.toggle("gym-btn-retomar", minimizada);
     boton.classList.toggle("gym-btn-sesion-inicio", !minimizada);
@@ -42,8 +44,9 @@ const actualizarBotonesSesionGuiada = (): void => {
     }
 };
 
-export const prepararBotonSesionGuiada = (boton: HTMLButtonElement): void => {
+export const prepararBotonSesionGuiada = (boton: HTMLButtonElement, compacto = false): void => {
     boton.dataset.gymSesionGuiada = "true";
+    boton.dataset.gymSesionCompacta = String(compacto);
     actualizarBotonSesionGuiada(boton, retomarSesionMinimizada !== null);
 };
 
