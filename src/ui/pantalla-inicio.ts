@@ -66,7 +66,7 @@ export class PantallaInicio {
 
     private async pintarRutinas(cont: HTMLElement): Promise<void> {
         const { indice, error } = await leerIndice();
-        pintarTituloSeccion(cont, "📋 Rutinas", "Pulsa una rutina para abrir su dashboard");
+        pintarTituloSeccion(cont, "📋 Rutinas");
         if (error) {
             cont.createDiv({
                 cls: "gym-error-vista",
@@ -112,7 +112,7 @@ export class PantallaInicio {
     }
 
     private async pintarMedidas(cont: HTMLElement): Promise<void> {
-        pintarTituloSeccion(cont, "⚖️ Medidas e IMC", "peso corporal, evolución e IMC");
+        pintarTituloSeccion(cont, "⚖️ Medidas e IMC");
         const medidas = await leerMedidas();
         if (medidas.error) {
             cont.createDiv({
@@ -126,7 +126,7 @@ export class PantallaInicio {
     }
 
     private pintarEjercicios(cont: HTMLElement): void {
-        pintarTituloSeccion(cont, "🗂 Ejercicios", "nombres y grupos musculares de todo el vault");
+        pintarTituloSeccion(cont, "🗂 Ejercicios");
         const caja = cont.createDiv({ cls: "gym-ejercicios-inline" });
         pintarGestionEjercicios(caja);
     }
