@@ -88,7 +88,7 @@ export const pintarDashboard = async (
         { texto: "⏱ Temporizador", alPulsar: () => void abrirTemporizador(), derecha: true },
     ]);
     const botonSesionGuiada = [...navegacion.querySelectorAll<HTMLButtonElement>("button")]
-        .find(boton => boton.textContent === "🎯 Empezar sesión guiada");
+        .find(boton => boton.textContent.includes("Empezar sesión guiada"));
     if (botonSesionGuiada)
         prepararBotonSesionGuiada(botonSesionGuiada, "🎯 ↩ Retomar sesión guiada");
 
