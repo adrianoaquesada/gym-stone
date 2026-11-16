@@ -1,7 +1,38 @@
+import { setIcon } from "obsidian";
 import { CONFIG } from "../config";
 import { aplicacion } from "../estado";
 import { pesoActual, UNIDADES_PESO, fijarUnidadPeso } from "../unidades";
 import type { UnidadPeso } from "../tipos";
+
+
+const ICONOS_EMOJI: Record<string, string> = {
+    "🏋️": "dumbbell", "📋": "clipboard-list", "📊": "chart-no-axes-column-increasing",
+    "⚖️": "scale", "🗂": "folder-kanban", "⚠️": "alert-triangle", "🎯": "target",
+    "✏️": "pencil", "🗑": "trash-2", "⏸️": "pause", "⏸": "pause", "🏁": "flag",
+    "✔": "check", "✅": "circle-check", "🟢": "circle-dot", "📅": "calendar-days",
+    "🏆": "trophy", "💾": "save", "🧹": "eraser", "📦": "package", "🔎": "search",
+    "🔍": "search", "➕": "plus", "＋": "plus", "📝": "notebook-pen", "🗒": "notebook-pen",
+    "📈": "chart-no-axes-line", "🔄": "refresh-cw", "💡": "lightbulb", "⚡": "zap",
+    "⏭": "skip-forward", "🔁": "repeat", "🕒": "clock", "📆": "calendar-days",
+    "🔔": "bell", "▶": "play", "⏯": "circle-play", "✕": "x", "×": "x", "✎": "pencil",
+    "📭": "inbox", "🔹": "diamond", "🏷": "tag", "↩": "corner-up-left", "🧽": "eraser",
+    "⏳": "hourglass", "🎉": "party-popper",
+};
+const ICONO_RE = /🏋️|📋|📊|⚖️|🗂|⚠️|🎯|✏️|🗑|⏸️?|🏁|✔|✅|🟢|📅|🏆|💾|🧹|📦|🔎|🔍|➕|＋|📝|🗒|📈|🔄|💡|⚡|⏭|🔁|🕒|📆|🔔|▶|⏯|✕|×|✎|📭|🔹|🏷|↩|🧽|⏳|🎉/gu;
+const insertarTextoConIconos = (raiz: HTMLElement, texto: string): void => {
+    let inicio = 0;
+    for (const coincidencia of texto.matchAll(ICONO_RE)) {
+        const indice = coincidencia.index ?? 0;
+        if (indice > inicio) raiz.append(raiz.ownerDocument.createTextNode(texto.slice(inicio, indice)));
+        const icono = raiz.ownerDocument.createElement("span");
+        icono.className = "gym-icono-nativo";
+        icono.setAttribute("aria-hidden", "true");
+        setIcon(icono, ICONOS_EMOJI[coincidencia[0]] ?? "circle-help");
+        raiz.append(icono);
+        inicio = indice + coincidencia[0].length;
+    }
+    if (inicio < texto.length) raiz.append(raiz.ownerDocument.createTextNode(texto.slice(inicio)));
+};
 
 type Baja = () => void;
 
@@ -10,7 +41,7 @@ const elEn = <K extends keyof HTMLElementTagNameMap>(doc: Document, tag: K, clas
     const e = doc.body.createEl(tag);
     e.remove();
     if (claseOCss) { if (claseOCss.includes(":")) e.style.cssText = claseOCss; else e.className = claseOCss; }
-    if (texto !== undefined) e.textContent = texto;
+    if (texto !== undefined) insertarTextoConIconos(e, texto);
     return e;
 };
 const documentosConOverlays = new Set<Document>();
@@ -52,7 +83,7 @@ export function el<K extends keyof HTMLElementTagNameMap>(
         if (claseOCss.includes(":")) e.style.cssText = claseOCss;
         else e.className = claseOCss;
     }
-    if (texto !== undefined) e.textContent = texto;
+    if (texto !== undefined) insertarTextoConIconos(e, texto);
     return e;
 }
 
