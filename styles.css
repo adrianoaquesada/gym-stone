@@ -599,12 +599,6 @@ button.gym-btn-g.gym-modo-saltar-confirmable.gym-salto-confirmando:not(:disabled
 .gym-btn-icono { box-sizing:border-box; width:44px; min-width:44px; height:44px; min-height:44px;
   padding:4px 8px; border-radius:12px; font-size:1em; }
 .gym-btn-icono.gym-btn-retomar { width:auto; min-width:44px; white-space:nowrap; }
-.gym-btn-icono.gym-btn-sesion-inicio {
-  color:var(--interactive-accent);
-  background:var(--background-secondary);
-  border:1px solid var(--interactive-accent);
-}
-.gym-btn-icono.gym-btn-sesion-inicio .gym-icono-nativo { color:var(--interactive-accent); }
 @media (max-width: 640px) {
   .view-content.gym-vista { padding: 6px 10px 32px; }
   .gym-fila-rutina { gap:6px; }
