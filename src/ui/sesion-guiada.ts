@@ -13,7 +13,7 @@ import type {
 } from "../tipos";
 import { pesoACampo, pesoAKg, pesoTexto } from "../unidades";
 import { aNumero, dos, esc, fechaLegible, hoy, msgError } from "../util";
-import { btn, confirmar, el, modal, pedirTexto, ponerX, toast } from "./componentes";
+import { btn, confirmar, el, modal, pedirTexto, ponerTextoConIconos, ponerX, toast } from "./componentes";
 import { controlDescanso, editarEjercicioSesion, elegirEjercicio, pedirDescanso } from "./ejercicios-ui";
 import { ofrecerAjustesPlan, tieneAjustesSugeridos } from "./sugerencias-plan";
 import {
@@ -1219,7 +1219,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         const nombre = texto.trim();
         dia.id = nombre;
         dia.nombre = nombre || "Sesión libre";
-        titDia.textContent = `🎯 ${dia.nombre}`;
+        ponerTextoConIconos(titDia, `🎯 ${dia.nombre}`);
     };
 
     const pintarProgreso = (): void => {
@@ -1366,7 +1366,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
             || Boolean(ej?.objetivo.tipoBloqueEspecial && !bloqueEspecialPuedeIniciar(idx)));
         const indicePendiente = indiceEjercicioPendiente();
         pintarProgreso();
-        relojEl.textContent = `⏱ ${relojTexto(transcurridoMs())}`;
+        ponerTextoConIconos(relojEl, `⏱ ${relojTexto(transcurridoMs())}`);
 
         const prev: Partial<Record<number, { reps: string; peso: string; duracion: string }>> = {};
         inReps.forEach((inp, i) => {
@@ -1453,7 +1453,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
             bSaltarBloque.type = "button";
             bSaltarBloque.classList.add("gym-modo-saltar-confirmable");
             bSaltarBloque.classList.toggle("gym-salto-confirmando", confirmarSaltarEjercicio);
-            bSaltarBloque.textContent = confirmarSaltarEjercicio ? "¿Saltar?" : "⏭";
+            ponerTextoConIconos(bSaltarBloque, confirmarSaltarEjercicio ? "¿Saltar?" : "⏭");
             bSaltarBloque.title = confirmarSaltarEjercicio
                 ? "Pulsa otra vez para confirmar; toca fuera para cancelar" : "Saltar ejercicio";
             bSaltarBloque.setAttribute("aria-label", confirmarSaltarEjercicio
@@ -1751,7 +1751,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
             const controlC = el("button", "gym-timer-serie-control");
             controlC.type = "button";
             if (ciclo.fase === "trabajo") {
-                controlC.textContent = confirmarCancelarCiclo ? "⚠" : "×";
+                ponerTextoConIconos(controlC, confirmarCancelarCiclo ? "⚠" : "×");
                 controlC.title = confirmarCancelarCiclo
                     ? "Toca de nuevo para cancelar el ciclo"
                     : "Cancelar ciclo";
@@ -1766,13 +1766,13 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
                         return;
                     }
                     confirmarCancelarCiclo = true;
-                    controlC.textContent = "⚠";
+                    ponerTextoConIconos(controlC, "⚠");
                     controlC.title = "Toca de nuevo para cancelar el ciclo";
                     controlC.setAttribute("aria-label", "Confirmar cancelación del ciclo");
                     controlC.classList.add("confirmar");
                 };
             } else {
-                controlC.textContent = "⏭";
+                ponerTextoConIconos(controlC, "⏭");
                 controlC.title = "Saltar descanso del ciclo";
                 controlC.setAttribute("aria-label", controlC.title);
                 controlC.onclick = () => saltarDescansoCiclo();
@@ -1817,7 +1817,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
                     return;
                 }
                 confirmarCancelarHold = true;
-                bCancelH.textContent = "⚠";
+                ponerTextoConIconos(bCancelH, "⚠");
                 bCancelH.title = "Toca de nuevo para descartar el hold";
                 bCancelH.setAttribute("aria-label", "Confirmar cancelación del hold");
                 bCancelH.classList.add("confirmar");
@@ -1858,7 +1858,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
             fila.appendChild(celdaNumero);
             if (saltada) {
                 const txtS = el("div", "gym-modo-set-valor gym-modo-set-saltada");
-                txtS.textContent = "⏭ Saltada";
+                ponerTextoConIconos(txtS, "⏭ Saltada");
                 fila.appendChild(txtS);
                 fila.appendChild(el("div"));
                 const cierreS = el("div", "cierre");
@@ -2359,7 +2359,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
             ultimoTick = Date.now();
             iniciarRelojBloqueActual();
         }
-        btnPausa.textContent = pausado ? "▶ Reanudar" : "⏸ Pausa";
+        ponerTextoConIconos(btnPausa, pausado ? "▶ Reanudar" : "⏸ Pausa");
         btnPausa.title = pausado ? "Reanudar la sesión" : "Pausa: congela el reloj y el descanso (no cuenta en los tiempos)";
         btnPausa.setAttribute("aria-label", pausado ? "Reanudar sesión" : "Pausar sesión");
         btnPausa.classList.toggle("reanudar", pausado);
@@ -2607,14 +2607,14 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         const ahora = Date.now();
         const dt = Math.max(0, ahora - ultimoTick);
         ultimoTick = ahora;
-        relojEl.textContent = `⏱ ${relojTexto(transcurridoMs())}`;
+        ponerTextoConIconos(relojEl, `⏱ ${relojTexto(transcurridoMs())}`);
         const bloqueActual = defs[idx];
         if (lecturaBloque && bloqueActual?.objetivo.tipoBloqueEspecial && !bloqueActual.series.length) {
             if (iniciada && !bloqueEspecialEsTurno(idx)) {
-                lecturaBloque.textContent = "⏳ Pendiente";
+                ponerTextoConIconos(lecturaBloque, "⏳ Pendiente");
             } else {
                 const inicioBloque = bloqueActual.inicioBloqueMs ?? transcurridoMs();
-                lecturaBloque.textContent = `⏱ ${relojTexto(Math.max(0, transcurridoMs() - inicioBloque))}`;
+                ponerTextoConIconos(lecturaBloque, `⏱ ${relojTexto(Math.max(0, transcurridoMs() - inicioBloque))}`);
             }
         }
         if (pausado) return;
@@ -2651,7 +2651,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     }, 250);
 
     pintarEjercicio();
-    relojEl.textContent = `⏱ ${relojTexto(transcurridoMs())}`;
+    ponerTextoConIconos(relojEl, `⏱ ${relojTexto(transcurridoMs())}`);
     sincronizaPantalla();
     doc.addEventListener("keydown", onKey);
     doc.addEventListener("pointerdown", cancelarConfirmacionSaltoBloque, true);
