@@ -152,7 +152,7 @@ export class PantallaInicio {
             if (!retomarSesionGuiadaMinimizada()) void this.sesionGuiada(f);
         });
         bGuiada.title = "🎯 Empezar sesión guiada";
-        prepararBotonSesionGuiada(bGuiada);
+        prepararBotonSesionGuiada(bGuiada, true);
         acciones.appendChild(bGuiada);
         acciones.appendChild(btn("✏️", "gym-btn-icono", () => void abrirFormulario({ modo: "editar", rutinaId: f.id })));
         acciones.appendChild(btn("🗑", "gym-btn-icono", () => void this.borrar(f)));
