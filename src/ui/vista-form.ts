@@ -3,6 +3,7 @@ import { leerRutina } from "../datos";
 import type { Rutina } from "../tipos";
 import { crear, editar } from "./creador";
 import { VISTA_FORM, abrirLista, abrirRutina } from "./vistas";
+import { ponerTextoConIconos } from "./componentes";
 
 interface EstadoForm { [k: string]: unknown; modo?: "crear" | "editar"; rutinaId?: string | null; }
 
