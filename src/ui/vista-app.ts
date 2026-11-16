@@ -1,4 +1,4 @@
-import { ItemView, type ViewStateResult, type WorkspaceLeaf } from "obsidian";
+import { ItemView, Platform, type ViewStateResult, type WorkspaceLeaf } from "obsidian";
 import { aplicacion } from "../estado";
 import { rutaIndice } from "../ajustes";
 import { leerRutina, rutaDatosDe } from "../datos";
@@ -70,7 +70,7 @@ export class VistaApp extends ItemView {
         this.registerEvent(aplicacion().vault.on("modify", f => this.trasCambio(f.path)));
         this.registerEvent(aplicacion().vault.on("create", f => this.trasCambio(f.path)));
         this.registerEvent(aplicacion().vault.on("delete", f => this.trasCambio(f.path)));
-        if (this.app.isMobile) {
+        if (Platform.isMobile) {
             this.ultimoDesplazamiento = this.contentEl.scrollTop;
             this.registerDomEvent(this.contentEl, "scroll", () => this.actualizarNavegacionMovil());
             this.registerEvent(this.app.workspace.on("active-leaf-change", leaf => {
@@ -82,7 +82,7 @@ export class VistaApp extends ItemView {
     }
 
     private actualizarNavegacionMovil(): void {
-        if (!this.app.isMobile || this.app.workspace.activeLeaf !== this.leaf) return;
+        if (!Platform.isMobile || this.app.workspace.activeLeaf !== this.leaf) return;
         const desplazamiento = this.contentEl.scrollTop;
         const diferencia = desplazamiento - this.ultimoDesplazamiento;
         if (desplazamiento <= 0 || diferencia < -2) this.alternarNavegacionMovil(false);
