@@ -1219,26 +1219,31 @@ button.gym-btn-g.gym-modo-saltar-confirmable.gym-salto-confirmando:not(:disabled
 .gym-temp-controles { display: flex; gap: 8px; flex-wrap: nowrap; justify-content: center; margin: 0; }
 .gym-temp-controles .gym-btn-g { flex: 1 1 0; min-width: 0; }
 
-.workspace-leaf-content[data-type^="gym-stone-"] .view-header-nav-buttons,
-.workspace-leaf-content[data-type^="gym-stone-"] .view-header-title-container { display: none; }
-.workspace-leaf-content[data-type^="gym-stone-"] .view-actions { margin-inline-start: auto; }
+/* El encabezado es hermano de .workspace-leaf-content, no un descendiente.
+   :has() permite aplicar la personalización solo a las vistas de Gym Stone. */
+.workspace-leaf:has(> .workspace-leaf-content[data-type^="gym-stone-"]) .view-header-nav-buttons,
+.workspace-leaf:has(> .workspace-leaf-content[data-type^="gym-stone-"]) .view-header-title-container {
+    display: none;
+}
+.workspace-leaf:has(> .workspace-leaf-content[data-type^="gym-stone-"]) .view-actions {
+    margin-inline-start: auto;
+}
 
-/* Navegación móvil: el plugin controla el auto-ocultado al desplazar su vista. */
-/* El fondo también debe ser transparente en el contenedor del encabezado:
-   si solo se transparenta .view-header, puede quedar visible la franja oscura
-   que pinta su elemento padre. */
-.is-phone .workspace-leaf-content[data-type^="gym-stone-"] .view-header-container,
-.is-phone .workspace-leaf-content[data-type^="gym-stone-"] .view-header {
+/* Encabezado transparente en móvil y escritorio, conservando sus acciones. */
+.workspace-leaf:has(> .workspace-leaf-content[data-type^="gym-stone-"]) .view-header,
+.workspace-leaf:has(> .workspace-leaf-content[data-type^="gym-stone-"]) .view-header-container {
     background: transparent !important;
     background-color: transparent !important;
     box-shadow: none !important;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
 }
-.is-phone .workspace-leaf-content[data-type^="gym-stone-"] .view-header {
+
+/* Navegación móvil: el plugin controla el auto-ocultado al desplazar su vista. */
+.is-phone .workspace-leaf:has(> .workspace-leaf-content[data-type^="gym-stone-"]) .view-header {
     transition: transform .2s ease, opacity .2s ease;
 }
-.is-phone.is-hidden-nav .workspace-leaf-content[data-type^="gym-stone-"] .view-header {
+.is-phone.is-hidden-nav .workspace-leaf:has(> .workspace-leaf-content[data-type^="gym-stone-"]) .view-header {
     transform: translateY(-100%);
     opacity: 0;
     pointer-events: none;
