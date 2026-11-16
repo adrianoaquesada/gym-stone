@@ -32,6 +32,7 @@ const actualizarBotonSesionGuiada = (boton: HTMLButtonElement, minimizada: boole
         : "Empezar sesión guiada";
     boton.setAttribute("aria-label", boton.title);
     boton.classList.toggle("gym-btn-retomar", minimizada);
+    boton.classList.toggle("gym-btn-sesion-inicio", !minimizada);
 };
 
 const actualizarBotonesSesionGuiada = (): void => {
