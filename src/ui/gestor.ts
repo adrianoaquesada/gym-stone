@@ -69,7 +69,7 @@ export const pintarDashboard = async (
     };
 
     const navegacion = pintarNavegacion(cont2, [
-        { texto: "← Inicio", alPulsar: () => void abrirLista() },
+        { texto: "Inicio", alPulsar: () => void abrirLista() },
         {
             texto: "🏋️ Rutina",
             activo: !ops.seccion || ops.seccion === "rutina",
@@ -81,7 +81,7 @@ export const pintarDashboard = async (
         { texto: "📝 Anotación", alPulsar: () => formularioAnotacion(rutina, hoy(), pintar) },
         { texto: "⚖️ Registrar medidas", alPulsar: () => formularioMedidas(medidas, pintar) },
         {
-            texto: "📈 Estadísticas",
+            texto: "Estadísticas",
             activo: ops.seccion === "estadisticas",
             alPulsar: () => cambiarSeccion("estadisticas"),
         },
@@ -207,7 +207,7 @@ const seccionDetalles = (c: HTMLElement, rutina: Rutina, pintar: Pintar): void =
 
 const estadoTxt = (r: Rutina): string =>
     r.estado === "pausada" ? "⏸ Pausada" : r.estado === "finalizada" ? "🏁 Finalizada"
-        : transcurrida(r) ? "✔ Transcurrida" : "🟢 Activa";
+        : transcurrida(r) ? "✔ Transcurrida" : "● Activa";
 const colorEstado = (r: Rutina): string =>
     r.estado === "pausada" ? "var(--text-muted)" : r.estado === "finalizada" || transcurrida(r)
         ? CONFIG.AZUL : CONFIG.VERDE;
