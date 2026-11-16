@@ -8,7 +8,7 @@ import {
 import { decimal, dos, esFechaValida, fechaLegible, hoy, msgError, nombreMes, tsDe } from "../util";
 import { pesoActual, pesoMostrar, pesoTexto, tallaTexto } from "../unidades";
 import type { EjercicioDef, LecturaNota, MedidasDatos, Rutina, Sesion } from "../tipos";
-import { el, KPI, tablaEn } from "./componentes";
+import { ponerTextoConIconos, el, KPI, tablaEn } from "./componentes";
 import { grafica } from "./grafica";
 
 let filtroEjercicio = "";
@@ -387,7 +387,7 @@ function seccionSeguimientoEjercicio(c: HTMLElement, rutina: Rutina): void {
     const esHoy = (): boolean => inDesde.value === hoy() && inHasta.value === hoy();
     const refrescarHoy = (): void => {
         botonHoy.classList.toggle("activo", esHoy());
-        botonHoy.textContent = esHoy() ? "✕ Quitar" : "📅 Hoy";
+        ponerTextoConIconos(botonHoy, esHoy() ? "✕ Quitar" : "📅 Hoy");
         botonHoy.title = esHoy() ? "Quitar el filtro de hoy" : "Ver solo lo registrado hoy";
     };
     const guardarFiltros = (): void => {
