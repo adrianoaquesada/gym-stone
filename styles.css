@@ -1222,3 +1222,23 @@ button.gym-btn-g.gym-modo-saltar-confirmable.gym-salto-confirmando:not(:disabled
 .workspace-leaf-content[data-type^="gym-stone-"] .view-header-nav-buttons,
 .workspace-leaf-content[data-type^="gym-stone-"] .view-header-title-container { display: none; }
 .workspace-leaf-content[data-type^="gym-stone-"] .view-actions { margin-inline-start: auto; }
+
+/* Iconografía nativa de Obsidian: compacta y alineada con el texto. */
+.gym-icono-nativo {
+  display:inline-flex;
+  width:1em;
+  height:1em;
+  flex:0 0 1em;
+  vertical-align:-.16em;
+  align-items:center;
+  justify-content:center;
+  color:var(--icon-color,var(--text-muted));
+}
+.gym-icono-nativo svg {
+  width:1em;
+  height:1em;
+  stroke-width:1.9;
+}
+button .gym-icono-nativo,
+.gym-naranja .gym-icono-nativo { color:currentColor; }
+.gym-btn-icono .gym-icono-nativo { width:1.05em;height:1.05em; }
