@@ -267,7 +267,7 @@ export class GymStoneTab extends PluginSettingTab {
                         desc: "Reproduce el aviso con el volumen actual.",
                         searchable: false,
                         render: s => {
-                            s.addButton(b => b.setButtonText("🔊 Probar")
+                            s.addButton(b => b.setIcon("volume-2").setButtonText("Probar")
                                 .setTooltip("Probar el sonido")
                                 .onClick(() => probarSonido()));
                         },
