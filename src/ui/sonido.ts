@@ -89,7 +89,7 @@ const notasAviso = (): Nota[] => {
                     ? graveConfigurada : Math.max(100, Math.round(graveConfigurada * 2 / 3));
                 const aguda = agudaConfigurada > graveConfigurada
                     ? agudaConfigurada : Math.min(2000, Math.round(graveConfigurada * 1.5));
-                const formaOndaTimbre = conf().patronSonido === "timbreAgudo" ? "square" : undefined;
+                const formaOndaTimbre = conf().formaOndaSonido;
                 return [
                     { frecuencia: grave, duracion: 0.15, inicio: 0, formaOnda: formaOndaTimbre },
                     { frecuencia: aguda, duracion: 0.25, inicio: 0.18, formaOnda: formaOndaTimbre },
@@ -119,8 +119,15 @@ export const sonarCuentaAtras = (clave: string, tipo: TipoAviso, restanteMs: num
     }
     if (segundosAvisados.get(clave) === segundos) return;
     segundosAvisados.set(clave, segundos);
-    const indice = (limite - segundos) % conf().frecuenciasSonido.length;
-    void sintetizar(true, [{ frecuencia: conf().frecuenciasSonido[indice], duracion: 0.12, inicio: 0 }]);
+    const frecuencias = conf().frecuenciasSonido;
+    const patron = conf().patronSonido;
+    const frecuencia = patron === "timbreAgudo" || patron === "timbreAgudoSenoidal"
+        ? Math.max(frecuencias[1], frecuencias[2])
+        : frecuencias[(limite - segundos) % frecuencias.length];
+    void sintetizar(true, [{
+        frecuencia, duracion: 0.12, inicio: 0,
+        formaOnda: conf().formaOndaSonido,
+    }]);
 };
 
 export const reiniciarCuentaAtras = (clave: string): void => { segundosAvisados.delete(clave); };
