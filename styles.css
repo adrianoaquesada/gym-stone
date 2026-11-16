@@ -1225,6 +1225,8 @@ button.gym-btn-g.gym-modo-saltar-confirmable.gym-salto-confirmando:not(:disabled
 
 
 /* Pulido visual: jerarquía compacta, controles coherentes y acento del tema Obsidian. */
+.gym-naranja { color:var(--interactive-accent) !important; }
+
 .gym-vista {
   --gym-acento: var(--interactive-accent);
   --gym-acento-suave: color-mix(in srgb, var(--interactive-accent) 13%, var(--background-secondary));
