@@ -31,16 +31,16 @@ export class PantallaInicio {
 
     async pintar(cont: HTMLElement): Promise<void> {
 
-        pintarCabecera(cont, [{ texto: "🏋️ Inicio" }]);
+        pintarCabecera(cont, [{ texto: "Inicio" }]);
 
         const botones: BotonNav[] = [
-            { texto: "📋 Rutinas", activo: this.seccion === "rutinas",
+            { texto: "Rutinas", activo: this.seccion === "rutinas",
               alPulsar: () => this.irA("rutinas") },
-            { texto: "📊 Estadísticas", activo: this.seccion === "estadisticas",
+            { texto: "Estadísticas", activo: this.seccion === "estadisticas",
               alPulsar: () => this.irA("estadisticas") },
-            { texto: "⚖️ Medidas e IMC", activo: this.seccion === "medidas",
+            { texto: "Medidas e IMC", activo: this.seccion === "medidas",
               alPulsar: () => this.irA("medidas") },
-            { texto: "🗂 Ejercicios", activo: this.seccion === "ejercicios",
+            { texto: "Ejercicios", activo: this.seccion === "ejercicios",
               alPulsar: () => this.irA("ejercicios") },
         ];
 
@@ -194,7 +194,7 @@ export class PantallaInicio {
 
     private estadoTxt = (f: IndiceRutina): string =>
         f.estado === "pausada" ? "⏸ Pausada" : f.estado === "finalizada" ? "🏁 Finalizada"
-            : this.semanaDe(f) > f.semanas ? "✔ Transcurrida" : "🟢 Activa";
+            : this.semanaDe(f) > f.semanas ? "✔ Transcurrida" : "● Activa";
 
     private estadoColor = (f: IndiceRutina): string =>
         f.estado === "pausada" ? "var(--text-muted)"
