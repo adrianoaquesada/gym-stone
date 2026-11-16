@@ -965,7 +965,7 @@ export function abrirTemporizador(): void {
             tTotal.textContent = "Cronómetro";
             tGrande.textContent = fmtReloj(transcurrido, false);
             tHora.textContent = "Tiempo transcurrido";
-            ponerTextoConIconos(estado, cronometro.estado === "en-marcha" ? "● En marcha" : "⏸ En pausa");
+            ponerTextoConIconos(estado, cronometro.estado === "en-marcha" ? "● En marcha" : "⏸︎ En pausa");
             estado.className = "gym-temp-estado" + (cronometro.estado === "en-marcha" ? " on" : "");
         } else {
             const seleccion = temporizadores.find(t => t.id === temporizadorEnAnilloId);
@@ -981,7 +981,7 @@ export function abrirTemporizador(): void {
                     ? `🔔 ${formatoHora(Date.now() + restanteMs)}`
                     : seleccion.estado === "pausado" ? "En pausa" : "Terminado";
                 estado.textContent = seleccion.estado === "en-marcha"
-                    ? "● En marcha" : seleccion.estado === "pausado" ? "⏸ En pausa" : "✓ Terminado";
+                    ? "● En marcha" : seleccion.estado === "pausado" ? "⏸︎ En pausa" : "✓ Terminado";
                 estado.className = "gym-temp-estado" + (seleccion.estado === "en-marcha" ? " on" : "");
             } else {
                 barra.style.strokeDashoffset = String(C);
