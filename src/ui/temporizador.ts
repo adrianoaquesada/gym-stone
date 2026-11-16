@@ -980,8 +980,8 @@ export function abrirTemporizador(): void {
                 tHora.textContent = seleccion.estado === "en-marcha"
                     ? `🔔 ${formatoHora(Date.now() + restanteMs)}`
                     : seleccion.estado === "pausado" ? "En pausa" : "Terminado";
-                estado.textContent = seleccion.estado === "en-marcha"
-                    ? "● En marcha" : seleccion.estado === "pausado" ? "⏸︎ En pausa" : "✓ Terminado";
+                ponerTextoConIconos(estado, seleccion.estado === "en-marcha"
+                    ? "● En marcha" : seleccion.estado === "pausado" ? "⏸ En pausa" : "✓ Terminado");
                 estado.className = "gym-temp-estado" + (seleccion.estado === "en-marcha" ? " on" : "");
             } else {
                 barra.style.strokeDashoffset = String(C);
