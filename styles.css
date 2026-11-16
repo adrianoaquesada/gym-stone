@@ -1241,4 +1241,6 @@ button.gym-btn-g.gym-modo-saltar-confirmable.gym-salto-confirmando:not(:disabled
 }
 button .gym-icono-nativo,
 .gym-naranja .gym-icono-nativo { color:currentColor; }
+.gym-kpi .v .gym-icono-nativo,
+.gym-fila-meta .gym-icono-nativo { color:currentColor; }
 .gym-btn-icono .gym-icono-nativo { width:1.05em;height:1.05em; }
