@@ -223,7 +223,7 @@ export class GymStoneTab extends PluginSettingTab {
                         desc: "Elige la forma de onda del sintetizador.",
                         control: {
                             key: "formaOndaSonido", type: "dropdown",
-                            options: { sine: "Senoidal" },
+                            options: { sine: "Senoidal", square: "Timbre agudo (cuadrada)" },
                         },
                     },
                     {
