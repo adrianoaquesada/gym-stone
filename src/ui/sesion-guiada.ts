@@ -1355,8 +1355,8 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         const puedeRestaurar = Boolean(ej?.series.some(esSaltada));
         bSaltar.classList.toggle("gym-modo-saltar-confirmable", !puedeRestaurar);
         bSaltar.classList.toggle("gym-salto-confirmando", confirmarSaltarEjercicio && !puedeRestaurar);
-        bSaltar.textContent = puedeRestaurar ? "↩ Restaurar ejercicio"
-            : confirmarSaltarEjercicio ? "¿Saltar ejercicio?" : "⏭ Saltar ejercicio";
+        ponerTextoConIconos(bSaltar, puedeRestaurar ? "↩ Restaurar ejercicio"
+            : confirmarSaltarEjercicio ? "¿Saltar ejercicio?" : "⏭ Saltar ejercicio");
         bSaltar.title = puedeRestaurar ? "Restaurar las series saltadas de este ejercicio"
             : confirmarSaltarEjercicio ? "Pulsa otra vez para confirmar; toca fuera para cancelar"
                 : "No hacer este ejercicio: sus series quedan registradas como saltadas";
