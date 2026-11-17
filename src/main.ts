@@ -15,7 +15,7 @@ import { fijarUnidadPeso, pesoActual, unidadContraria } from "./unidades";
 import { abrirProgresion } from "./ui/vistas";
 import {
     VISTA_APP, VISTA_FORM, VISTA_LISTA, VISTA_RUTINA,
-    abrirArchivoComoPlugin, abrirFormulario, abrirLista, abrirComoMarkdown,
+    abrirArchivoComoPlugin, abrirFormulario, abrirLista,
     esArchivoGym, esMdRecienteDelPlugin,
 } from "./ui/vistas";
 
