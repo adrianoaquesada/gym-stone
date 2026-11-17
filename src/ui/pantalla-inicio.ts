@@ -89,8 +89,10 @@ export class PantallaInicio {
             const tallaImc = [
                 ult.tallaCm != null ? `Talla: ${tallaTexto(ult.tallaCm)}` : "",
                 ult.imc != null ? `IMC: ${ult.imc.toFixed(1)}` : "",
-            ].filter(Boolean).join(" · ");
-            resumen.appendChild(KPI("Talla e IMC", tallaImc, CONFIG.VERDE));
+            ].filter(Boolean).join("\\n");
+            const tarjetaTallaImc = KPI("Talla e IMC", tallaImc, CONFIG.VERDE);
+            tarjetaTallaImc.querySelector<HTMLElement>(".v")!.style.whiteSpace = "pre-line";
+            resumen.appendChild(tarjetaTallaImc);
         }
 
         if (!indice.rutinas.length) {
