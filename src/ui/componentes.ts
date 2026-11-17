@@ -34,6 +34,9 @@ const insertarTextoConIconos = (raiz: HTMLElement, texto: string): void => {
         setIcon(icono, ICONOS_EMOJI[coincidencia[0]] ?? "circle-help");
         raiz.append(icono);
         inicio = indice + coincidencia[0].length;
+        if (inicio < texto.length && !/\\s/.test(texto[inicio])) {
+            raiz.append(raiz.ownerDocument.createTextNode(" "));
+        }
     }
     if (inicio < texto.length) raiz.append(raiz.ownerDocument.createTextNode(texto.slice(inicio)));
 };
@@ -109,6 +112,11 @@ export const enfocarCamposAlTocar = (): (() => void) => {
         }
         const doc = campo.ownerDocument;
         if (doc.activeElement !== campo) campo.focus({ preventScroll: true });
+        try {
+            campo.select();
+        } catch {
+            // Algunos navegadores no permiten seleccionar texto en inputs de tipo number.
+        }
     };
     return escucharEnVentanas(doc => {
         doc.addEventListener("pointerdown", alTocar, true);
