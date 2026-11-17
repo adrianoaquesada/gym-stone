@@ -27,7 +27,9 @@ const insertarTextoConIconos = (raiz: HTMLElement, texto: string): void => {
         const indice = coincidencia.index ?? 0;
         if (indice > inicio) raiz.append(raiz.ownerDocument.createTextNode(texto.slice(inicio, indice)));
         const icono = raiz.ownerDocument.createElement("span");
-        icono.className = "gym-icono-nativo" + (coincidencia[0] === "◀" ? " gym-icono-invertido" : "");
+        icono.className = "gym-icono-nativo"
+            + (coincidencia[0] === "◀" ? " gym-icono-invertido" : "")
+            + (coincidencia[0] === "🟢" || coincidencia[0] === "●" ? " gym-icono-punto" : "");
         icono.setAttribute("aria-hidden", "true");
         setIcon(icono, ICONOS_EMOJI[coincidencia[0]] ?? "circle-help");
         raiz.append(icono);
