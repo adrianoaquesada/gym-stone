@@ -86,13 +86,6 @@ export default class GymStone extends Plugin {
                     .setTitle("Abrir el temporizador")
                     .setIcon("timer")
                     .onClick(() => abrirTemporizador()));
-                const ruta = v.rutaMarkdown();
-                if (ruta) {
-                    menu.addItem(it => it
-                        .setTitle("Abrir como Markdown")
-                        .setIcon("file-text")
-                        .onClick(() => abrirComoMarkdown(ruta)));
-                }
             }),
         );
 
