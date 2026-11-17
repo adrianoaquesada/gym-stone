@@ -110,8 +110,6 @@ export class VistaApp extends ItemView {
     private acciones(): void {
         if (this.accionesHechas) return;
         this.accionesHechas = true;
-
-        this.addAction("refresh-cw", "Recargar", () => void this.pintar());
     }
 
     rutaMarkdown(): string | null {
