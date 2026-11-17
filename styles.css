@@ -307,17 +307,16 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-modo-accion.descansando { flex-direction:column; }
 .gym-modo-accion.descansando .gym-descanso { width:100%; margin:0; }
 .gym-descanso-compacto { padding:6px 8px; }
-.gym-descanso-controles { display:grid; grid-template-columns:minmax(0,1fr) 52px minmax(72px,auto) 52px minmax(0,1fr);
+.gym-descanso-controles { display:grid; grid-template-columns:repeat(5,minmax(0,1fr));
   align-items:center; gap:8px; }
-.gym-descanso-controles > .gym-btn-g { min-width:0; min-height:44px; padding:6px 5px; white-space:nowrap; }
-.gym-descanso-controles > .gym-btn-g:first-child { justify-self:start; }
-.gym-descanso-controles > .gym-btn-g:nth-child(2),
-.gym-descanso-controles > .gym-btn-g:nth-child(4) { width:44px; }
-.gym-descanso-controles > .gym-btn-g:last-child { justify-self:end; }
+.gym-descanso-controles > .gym-btn-g { box-sizing:border-box; width:100%; min-width:0; height:44px;
+  min-height:44px; padding:6px 3px; display:flex; align-items:center; justify-content:center;
+  text-align:center; white-space:nowrap; line-height:1; }
 .gym-descanso-centro { position:relative; grid-column:3; grid-row:1; display:flex; align-items:center;
-  justify-content:center; height:44px; text-align:center; }
+  justify-content:center; height:44px; min-width:0; text-align:center; }
 .gym-descanso-centro .gym-et { position:absolute; right:0; bottom:calc(100% - 5px); left:0;
-  margin:0; white-space:nowrap; }
+  display:flex; align-items:center; justify-content:center; gap:4px; margin:0; white-space:nowrap;
+  text-align:center; }
 .gym-descanso-compacto .t { font-size:1.9em; line-height:1; }
 .gym-descanso-barra { height:5px; margin:5px 0 0; overflow:hidden; border-radius:4px;
   background:var(--background-secondary); }
@@ -543,19 +542,10 @@ button.gym-btn-g.gym-modo-saltar-confirmable.gym-salto-confirmando:not(:disabled
   .gym-modo-progreso { align-items:flex-start; flex-direction:column; gap:4px; }
   .gym-modo-progreso > .gym-et { text-align:left; }
   .gym-modo-pasos { justify-content:flex-start; width:auto; }
-  .gym-descanso-controles { grid-template-columns:minmax(0,1fr) 44px minmax(64px,auto) 44px minmax(0,1fr); gap:4px; }
-  .gym-descanso-controles > .gym-btn-g { height:44px; min-height:44px; padding:5px 3px; font-size:.78em; }
-  .gym-descanso-controles > .gym-btn-g:nth-child(2),
-  .gym-descanso-controles > .gym-btn-g:nth-child(4) { width:44px; }
+  .gym-descanso-controles { gap:4px; }
+  .gym-descanso-controles > .gym-btn-g { padding:5px 2px; font-size:.78em; }
   .gym-descanso-centro { height:44px; }
   .gym-descanso-compacto .t { font-size:1.6em; }
-}
-@media (max-width: 420px) {
-  .gym-descanso-controles > .gym-btn-descanso-pausa,
-  .gym-descanso-controles > .gym-btn-descanso-saltar { box-sizing:border-box; width:34px; min-width:34px; height:34px; min-height:34px; padding:4px; font-size:0; }
-  .gym-descanso-controles > .gym-btn-descanso-pausa::before { content:"Ⅱ"; font-size:1rem; }
-  .gym-descanso-controles > .gym-btn-descanso-pausa.reanudar::before { content:"▶"; font-size:.9rem; }
-  .gym-descanso-controles > .gym-btn-descanso-saltar::before { content:"⏭"; font-size:1rem; }
 }
 
 .view-content.gym-vista {
