@@ -121,6 +121,15 @@
   .gym-form .gym-ej > .gym-ej-acciones { justify-content:flex-end; gap:4px; }
 }
 .gym-temp-anillo.pausa .barra { stroke: var(--text-muted); }
+.gym-temp-anillo.pausa .gym-temp-t { color: var(--text-muted); }
+.gym-temp-fila.pausa {
+    background: color-mix(in srgb, var(--text-muted) 10%, var(--background-secondary));
+    border-color: color-mix(in srgb, var(--text-muted) 55%, var(--background-modifier-border));
+    box-shadow: none;
+}
+.gym-temp-fila.pausa .gym-temp-fila-tiempo,
+.gym-temp-fila.pausa .gym-temp-fila-duracion { color: var(--text-muted); }
+.gym-temp-fila.pausa .gym-temp-fila-progreso-relleno { background: var(--text-muted); }
 .gym-temp-cen { will-change: transform, opacity; }
 
 .gym-kpi { min-width:110px; flex:1 1 110px; padding:10px 14px; border-radius:10px;
