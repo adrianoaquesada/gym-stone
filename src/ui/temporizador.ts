@@ -898,6 +898,7 @@ export function abrirTemporizador(): void {
             fila.progreso.setAttribute("aria-valuenow", String(Math.round(porcentaje)));
             fila.progreso.setAttribute("aria-valuetext", `${Math.round(porcentaje)} % restante`);
             fila.fila.classList.toggle("en-marcha", temporizador.estado === "en-marcha");
+            fila.fila.classList.toggle("pausa", temporizador.estado === "pausado");
             fila.fila.classList.toggle("terminado", temporizador.estado === "terminado");
             fila.fila.classList.toggle("enfocado", temporizadorEnAnilloId === temporizador.id);
             ponerTextoConIconos(fila.alternar, temporizador.estado === "en-marcha"
