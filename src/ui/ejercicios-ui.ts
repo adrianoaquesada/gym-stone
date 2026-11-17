@@ -393,7 +393,7 @@ export function elegirEjercicio(
         for (const opcion of bloquesEspeciales) {
             const nombre = opcion.tipoBloqueEspecial === "calentamiento" ? "Calentamiento" : "Estiramiento";
             const filaBloque = el("button", "gym-selector-bloque-especial gym-btn-bloque-especial",
-                `🔹 ${nombre}`);
+                nombre);
             filaBloque.type = "button";
             filaBloque.disabled = Boolean(opcion.deshabilitada);
             filaBloque.title = opcion.ayuda ?? `Añadir ${nombre} a la sesión`;
