@@ -28,7 +28,7 @@ let sesionGuiadaEnPreparacion = false;
 const actualizarBotonSesionGuiada = (boton: HTMLButtonElement, minimizada: boolean): void => {
     const compacto = boton.dataset.gymSesionCompacta === "true";
     const texto = minimizada
-        ? "↩ Retomar sesión"
+        ? "↩ 🎯 Retomar sesión"
         : compacto ? "🎯" : "🎯 Empezar sesión guiada";
     ponerTextoConIconos(boton, texto);
     boton.title = minimizada ? "Retomar sesión guiada minimizada" : "Empezar sesión guiada";
