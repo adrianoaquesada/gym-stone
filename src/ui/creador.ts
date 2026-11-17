@@ -308,7 +308,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
     if (esEdicion) {
         const filaEst = el("div", "gym-dias-semana");
         const estados: { v: EstadoRutina; txt: string }[] = [
-            { v: "activa", txt: "🟢 Activa" },
+            { v: "activa", txt: "● Activa" },
             { v: "pausada", txt: "⏸ Pausada" },
             { v: "finalizada", txt: "🏁 Finalizada" },
         ];
@@ -621,7 +621,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             if (ej.tipoBloqueEspecial) {
                 fila.classList.add("gym-ej-bloque-especial");
                 const nombre = ej.tipoBloqueEspecial === "calentamiento" ? "Calentamiento" : "Estiramiento";
-                fila.appendChild(el("div", "gym-ej-bloque-especial-nombre", `🔹 ${nombre} · duración en la sesión`));
+                fila.appendChild(el("div", "gym-ej-bloque-especial-nombre", `${nombre} · duración en la sesión`));
                 fila.appendChild(accionesOrden(nombre));
                 return fila;
             }
