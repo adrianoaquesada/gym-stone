@@ -563,7 +563,10 @@ button.gym-btn-g.gym-modo-saltar-confirmable.gym-salto-confirmando:not(:disabled
 }
 @media (max-width: 420px) {
   .gym-descanso-controles > .gym-btn-descanso-pausa,
-  .gym-descanso-controles > .gym-btn-descanso-saltar { box-sizing:border-box; width:34px; min-width:34px; height:34px; min-height:34px; padding:4px; font-size:0; }
+  .gym-descanso-controles > .gym-btn-descanso-saltar {
+    box-sizing:border-box; display:inline-flex; align-items:center; justify-content:center;
+    width:44px; min-width:44px; height:44px; min-height:44px; padding:0; font-size:0;
+  }
   .gym-descanso-controles > .gym-btn-descanso-pausa .gym-icono-nativo,
   .gym-descanso-controles > .gym-btn-descanso-saltar .gym-icono-nativo { font-size:1rem; }
 }
