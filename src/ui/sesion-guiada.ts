@@ -28,7 +28,7 @@ let sesionGuiadaEnPreparacion = false;
 const actualizarBotonSesionGuiada = (boton: HTMLButtonElement, minimizada: boolean): void => {
     const compacto = boton.dataset.gymSesionCompacta === "true";
     const texto = minimizada
-        ? "↩ Retomar sesión guiada"
+        ? "↩ Retomar sesión"
         : compacto ? "🎯" : "🎯 Empezar sesión guiada";
     ponerTextoConIconos(boton, texto);
     boton.title = minimizada ? "Retomar sesión guiada minimizada" : "Empezar sesión guiada";
@@ -533,7 +533,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     if (etiquetasDia.todas.length) cab.appendChild(tipoDia);
     cajaM.appendChild(cab);
 
-    const btnRestaurar = el("button", "gym-sesion-restaurar", "🎯 Volver a la sesión");
+    const btnRestaurar = el("button", "gym-sesion-restaurar", "↩ Volver a la sesión");
     btnRestaurar.type = "button";
     btnRestaurar.title = "Mostrar la sesión guiada";
     btnRestaurar.setAttribute("aria-label", "Mostrar la sesión guiada");
@@ -2206,7 +2206,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
 
     const bVolver = el("button", "gym-btn-g", "◀ Volver"); bVolver.type = "button";
     bVolver.title = "Volver al ejercicio anterior";
-    bVolver.onclick = () => deslizarA(idx - 1);
+    bVolver.onclick = () => deslizarPor(-1);
     const bNota = el("button", "gym-btn-g", "📝 Nota"); bNota.type = "button";
     bNota.onclick = async () => {
         const ej = defs[idx];
@@ -2216,7 +2216,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     const bSiguiente = el("button", "gym-btn-g", "▶ Siguiente"); bSiguiente.type = "button";
     bSiguiente.onclick = () => {
         if (iniciada && defs[idx]?.objetivo.tipoBloqueEspecial && !defs[idx].series.length) return;
-        if (idx + 1 < defs.length) deslizarA(idx + 1);
+        deslizarPor(1);
     };
     const saltarBloqueEspecial = (boton: HTMLButtonElement): void => {
         const ej = defs[idx];
@@ -2301,12 +2301,9 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     [bVolver, bSiguiente, bNota, bSaltar, bGuardar, bTerminar].forEach(b => pie.appendChild(b));
 
     let animando = false;
-    const deslizarA = (n: number) => {
-
-        if (animando || n === idx || n < 0 || n >= defs.length) return;
-        animando = true;
+    const colaDeslizamientos: number[] = [];
+    const animarDeslizamiento = (n: number): void => {
         const dir = n > idx ? -1 : 1;
-
         const salida = dir < 0 ? "gym-slide-izq" : "gym-slide-der";
         const entrada = dir < 0 ? "gym-slide-der" : "gym-slide-izq";
         contEj.classList.add("gym-slide", salida, "gym-slide-fuera");
@@ -2317,8 +2314,34 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
             contEj.classList.add(entrada);
             void contEj.offsetWidth;
             contEj.classList.remove("gym-slide-sin", entrada, "gym-slide-fuera");
-            window.setTimeout(() => { contEj.classList.remove("gym-slide"); animando = false; }, 220);
+            window.setTimeout(() => {
+                contEj.classList.remove("gym-slide");
+                const siguienteEnCola = colaDeslizamientos.shift();
+                if (siguienteEnCola != null && siguienteEnCola >= 0 && siguienteEnCola < defs.length
+                    && siguienteEnCola !== idx) {
+                    animarDeslizamiento(siguienteEnCola);
+                } else {
+                    animando = false;
+                    colaDeslizamientos.length = 0;
+                }
+            }, 220);
         }, 190);
+    };
+    const deslizarA = (n: number): void => {
+        const ultimoDestino = colaDeslizamientos.length
+            ? colaDeslizamientos[colaDeslizamientos.length - 1] : idx;
+        if (n === ultimoDestino || n < 0 || n >= defs.length) return;
+        if (animando) {
+            colaDeslizamientos.push(n);
+            return;
+        }
+        animando = true;
+        animarDeslizamiento(n);
+    };
+    const deslizarPor = (direccion: -1 | 1): void => {
+        const ultimoDestino = colaDeslizamientos.length
+            ? colaDeslizamientos[colaDeslizamientos.length - 1] : idx;
+        deslizarA(ultimoDestino + direccion);
     };
 
     const finalizarDescanso = (due: number): void => {
