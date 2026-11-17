@@ -307,10 +307,10 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-modo-accion.descansando { flex-direction:column; }
 .gym-modo-accion.descansando .gym-descanso { width:100%; margin:0; }
 .gym-descanso-compacto { padding:6px 8px; }
-.gym-descanso-controles { display:grid; grid-template-columns:repeat(5,minmax(0,1fr));
-  align-items:center; gap:8px; }
-.gym-descanso-controles > .gym-btn-g { box-sizing:border-box; width:100%; min-width:0; height:44px;
-  min-height:44px; padding:6px 3px; display:flex; align-items:center; justify-content:center;
+.gym-descanso-controles { display:grid; grid-template-columns:44px 44px minmax(64px,1fr) 44px 44px;
+  align-items:center; justify-content:center; gap:8px; }
+.gym-descanso-controles > .gym-btn-g { box-sizing:border-box; width:44px; min-width:44px; height:44px;
+  min-height:44px; padding:0; display:flex; align-items:center; justify-content:center;
   text-align:center; white-space:nowrap; line-height:1; }
 .gym-descanso-centro { position:relative; grid-column:3; grid-row:1; display:flex; align-items:center;
   justify-content:center; height:44px; min-width:0; text-align:center; }
@@ -542,8 +542,15 @@ button.gym-btn-g.gym-modo-saltar-confirmable.gym-salto-confirmando:not(:disabled
   .gym-modo-progreso { align-items:flex-start; flex-direction:column; gap:4px; }
   .gym-modo-progreso > .gym-et { text-align:left; }
   .gym-modo-pasos { justify-content:flex-start; width:auto; }
-  .gym-descanso-controles { gap:4px; }
-  .gym-descanso-controles > .gym-btn-g { padding:5px 2px; font-size:.78em; }
+  .gym-descanso-controles { grid-template-columns:34px 44px minmax(64px,1fr) 44px 34px; gap:4px; }
+  .gym-descanso-controles > .gym-btn-g { padding:0; font-size:.78em; }
+  .gym-descanso-controles > .gym-btn-descanso-pausa,
+  .gym-descanso-controles > .gym-btn-descanso-saltar { width:34px; min-width:34px; height:34px; min-height:34px; }
+  .gym-descanso-controles > .gym-btn-descanso-pausa { font-size:0; }
+  .gym-descanso-controles > .gym-btn-descanso-pausa::before { content:"Ⅱ"; font-size:1rem; }
+  .gym-descanso-controles > .gym-btn-descanso-pausa.reanudar::before { content:"▶"; font-size:.9rem; }
+  .gym-descanso-controles > .gym-btn-descanso-saltar { font-size:0; }
+  .gym-descanso-controles > .gym-btn-descanso-saltar::before { content:"⏭"; font-size:1rem; }
   .gym-descanso-centro { height:44px; }
   .gym-descanso-compacto .t { font-size:1.6em; }
 }
