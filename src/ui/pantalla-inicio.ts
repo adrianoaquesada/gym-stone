@@ -192,8 +192,8 @@ export class PantallaInicio {
     }
 
     private estadoIcono = (f: IndiceRutina): string =>
-        f.estado === "activa" && this.semanaDe(f) <= f.semanas ? "🟢"
-            : f.estado === "pausada" ? "⏸" : "🏁";
+        f.estado === "pausada" ? "⏸" : f.estado === "finalizada" ? "🏁"
+            : this.semanaDe(f) > f.semanas ? "✔" : "🟢";
 
     private estadoColor = (f: IndiceRutina): string =>
         f.estado === "pausada" ? "var(--text-muted)"
