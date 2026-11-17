@@ -207,7 +207,7 @@ const seccionDetalles = (c: HTMLElement, rutina: Rutina, pintar: Pintar): void =
 
 const estadoTxt = (r: Rutina): string =>
     r.estado === "pausada" ? "⏸ Pausada" : r.estado === "finalizada" ? "🏁 Finalizada"
-        : transcurrida(r) ? "✔ Transcurrida" : "● Activa";
+        : transcurrida(r) ? "✔ Transcurrida" : "🟢 Activa";
 const colorEstado = (r: Rutina): string =>
     r.estado === "pausada" ? "var(--text-muted)" : r.estado === "finalizada" || transcurrida(r)
         ? CONFIG.AZUL : CONFIG.VERDE;
