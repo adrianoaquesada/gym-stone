@@ -4,7 +4,7 @@ import { borrarRutina, leerIndice, leerMedidas, leerRutina, ultimaMedida } from 
 import type { IndiceRutina } from "../tipos";
 import { diffDias, fechaLegible, hoy, msgError } from "../util";
 import { pesoTexto, tallaTexto } from "../unidades";
-import { KPI, btn, confirmar, el, toast } from "./componentes";
+import { KPI, btn, confirmar, el, ponerTextoConIconos, toast } from "./componentes";
 import { pintarCabecera, pintarNavegacion, pintarTituloSeccion, type BotonNav } from "./cabecera";
 import { pintarGestionEjercicios } from "./ejercicios-ui";
 import { formularioMedidas } from "./registro";
