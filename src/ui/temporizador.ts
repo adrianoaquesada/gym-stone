@@ -891,7 +891,7 @@ export function abrirTemporizador(): void {
             const restanteMs = restante(temporizador);
             fila.tiempo.textContent = fmtReloj(restanteMs);
             fila.alarma.textContent = temporizador.estado === "terminado"
-                ? "Temporizador terminado" : `🔔 ${formatoHora(Date.now() + restanteMs)}`;
+                ? "Temporizador terminado" : `◷ ${formatoHora(Date.now() + restanteMs)}`;
             fila.duracion.textContent = fmtTotal(temporizador.duracionMs);
             const porcentaje = Math.min(100, Math.max(0, restanteMs / temporizador.duracionMs * 100));
             fila.progresoRelleno.style.width = `${porcentaje}%`;
@@ -958,6 +958,11 @@ export function abrirTemporizador(): void {
         totalMs = vista;
         m.caja.classList.toggle("gym-temp-cronometro-activo", esCronometro);
         anillo.classList.remove("listo", "pausa");
+        const temporizadorSeleccionado = !esCronometro
+            ? temporizadores.find(t => t.id === temporizadorEnAnilloId) : null;
+        anillo.classList.toggle("pausa", esCronometro
+            ? cronometro.estado === "pausado"
+            : temporizadorSeleccionado?.estado === "pausado");
         if (esCronometro) {
             const transcurrido = tiempoCronometro();
             const vuelta = (transcurrido % 60000) / 60000;
@@ -968,7 +973,7 @@ export function abrirTemporizador(): void {
             ponerTextoConIconos(estado, cronometro.estado === "en-marcha" ? "● En marcha" : "⏸︎ En pausa");
             estado.className = "gym-temp-estado" + (cronometro.estado === "en-marcha" ? " on" : "");
         } else {
-            const seleccion = temporizadores.find(t => t.id === temporizadorEnAnilloId);
+            const seleccion = temporizadorSeleccionado;
             if (seleccion) {
                 const restanteMs = restante(seleccion);
                 const progreso = seleccion.duracionMs > 0
@@ -978,7 +983,7 @@ export function abrirTemporizador(): void {
                 tTotal.textContent = fmtTotal(seleccion.duracionMs);
                 tGrande.textContent = fmtReloj(restanteMs);
                 tHora.textContent = seleccion.estado === "en-marcha"
-                    ? `🔔 ${formatoHora(Date.now() + restanteMs)}`
+                    ? `◷ ${formatoHora(Date.now() + restanteMs)}`
                     : seleccion.estado === "pausado" ? "En pausa" : "Terminado";
                 ponerTextoConIconos(estado, seleccion.estado === "en-marcha"
                     ? "● En marcha" : seleccion.estado === "pausado" ? "⏸ En pausa" : "✓ Terminado");
@@ -987,7 +992,7 @@ export function abrirTemporizador(): void {
                 barra.style.strokeDashoffset = String(C);
                 tTotal.textContent = fmtTotal(vista);
                 tGrande.textContent = fmtReloj(vista);
-                ponerTextoConIconos(tHora, `🔔 ${formatoHora(Date.now() + vista)}`);
+                ponerTextoConIconos(tHora, `◷ ${formatoHora(Date.now() + vista)}`);
                 estado.textContent = "Duración de la próxima cuenta atrás";
                 estado.className = "gym-temp-estado";
             }
