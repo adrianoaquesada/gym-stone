@@ -1219,40 +1219,7 @@ button.gym-btn-g.gym-modo-saltar-confirmable.gym-salto-confirmando:not(:disabled
 .gym-temp-controles { display: flex; gap: 8px; flex-wrap: nowrap; justify-content: center; margin: 0; }
 .gym-temp-controles .gym-btn-g { flex: 1 1 0; min-width: 0; }
 
-/* Personalización del encabezado de las vistas Gym Stone.
-   El encabezado puede estar anidado en distintos niveles según la versión
-   y plataforma de Obsidian; no se presupone que sea hijo directo del leaf. */
-.workspace-leaf:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-header-nav-buttons,
-.workspace-leaf:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-header-title-container {
-    display: none !important;
-}
-.workspace-leaf:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-actions {
-    margin-inline-start: auto;
-}
-
-/* Transparencia total del encabezado cuando hay una vista Gym Stone abierta.
-   Se ancla a body para no depender de cómo Obsidian anide el leaf y su header. */
-body:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-header,
-body:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-header-container,
-body:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-header::before,
-body:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-header::after,
-body:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-header-container::before,
-body:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-header-container::after {
-    background: transparent !important;
-    background-color: transparent !important;
-    background-image: none !important;
-    box-shadow: none !important;
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
-}/* Navegación móvil: el plugin controla el auto-ocultado al desplazar su vista. */
-.is-phone .workspace-leaf:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-header {
-    transition: transform .2s ease, opacity .2s ease;
-}
-.is-phone.is-hidden-nav .workspace-leaf:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-header {
-    transform: translateY(-100%);
-    opacity: 0;
-    pointer-events: none;
-}
+/* Se conserva únicamente el auto-ocultado de la barra inferior móvil. */
 .is-phone .mobile-navbar {
     transition: transform .2s ease, opacity .2s ease;
 }
