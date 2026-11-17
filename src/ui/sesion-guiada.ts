@@ -2301,8 +2301,10 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     [bVolver, bSiguiente, bNota, bSaltar, bGuardar, bTerminar].forEach(b => pie.appendChild(b));
 
     let animando = false;
+    let destinoEnCurso: number | null = null;
     const colaDeslizamientos: number[] = [];
     const animarDeslizamiento = (n: number): void => {
+        destinoEnCurso = n;
         const dir = n > idx ? -1 : 1;
         const salida = dir < 0 ? "gym-slide-izq" : "gym-slide-der";
         const entrada = dir < 0 ? "gym-slide-der" : "gym-slide-izq";
@@ -2321,6 +2323,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
                     && siguienteEnCola !== idx) {
                     animarDeslizamiento(siguienteEnCola);
                 } else {
+                    destinoEnCurso = null;
                     animando = false;
                     colaDeslizamientos.length = 0;
                 }
@@ -2329,7 +2332,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     };
     const deslizarA = (n: number): void => {
         const ultimoDestino = colaDeslizamientos.length
-            ? colaDeslizamientos[colaDeslizamientos.length - 1] : idx;
+            ? colaDeslizamientos[colaDeslizamientos.length - 1] : destinoEnCurso ?? idx;
         if (n === ultimoDestino || n < 0 || n >= defs.length) return;
         if (animando) {
             colaDeslizamientos.push(n);
@@ -2340,7 +2343,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     };
     const deslizarPor = (direccion: -1 | 1): void => {
         const ultimoDestino = colaDeslizamientos.length
-            ? colaDeslizamientos[colaDeslizamientos.length - 1] : idx;
+            ? colaDeslizamientos[colaDeslizamientos.length - 1] : destinoEnCurso ?? idx;
         deslizarA(ultimoDestino + direccion);
     };
 
