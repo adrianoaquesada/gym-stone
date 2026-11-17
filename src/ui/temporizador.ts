@@ -902,7 +902,7 @@ export function abrirTemporizador(): void {
             fila.fila.classList.toggle("terminado", temporizador.estado === "terminado");
             fila.fila.classList.toggle("enfocado", temporizadorEnAnilloId === temporizador.id);
             ponerTextoConIconos(fila.alternar, temporizador.estado === "en-marcha"
-                ? "⏸️" : temporizador.estado === "pausado" ? "▶" : "✓");
+                ? "⏸" : temporizador.estado === "pausado" ? "▶" : "✓");
             fila.alternar.setAttribute("aria-label", temporizador.estado === "en-marcha"
                 ? "Pausar cuenta atrás" : temporizador.estado === "pausado" ? "Reanudar cuenta atrás" : "Cuenta atrás terminada");
             fila.alternar.title = temporizador.estado === "en-marcha"
@@ -1023,7 +1023,7 @@ export function abrirTemporizador(): void {
         accionesCirculares.classList.toggle("gym-oculto", !mostrarAccionesCirculares);
         if (temporizadorCircular && mostrarAccionesCirculares) {
             ponerTextoConIconos(pausaCircular, temporizadorCircular.estado === "en-marcha"
-                ? "⏸️" : temporizadorCircular.estado === "pausado" ? "▶" : "✓");
+                ? "⏸" : temporizadorCircular.estado === "pausado" ? "▶" : "✓");
             pausaCircular.setAttribute("aria-label", temporizadorCircular.estado === "en-marcha"
                 ? "Pausar cuenta atrás"
                 : temporizadorCircular.estado === "pausado" ? "Reanudar cuenta atrás" : "Cuenta atrás terminada");
