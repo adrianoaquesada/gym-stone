@@ -120,6 +120,7 @@
   .gym-form .gym-ej > .gym-ej-acciones { grid-column:1 / -1; }
   .gym-form .gym-ej > .gym-ej-acciones { justify-content:flex-end; gap:4px; }
 }
+.gym-temp-anillo.pausa .barra { stroke: var(--text-muted); }
 .gym-temp-cen { will-change: transform, opacity; }
 
 .gym-kpi { min-width:110px; flex:1 1 110px; padding:10px 14px; border-radius:10px;
