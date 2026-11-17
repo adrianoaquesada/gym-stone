@@ -564,9 +564,8 @@ button.gym-btn-g.gym-modo-saltar-confirmable.gym-salto-confirmando:not(:disabled
 @media (max-width: 420px) {
   .gym-descanso-controles > .gym-btn-descanso-pausa,
   .gym-descanso-controles > .gym-btn-descanso-saltar { box-sizing:border-box; width:34px; min-width:34px; height:34px; min-height:34px; padding:4px; font-size:0; }
-  .gym-descanso-controles > .gym-btn-descanso-pausa::before { content:"Ⅱ"; font-size:1rem; }
-  .gym-descanso-controles > .gym-btn-descanso-pausa.reanudar::before { content:"▶"; font-size:.9rem; }
-  .gym-descanso-controles > .gym-btn-descanso-saltar::before { content:"⏭"; font-size:1rem; }
+  .gym-descanso-controles > .gym-btn-descanso-pausa .gym-icono-nativo,
+  .gym-descanso-controles > .gym-btn-descanso-saltar .gym-icono-nativo { font-size:1rem; }
 }
 
 .view-content.gym-vista {
