@@ -533,7 +533,8 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     if (etiquetasDia.todas.length) cab.appendChild(tipoDia);
     cajaM.appendChild(cab);
 
-    const btnRestaurar = el("button", "gym-sesion-restaurar", "↩ Volver a la sesión");
+    const btnRestaurar = el("button", "gym-sesion-restaurar");
+    ponerTextoConIconos(btnRestaurar, "↩ Volver a la sesión");
     btnRestaurar.type = "button";
     btnRestaurar.title = "Mostrar la sesión guiada";
     btnRestaurar.setAttribute("aria-label", "Mostrar la sesión guiada");
