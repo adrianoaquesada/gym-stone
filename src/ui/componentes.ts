@@ -9,7 +9,7 @@ const ICONOS_EMOJI: Record<string, string> = {
     "🏋️": "dumbbell", "📋": "clipboard-list", "📊": "chart-no-axes-column-increasing",
     "⚖️": "scale", "🗂": "folder-kanban", "⚠️": "alert-triangle", "🎯": "target",
     "✏️": "pencil", "🗑": "trash-2", "⏸️": "pause", "⏸": "pause", "🏁": "flag",
-    "✔": "check", "◀": "play", "✅": "circle-check", "🟢": "circle-dot", "📅": "calendar-days",
+    "✔": "check", "◀": "play", "✅": "circle-check", "🟢": "circle", "📅": "calendar-days",
     "🏆": "trophy", "💾": "save", "🧹": "eraser", "📦": "package", "🔎": "search",
     "🔍": "search", "➕": "plus", "＋": "plus", "📝": "notebook-pen", "🗒": "notebook-pen",
     "📈": "chart-no-axes-line", "🔄": "refresh-cw", "💡": "lightbulb", "⚡": "zap",
