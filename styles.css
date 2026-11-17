@@ -322,10 +322,7 @@ table.gym-tabla td { border-bottom:1px solid var(--background-modifier-border); 
 .gym-descanso-controles > .gym-btn-g { min-width:0; min-height:44px; padding:6px 5px; white-space:nowrap; }
 .gym-descanso-controles > .gym-btn-g:first-child { justify-self:start; }
 .gym-descanso-controles > .gym-btn-g:nth-child(2),
-.gym-descanso-controles > .gym-btn-g:nth-child(4) {
-  box-sizing:border-box; display:inline-flex; align-items:center; justify-content:center;
-  width:44px; text-align:center;
-}
+.gym-descanso-controles > .gym-btn-g:nth-child(4) { width:44px; }
 .gym-descanso-controles > .gym-btn-g:last-child { justify-self:end; }
 .gym-descanso-centro { position:relative; grid-column:3; grid-row:1; display:flex; align-items:center;
   justify-content:center; height:44px; min-width:0; text-align:center; }
