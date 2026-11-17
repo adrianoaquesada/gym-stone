@@ -1232,15 +1232,6 @@ button.gym-btn-g.gym-modo-saltar-confirmable.gym-salto-confirmando:not(:disabled
 .gym-temp-controles { display: flex; gap: 8px; flex-wrap: nowrap; justify-content: center; margin: 0; }
 .gym-temp-controles .gym-btn-g { flex: 1 1 0; min-width: 0; }
 
-/* Se conserva únicamente el auto-ocultado de la barra inferior móvil. */
-.is-phone .mobile-navbar {
-    transition: transform .2s ease, opacity .2s ease;
-}
-.is-phone.is-hidden-nav .mobile-navbar {
-    transform: translateY(100%);
-    opacity: 0;
-    pointer-events: none;
-}
 
 /* Iconografía nativa de Obsidian: compacta y alineada con el texto. */
 .gym-icono-nativo {
