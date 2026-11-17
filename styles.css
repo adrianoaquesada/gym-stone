@@ -1274,6 +1274,8 @@ body:has(.workspace-leaf-content[data-type^="gym-stone-"]) .view-header-containe
   color:var(--icon-color,var(--text-muted));
 }
 .gym-icono-nativo.gym-icono-invertido svg { transform:scaleX(-1); }
+.gym-icono-nativo.gym-icono-punto svg { fill:currentColor; stroke:currentColor; }
+.gym-estado-punto { display:inline-flex; align-items:center; margin-right:7px; color:var(--text-muted); }
 .gym-icono-nativo svg {
   width:1em;
   height:1em;
