@@ -105,13 +105,6 @@ export class VistaApp extends ItemView {
         if (toca) void this.pintar();
     }
 
-    private accionesHechas = false;
-
-    private acciones(): void {
-        if (this.accionesHechas) return;
-        this.accionesHechas = true;
-    }
-
     rutaMarkdown(): string | null {
         return this.pantalla === "rutina"
             ? (this.rutinaId ? rutaDatosDe(this.rutinaId) : null)
@@ -121,7 +114,6 @@ export class VistaApp extends ItemView {
     async pintar(): Promise<void> {
         const raiz = this.contentEl;
         raiz.addClass("gym-vista");
-        this.acciones();
 
         const generacion = ++this.pintando;
         const pantalla = this.pantalla;
