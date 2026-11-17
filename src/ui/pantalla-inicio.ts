@@ -76,23 +76,21 @@ export class PantallaInicio {
 
         const resumen = cont.createDiv({ cls: "gym-kpis" });
         const activas = indice.rutinas.filter(f => f.estado === "activa").length;
-        const totalSesiones = indice.rutinas.reduce((n, f) => n + (f.sesiones || 0), 0);
         resumen.appendChild(KPI("Rutinas", String(indice.rutinas.length), CONFIG.NARANJA,
             indice.rutinas.length ? `${activas} activas` : undefined));
-        resumen.appendChild(KPI("Sesiones hechas", String(totalSesiones), CONFIG.VERDE));
 
         const medidas = await leerMedidas();
         if (medidas.error) toast("⚠️ " + medidas.error, false);
         const ult = ultimaMedida(medidas.datos);
         if (ult.pesoKg != null) {
-            resumen.appendChild(KPI("Peso actual", pesoTexto(ult.pesoKg), CONFIG.AZUL,
-                ult.fecha ? fechaLegible(ult.fecha) : undefined));
+            resumen.appendChild(KPI("Peso actual", pesoTexto(ult.pesoKg), CONFIG.AZUL));
         }
-        if (ult.tallaCm != null) {
-            resumen.appendChild(KPI("Talla", tallaTexto(ult.tallaCm), CONFIG.AZUL));
-        }
-        if (ult.imc != null) {
-            resumen.appendChild(KPI("IMC", ult.imc.toFixed(1), CONFIG.VERDE));
+        if (ult.tallaCm != null || ult.imc != null) {
+            const tallaImc = [
+                ult.tallaCm != null ? `Talla: ${tallaTexto(ult.tallaCm)}` : "",
+                ult.imc != null ? `IMC: ${ult.imc.toFixed(1)}` : "",
+            ].filter(Boolean).join(" · ");
+            resumen.appendChild(KPI("Talla e IMC", tallaImc, CONFIG.VERDE));
         }
 
         if (!indice.rutinas.length) {
@@ -135,16 +133,17 @@ export class PantallaInicio {
         const fila = el("div", "gym-fila-rutina");
 
         const principal = btn("", "gym-fila-rutina-principal", () => void abrirRutina(f.id));
-        principal.createSpan({ cls: "gym-fila-nombre", text: f.nombre });
+        const nombre = principal.createDiv({ cls: "gym-fila-nombre" });
+        const indicador = nombre.createSpan({ cls: "gym-estado-punto" });
+        indicador.style.color = this.estadoColor(f);
+        ponerTextoConIconos(indicador, this.estadoIcono(f));
+        nombre.createSpan({ text: f.nombre });
         const sem = this.semanaDe(f);
         const meta = [
-            this.estadoTxt(f),
             f.inicio ? `${fechaLegible(f.inicio)} → ${f.fin ? fechaLegible(f.fin) : "…"}` : "",
             sem > 0 ? `Semana ${sem}/${f.semanas || "?"}` : "",
-            `${f.sesiones || 0} sesiones`,
         ].filter(Boolean).join(" · ");
-        const m = principal.createSpan({ cls: "gym-fila-meta", text: meta });
-        m.style.color = this.estadoColor(f);
+        principal.createSpan({ cls: "gym-fila-meta", text: meta });
         fila.appendChild(principal);
 
         const acciones = fila.createDiv({ cls: "gym-fila-rutina-acciones" });
@@ -192,9 +191,9 @@ export class PantallaInicio {
         return Math.min(Math.ceil(d / 7), f.semanas || 1);
     }
 
-    private estadoTxt = (f: IndiceRutina): string =>
-        f.estado === "pausada" ? "⏸ Pausada" : f.estado === "finalizada" ? "🏁 Finalizada"
-            : this.semanaDe(f) > f.semanas ? "✔ Transcurrida" : "● Activa";
+    private estadoIcono = (f: IndiceRutina): string =>
+        f.estado === "activa" && this.semanaDe(f) <= f.semanas ? "🟢"
+            : f.estado === "pausada" ? "⏸" : "🏁";
 
     private estadoColor = (f: IndiceRutina): string =>
         f.estado === "pausada" ? "var(--text-muted)"
