@@ -50,8 +50,10 @@ export class PantallaInicio {
         if (this.seccion === "estadisticas") {
             const contenido = el("div", "gym-inicio-contenido");
             cont.appendChild(contenido);
-            contenido.appendChild(btn("⚖️ Registrar medidas", "primario", () => void this.abrirMedidas()));
-            return pintarResumenProgresion(contenido, { estadisticasGlobales: true });
+            return pintarResumenProgresion(contenido, {
+                estadisticasGlobales: true,
+                alRegistrarMedidas: () => void this.abrirMedidas(),
+            });
         }
         return this.pintarRutinas(cont);
     }
