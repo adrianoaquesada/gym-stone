@@ -5,7 +5,7 @@ import {
 import type { IndiceRutina, TipoEjercicio } from "../tipos";
 import { fechaLegible, msgError, tsDe } from "../util";
 import { pesoActual, pesoMostrar, pesoTexto } from "../unidades";
-import { el, KPI } from "./componentes";
+import { btn, el, KPI } from "./componentes";
 import { pintarNavegacion, pintarTituloSeccion, type BotonNav } from "./cabecera";
 import { grafica } from "./grafica";
 import { seccionMedidas } from "./estadisticas";
@@ -14,6 +14,7 @@ interface OpcionesProgresion {
     rutinaId?: string | null;
     alVolver?: () => void;
     estadisticasGlobales?: boolean;
+    alRegistrarMedidas?: () => void;
 }
 
 const tipoTexto = (tipo: TipoEjercicio): string =>
@@ -44,7 +45,7 @@ export async function pintarResumenProgresion(
     cont: HTMLElement, opciones: OpcionesProgresion = {},
 ): Promise<void> {
     cont.empty();
-    const { rutinaId, alVolver, estadisticasGlobales = false } = opciones;
+    const { rutinaId, alVolver, estadisticasGlobales = false, alRegistrarMedidas } = opciones;
     let rutinasDisponibles: IndiceRutina[] = [];
     pintarTituloSeccion(cont,
         estadisticasGlobales ? "📊 Estadísticas" : "📈 Progresión",
@@ -82,7 +83,10 @@ export async function pintarResumenProgresion(
             KPI("Sesiones registradas", String(sesiones), CONFIG.VERDE),
         );
         cont.appendChild(resumenGlobal);
-        cont.appendChild(el("div", "gym-tit", "Medidas e IMC"));
+        const tituloMedidas = el("div", "gym-tit");
+        tituloMedidas.append(el("span", null, "Medidas e IMC"));
+        if (alRegistrarMedidas) tituloMedidas.appendChild(btn("⚖️ Registrar medidas", "primario", alRegistrarMedidas));
+        cont.appendChild(tituloMedidas);
         if (medidas.error) {
             cont.appendChild(el("div", "gym-error-vista", `⚠️ No pude cargar las medidas: ${medidas.error}`));
         } else {
