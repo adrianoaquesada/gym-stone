@@ -555,7 +555,7 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
         const pistaP = el("div", "flex:1;position:relative;height:14px;border-radius:7px;background:var(--background-secondary);overflow:hidden;");
         let pausasAnteriores = 0;
         for (const pausa of pausas) {
-            const tramoPausa = el("div", "position:absolute;top:0;bottom:0;background:var(--text-faint);opacity:.65;");
+            const tramoPausa = el("div", "position:absolute;top:0;bottom:0;border-radius:7px;background:var(--text-faint);opacity:.65;");
             const inicio = pausa.t + pausasAnteriores;
             tramoPausa.style.left = `${pct(inicio)}%`;
             tramoPausa.style.width = `${Math.max(0, pct(inicio + pausa.ms) - pct(inicio))}%`;
