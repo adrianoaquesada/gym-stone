@@ -82,13 +82,13 @@ export async function pintarResumenProgresion(
             KPI("Sesiones registradas", String(sesiones), CONFIG.VERDE),
         );
         cont.appendChild(resumenGlobal);
+        cont.appendChild(el("div", "gym-tit", "Medidas e IMC"));
         if (medidas.error) {
             cont.appendChild(el("div", "gym-error-vista", `⚠️ No pude cargar las medidas: ${medidas.error}`));
         } else {
             seccionMedidas(cont, medidas, { titulo: false });
         }
         cont.appendChild(el("div", "gym-tit", "Seguimiento por ejercicio"));
-        cont.appendChild(el("div", "gym-tit", "Medidas e IMC"));
     }
 
     let modo: "global" | "rutina" = rutinaId ? "rutina" : "global";
