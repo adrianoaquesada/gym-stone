@@ -1258,3 +1258,13 @@ button .gym-icono-nativo,
 .gym-kpi .v .gym-icono-nativo,
 .gym-fila-meta .gym-icono-nativo { color:currentColor; }
 .gym-btn-icono .gym-icono-nativo { width:1.05em;height:1.05em; }
+
+
+/* Evita que el detalle del día ensanche el modal y la ventana completa. */
+.gym-modal-caja { box-sizing:border-box; max-width:calc(100vw - 32px); overflow-x:hidden; }
+.gym-modal-caja > div { min-width:0; max-width:100%; }
+.gym-modal-caja .gym-ej-reg { box-sizing:border-box; min-width:0; max-width:100%; }
+.gym-modal-caja .gym-tabla-wrap { min-width:0; max-width:100%; }
+.gym-cal-linea-ventana { box-sizing:border-box; min-width:0; max-width:100%; overflow-x:hidden; }
+.gym-cal-linea-ventana.gym-cal-linea-ampliada { overflow-x:auto; }
+.gym-cal-linea-ventana > div { box-sizing:border-box; min-width:0; }
