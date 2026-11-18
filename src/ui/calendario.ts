@@ -752,7 +752,7 @@ export function detalleDia(rutina: Rutina, fecha: string, pintar: Pintar): void 
     const m = modal(`📆 ${fechaLegible(fecha)}`, `${DIAS_LARGO[diaSemana(fecha) - 1] ?? ""}`);
     ponerX(m, "Cerrar detalles del día");
     m.cab.classList.add("gym-cal-detalle-cab");
-    const cajaD = el("div");
+    const cajaD = el("div", "min-width:0;max-width:100%;");
     m.caja.appendChild(cajaD);
 
     const rePintar = (): void => {
@@ -881,7 +881,9 @@ export function detalleDia(rutina: Rutina, fecha: string, pintar: Pintar): void 
                 tb.appendChild(tr);
             }
             tabla.appendChild(tb);
-            box.appendChild(tabla);
+            const scrollTabla = el("div", "gym-tabla-wrap");
+            scrollTabla.appendChild(tabla);
+            box.appendChild(scrollTabla);
             if (s.anotaciones) box.appendChild(el("div", "font-size:.82em;opacity:.8;margin-top:6px;", `📝 ${s.anotaciones}`));
             cajaD.appendChild(box);
         }
