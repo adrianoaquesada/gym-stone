@@ -83,7 +83,7 @@ export const ofrecerAjustesPlan = (
         panel.append(
             el("b", "gym-naranja", paraProxima ? "Propuesta para la próxima sesión" : "Ajustes para esta sesión"),
             el("div", "opacity:.8;font-size:.86em;margin:5px 0 10px;",
-                `Puedes ajustar las series al número hecho y elegir uno de los pesos registrados. Solo cambia la rutina activa; la plantilla no se modifica.${paraProxima ? "" : " Se aplicará antes de empezar."}`),
+                `Puedes ajustar las series al número hecho y elegir uno de los pesos registrados. Solo cambia la rutina activa.${paraProxima ? "" : " Se aplicará antes de empezar."}`),
         );
 
         const selectores = new Map<PropuestaAjuste, HTMLSelectElement>();
@@ -149,7 +149,6 @@ export const ofrecerAjustesPlan = (
                 rutina.sesiones = copia.sesiones;
                 rutina.versionDatos = copia.versionDatos;
                 rutina.modificado = copia.modificado;
-                rutina.plantillaOrigen = copia.plantillaOrigen;
             } catch (e: unknown) {
                 aplicar.disabled = false;
                 console.error("[Gym Stone sugerencia de rutina]", e);
