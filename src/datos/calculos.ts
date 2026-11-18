@@ -5,7 +5,7 @@ import { archivosMdEnCarpeta, leerNotaDatos } from "./archivos";
 import { esRutinaFormatoActual, repsObjetivoDe, semanasTotales, tipoEjercicioDe, tipoSerieDe } from "./rutinas";
 import { normalizarGrupos } from "./grupos";
 import type {
-    DiaRutina, EjercicioCatalogo, EjercicioDef, PlantillaRutina, Rutina, SerieSesion, Sesion,
+    DiaRutina, EjercicioCatalogo, EjercicioDef, Rutina, SerieSesion, Sesion,
     TipoBloqueEspecial, TipoEjercicio, TipoSerie,
 } from "../tipos";
 
@@ -14,126 +14,6 @@ export const diaPorId = (rutina: Rutina | null | undefined, id: string): DiaRuti
 
 export const ejercicioPorId = (dia: DiaRutina | null, id: string): EjercicioDef | null =>
     (dia?.ejercicios ?? []).find(e => e.id === id) ?? null;
-
-export interface ComparacionPlanEjercicio {
-    ejercicioId: string;
-    base: EjercicioDef | null;
-    activo: EjercicioDef | null;
-    diaBase: DiaRutina | null;
-    diaActivo: DiaRutina | null;
-    estado: "sin-cambios" | "ajustado" | "añadido" | "retirado";
-}
-
-const camposComparablesEjercicio = (ejercicio: EjercicioDef): string => JSON.stringify({
-    nombre: ejercicio.nombre ?? "",
-    grupos: normalizarGrupos(ejercicio.grupos).sort((a, b) => a.localeCompare(b, "es")),
-    tipoEjercicio: tipoEjercicioDe(ejercicio),
-    tipoBloqueEspecial: ejercicio.tipoBloqueEspecial ?? null,
-    series: Math.max(1, Number(ejercicio.series) || 1),
-    repsObjetivo: repsObjetivoDe(ejercicio),
-    pesoObjetivo: ejercicio.pesoObjetivo ?? null,
-    duracionObjetivo: ejercicio.duracionObjetivo ?? null,
-    repsPesoDuranteTiempo: ejercicio.repsPesoDuranteTiempo === true,
-    descansoSeg: ejercicio.descansoSeg ?? null,
-    trabajoSeg: ejercicio.trabajoSeg ?? null,
-    transicionSeg: ejercicio.transicionSeg ?? null,
-    notas: ejercicio.notas ?? "",
-    tipoSerie: tipoSerieDe(ejercicio),
-});
-
-const camposComparablesDia = (dia: DiaRutina, orden: number): string => JSON.stringify({
-    nombre: dia.nombre ?? "",
-    orden,
-    diasSemana: [...(dia.diasSemana ?? [])].sort((a, b) => a - b),
-    etiquetasPersonalizadas: normalizarGrupos(dia.etiquetasPersonalizadas)
-        .sort((a, b) => a.localeCompare(b, "es")),
-});
-
-export const compararPlanes = (
-    plantilla: PlantillaRutina,
-    rutina: Rutina,
-): ComparacionPlanEjercicio[] => {
-    type ElementoPlan = {
-        ejercicio: EjercicioDef;
-        dia: DiaRutina;
-        ordenDia: number;
-        ordenEjercicio: number;
-    };
-    const base: ElementoPlan[] = [];
-    const activo: ElementoPlan[] = [];
-    for (const [ordenDia, dia] of (plantilla.dias ?? []).entries()) {
-        for (const [ordenEjercicio, ejercicio] of (dia.ejercicios ?? []).entries()) {
-            base.push({ ejercicio, dia, ordenDia, ordenEjercicio });
-        }
-    }
-    for (const [ordenDia, dia] of (rutina.dias ?? []).entries()) {
-        for (const [ordenEjercicio, ejercicio] of (dia.ejercicios ?? []).entries()) {
-            activo.push({ ejercicio, dia, ordenDia, ordenEjercicio });
-        }
-    }
-
-    const pares = new Map<number, number>();
-    const activoEmparejado = new Set<number>();
-    const claveExacta = (elemento: ElementoPlan): string =>
-        `${elemento.dia.id}\u0000${elemento.ejercicio.id}`;
-    const porDiaYEjercicio = new Map<string, number[]>();
-    activo.forEach((elemento, indice) => {
-        const clave = claveExacta(elemento);
-        const indices = porDiaYEjercicio.get(clave) ?? [];
-        indices.push(indice);
-        porDiaYEjercicio.set(clave, indices);
-    });
-    base.forEach((elemento, indiceBase) => {
-        const indices = porDiaYEjercicio.get(claveExacta(elemento));
-        const indiceActivo = indices?.find(indice => !activoEmparejado.has(indice));
-        if (indiceActivo == null) return;
-        pares.set(indiceBase, indiceActivo);
-        activoEmparejado.add(indiceActivo);
-    });
-
-    const porIdEjercicio = new Map<string, number[]>();
-    activo.forEach((elemento, indice) => {
-        if (activoEmparejado.has(indice)) return;
-        const indices = porIdEjercicio.get(elemento.ejercicio.id) ?? [];
-        indices.push(indice);
-        porIdEjercicio.set(elemento.ejercicio.id, indices);
-    });
-    base.forEach((elemento, indiceBase) => {
-        if (pares.has(indiceBase)) return;
-        const indices = porIdEjercicio.get(elemento.ejercicio.id);
-        const indiceActivo = indices?.find(indice => !activoEmparejado.has(indice));
-        if (indiceActivo == null) return;
-        pares.set(indiceBase, indiceActivo);
-        activoEmparejado.add(indiceActivo);
-    });
-
-    const fila = (inicial: ElementoPlan | null, actual: ElementoPlan | null): ComparacionPlanEjercicio => {
-        const estado: ComparacionPlanEjercicio["estado"] = !inicial ? "añadido"
-            : !actual ? "retirado"
-                : camposComparablesEjercicio(inicial.ejercicio) === camposComparablesEjercicio(actual.ejercicio)
-                    && inicial.ordenEjercicio === actual.ordenEjercicio
-                    && inicial.dia.id === actual.dia.id
-                    && camposComparablesDia(inicial.dia, inicial.ordenDia)
-                        === camposComparablesDia(actual.dia, actual.ordenDia)
-                    ? "sin-cambios" : "ajustado";
-        return {
-            ejercicioId: actual?.ejercicio.id ?? inicial?.ejercicio.id ?? "",
-            base: inicial?.ejercicio ?? null,
-            activo: actual?.ejercicio ?? null,
-            diaBase: inicial?.dia ?? null,
-            diaActivo: actual?.dia ?? null,
-            estado,
-        };
-    };
-    const filas = base.map((elemento, indice) => {
-        const indiceActivo = pares.get(indice);
-        return fila(elemento, indiceActivo == null ? null : activo[indiceActivo]);
-    });
-    activo.forEach((elemento, indice) => {
-        if (!activoEmparejado.has(indice)) filas.push(fila(null, elemento));
-    });
-    return filas;
-};
 
 export const sesionesEn = (rutina: Rutina, fecha: string): Sesion[] =>
     (rutina.sesiones ?? []).filter(s => s.fecha === fecha);
