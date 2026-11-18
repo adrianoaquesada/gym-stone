@@ -332,9 +332,9 @@ const relojMs = (ms: number): string => {
 };
 
 const barraH = (max: number, etiqueta: string, valor: number, texto: string, color: string, ayuda?: string): HTMLDivElement => {
-    const f = el("div", "display:flex;align-items:center;gap:8px;margin:3px 0;font-size:.82em;");
-    f.appendChild(el("div", "flex:0 0 100px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.85;", etiqueta));
-    const marco = el("div", "flex:1;min-width:40px;height:11px;border-radius:6px;background:var(--background-secondary);overflow:hidden;");
+    const f = el("div", "display:flex;align-items:center;gap:5px;margin:2px 0;font-size:.75em;min-width:0;");
+    f.appendChild(el("div", "flex:0 0 82px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.85;", etiqueta));
+    const marco = el("div", "flex:1;min-width:24px;height:8px;border-radius:6px;background:var(--background-secondary);overflow:hidden;");
     marco.appendChild(el("div", `height:100%;border-radius:6px;background:${color};width:${max > 0 ? Math.max(2, Math.round(valor / max * 100)) : 0}%;`));
     f.appendChild(marco);
     f.appendChild(el("div", "flex:0 0 auto;white-space:nowrap;opacity:.8;", texto));
@@ -409,19 +409,26 @@ const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
     padre.appendChild(kpis);
 
     const pesos = [...porEj.values()].filter(e => e.vol > 0).sort((a, b) => b.vol - a.vol);
-    if (pesos.length) {
-        padre.appendChild(el("div", "gym-et", "📈 Volumen por ejercicio"));
-        const max = Math.max(...pesos.map(x => x.vol), 1);
-        for (const e of pesos) padre.appendChild(barraH(max, e.nombre, e.vol, pesoTexto(e.vol), CONFIG.NARANJA,
-            `${e.nombre} — ${pesoTexto(e.vol)} en ${e.reps} reps · ${e.series} serie${e.series === 1 ? "" : "s"} hecha${e.series === 1 ? "" : "s"}`));
-    }
-
     const tiempos = [...porEj.values()].filter(e => e.seg > 0).sort((a, b) => b.seg - a.seg);
-    if (tiempos.length) {
-        padre.appendChild(el("div", "gym-et", "⏱ Tiempo por ejercicio"));
-        const max = Math.max(...tiempos.map(x => x.seg), 1);
-        for (const e of tiempos) padre.appendChild(barraH(max, e.nombre, e.seg, `${Math.round(e.seg)} s`, CONFIG.AZUL,
-            `${e.nombre} — ${Math.round(e.seg)} s en ${e.series} serie${e.series === 1 ? "" : "s"} hecha${e.series === 1 ? "" : "s"}`));
+    if (pesos.length || tiempos.length) {
+        const comparativas = el("div", "display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:8px;margin:6px 0 8px;min-width:0;");
+        if (pesos.length) {
+            const bloqueVol = el("div", "min-width:0;padding:7px 9px;border:1px solid var(--background-modifier-border);border-radius:8px;");
+            bloqueVol.appendChild(el("div", "font-size:.78em;font-weight:600;margin-bottom:4px;", "📈 Volumen por ejercicio"));
+            const max = Math.max(...pesos.map(x => x.vol), 1);
+            for (const e of pesos) bloqueVol.appendChild(barraH(max, e.nombre, e.vol, pesoTexto(e.vol), CONFIG.NARANJA,
+                `${e.nombre} — ${pesoTexto(e.vol)} en ${e.reps} reps · ${e.series} serie${e.series === 1 ? "" : "s"} hecha${e.series === 1 ? "" : "s"}`));
+            comparativas.appendChild(bloqueVol);
+        }
+        if (tiempos.length) {
+            const bloqueTiempo = el("div", "min-width:0;padding:7px 9px;border:1px solid var(--background-modifier-border);border-radius:8px;");
+            bloqueTiempo.appendChild(el("div", "font-size:.78em;font-weight:600;margin-bottom:4px;", "⏱ Tiempo por ejercicio"));
+            const max = Math.max(...tiempos.map(x => x.seg), 1);
+            for (const e of tiempos) bloqueTiempo.appendChild(barraH(max, e.nombre, e.seg, `${Math.round(e.seg)} s`, CONFIG.AZUL,
+                `${e.nombre} — ${Math.round(e.seg)} s en ${e.series} serie${e.series === 1 ? "" : "s"} hecha${e.series === 1 ? "" : "s"}`));
+            comparativas.appendChild(bloqueTiempo);
+        }
+        padre.appendChild(comparativas);
     }
 
     const barraDistribucion = (
