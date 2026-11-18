@@ -5,7 +5,7 @@ import { reiniciarDespierta } from "./despierta";
 import { iniciarEstado, actualizarAjustes } from "./estado";
 import { enfocarCamposAlTocar, limpiarOverlays, toast } from "./ui/componentes";
 import {
-    abrirTemporizador, observarTemporizadoresActivos, pararTemporizador, restaurarEstadoTemporizadores,
+    abrirTemporizador, pararTemporizador, restaurarEstadoTemporizadores,
 } from "./ui/temporizador";
 import { cerrarSesionesAbiertas } from "./ui/sesion-guiada";
 import { GymStoneTab } from "./ui/tabla-ajustes";
@@ -41,22 +41,6 @@ export default class GymStone extends Plugin {
         this.registerView(VISTA_FORM, leaf => new VistaForm(leaf));
 
         this.addRibbonIcon("dumbbell", "Abrir " + "Gym stone", () => void abrirLista());
-        const indicadorTemporizador = this.addRibbonIcon(
-            "timer",
-            "Temporizador: sin cuentas atrás activas",
-            () => abrirTemporizador(),
-        );
-        indicadorTemporizador.classList.add("gym-temporizador-indicador");
-        this.register(() => indicadorTemporizador.remove());
-        this.register(observarTemporizadoresActivos(cantidad => {
-            const activo = cantidad > 0;
-            indicadorTemporizador.classList.toggle("gym-temporizador-activo", activo);
-            const detalle = cantidad === 1 ? "1 cuenta atrás en marcha" : `${cantidad} cuentas atrás en marcha`;
-            const titulo = activo ? `Temporizador: ${detalle}` : "Temporizador: sin cuentas atrás activas";
-            indicadorTemporizador.setAttribute("aria-label", titulo);
-            indicadorTemporizador.setAttribute("title", titulo);
-        }));
-
         this.registerEvent(this.app.workspace.on("file-open", f => {
             if (!f || !esArchivoGym(f.path)) return;
             if (esMdRecienteDelPlugin(f.path)) return;
