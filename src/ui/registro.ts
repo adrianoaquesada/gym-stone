@@ -29,6 +29,9 @@ interface EjercicioTrabajo {
     notas?: string;
     descansoSeg?: number | null;
     tipoEjercicio?: TipoEjercicio | null;
+    implemento?: "barra" | "mancuernas" | "corporal" | "otro";
+    modalidadCarga?: "externa" | "corporal" | "corporal-extra";
+    numeroMancuernas?: 1 | 2;
     tipoBloqueEspecial?: TipoBloqueEspecial | null;
     bloqueEspecialTranscurridoMs?: number;
     duracionObjetivo?: number | null;
@@ -678,6 +681,8 @@ export function formularioSesion(
                     : "ejercicio nuevo · sin registros";
             const nuevo: EjercicioTrabajo = {
                 ejercicioId: r.id, nombre: r.nombre, notas: "", pista, tipoEjercicio: tipo,
+                implemento: defRutina?.implemento ?? "barra", modalidadCarga: defRutina?.modalidadCarga ?? "externa",
+                numeroMancuernas: defRutina?.numeroMancuernas ?? 2,
                 repsPesoDuranteTiempo,
                 duracionObjetivo: defRutina?.duracionObjetivo ?? null,
                 transicionSeg: defRutina?.transicionSeg ?? null,
