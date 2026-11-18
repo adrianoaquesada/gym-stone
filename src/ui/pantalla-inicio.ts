@@ -1,14 +1,12 @@
 import { CONFIG } from "../config";
 import { carpetaDatos, rutaMedidas } from "../ajustes";
-import { borrarRutina, leerIndice, leerMedidas, leerRutina, ultimaMedida } from "../datos";
+import { borrarRutina, leerIndice, leerMedidas, leerRutina } from "../datos";
 import type { IndiceRutina } from "../tipos";
 import { diffDias, fechaLegible, hoy, msgError } from "../util";
-import { pesoTexto, tallaTexto } from "../unidades";
 import { KPI, btn, confirmar, el, ponerTextoConIconos, toast } from "./componentes";
 import { pintarCabecera, pintarNavegacion, pintarTituloSeccion, type BotonNav } from "./cabecera";
 import { pintarGestionEjercicios } from "./ejercicios-ui";
 import { formularioMedidas } from "./registro";
-import { seccionMedidas } from "./estadisticas";
 import { pintarResumenProgresion } from "./progresion";
 import {
     elegirDiaGuiada, prepararBotonSesionGuiada, retomarSesionGuiadaMinimizada,
@@ -16,7 +14,7 @@ import {
 import { abrirTemporizador } from "./temporizador";
 import { abrirFormulario, abrirRutina } from "./vistas";
 
-type SeccionInicio = "rutinas" | "estadisticas" | "medidas" | "ejercicios";
+type SeccionInicio = "rutinas" | "estadisticas" | "ejercicios";
 
 export class PantallaInicio {
 
@@ -38,28 +36,24 @@ export class PantallaInicio {
               alPulsar: () => this.irA("rutinas") },
             { texto: "Estadísticas", activo: this.seccion === "estadisticas",
               alPulsar: () => this.irA("estadisticas") },
-            { texto: "Medidas e IMC", activo: this.seccion === "medidas",
-              alPulsar: () => this.irA("medidas") },
             { texto: "Ejercicios", activo: this.seccion === "ejercicios",
               alPulsar: () => this.irA("ejercicios") },
         ];
 
-        if (this.seccion === "medidas") {
-            botones.push({ texto: "＋ Registrar medidas", principal: true, alPulsar: () => void this.abrirMedidas() });
-        } else if (this.seccion === "rutinas") {
+        if (this.seccion === "rutinas") {
             botones.push({ texto: "＋ Nueva rutina", principal: true, alPulsar: () => void abrirFormulario({ modo: "crear" }) });
-        } else if (this.seccion === "estadisticas") {
-            botones.push({ texto: "＋ Registrar medidas", principal: true, alPulsar: () => void this.abrirMedidas() });
         }
         botones.push({ texto: "⏱ Temporizador", alPulsar: () => void abrirTemporizador(), derecha: true });
         pintarNavegacion(cont, botones);
 
-        if (this.seccion === "medidas") return this.pintarMedidas(cont);
         if (this.seccion === "ejercicios") return this.pintarEjercicios(cont);
         if (this.seccion === "estadisticas") {
             const contenido = el("div", "gym-inicio-contenido");
             cont.appendChild(contenido);
-            return pintarResumenProgresion(contenido, { estadisticasGlobales: true });
+            return pintarResumenProgresion(contenido, {
+                estadisticasGlobales: true,
+                alRegistrarMedidas: () => void this.abrirMedidas(),
+            });
         }
         return this.pintarRutinas(cont);
     }
@@ -70,7 +64,7 @@ export class PantallaInicio {
         if (error) {
             cont.createDiv({
                 cls: "gym-error-vista",
-                text: "⚠️ " + error + " — revisa los archivos individuales indicados; las demás rutinas siguen disponibles.,
+                text: "⚠️ " + error + " — revisa los archivos individuales indicados; las demás rutinas siguen disponibles.",
             });
         }
 
@@ -79,21 +73,7 @@ export class PantallaInicio {
         resumen.appendChild(KPI("Rutinas", String(indice.rutinas.length), CONFIG.NARANJA,
             indice.rutinas.length ? `${activas} activas` : undefined));
 
-        const medidas = await leerMedidas();
-        if (medidas.error) toast("⚠️ " + medidas.error, false);
-        const ult = ultimaMedida(medidas.datos);
-        if (ult.pesoKg != null) {
-            resumen.appendChild(KPI("Peso actual", pesoTexto(ult.pesoKg), CONFIG.AZUL));
-        }
-        if (ult.tallaCm != null || ult.imc != null) {
-            const tallaImc = [
-                ult.tallaCm != null ? `Talla: ${tallaTexto(ult.tallaCm)}` : "",
-                ult.imc != null ? `IMC: ${ult.imc.toFixed(1)}` : "",
-            ].filter(Boolean).join("\n");
-            const tarjetaTallaImc = KPI("Talla e IMC", tallaImc, CONFIG.VERDE);
-            tarjetaTallaImc.querySelector<HTMLElement>(".v")!.style.whiteSpace = "pre-line";
-            resumen.appendChild(tarjetaTallaImc);
-        }
+
 
         if (!indice.rutinas.length) {
             cont.createDiv({
@@ -109,20 +89,6 @@ export class PantallaInicio {
             (a.estado === "activa" ? 0 : a.estado === "pausada" ? 1 : 2) - (b.estado === "activa" ? 0 : b.estado === "pausada" ? 1 : 2)
             || (b.modificada ?? "").localeCompare(a.modificada ?? ""));
         for (const f of orden) lista.appendChild(this.fila(f));
-    }
-
-    private async pintarMedidas(cont: HTMLElement): Promise<void> {
-        pintarTituloSeccion(cont, "⚖️ Medidas e IMC", "peso corporal, evolución e IMC");
-        const medidas = await leerMedidas();
-        if (medidas.error) {
-            cont.createDiv({
-                cls: "gym-error-vista",
-                text: "⚠️ " + medidas.error + " — no lo sobrescribo: repáralo a mano (o bórralo y se regenerará vacío).",
-            });
-            return;
-        }
-
-        seccionMedidas(cont, medidas, { titulo: false });
     }
 
     private pintarEjercicios(cont: HTMLElement): void {
