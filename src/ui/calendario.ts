@@ -436,7 +436,7 @@ const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
         let indiceColor = 0;
         for (const segmento of segmentos) {
             if (segmento.cantidad <= 0) continue;
-            const color = colores[indiceColor++ % colores.length];
+            const color = colores[Math.min(indiceColor++, colores.length - 1)];
             const parte = el("div", `display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden;padding:0 3px;background:${color};`);
             parte.style.flex = `${segmento.cantidad} 1 0`;
             parte.textContent = segmento.etiqueta;
