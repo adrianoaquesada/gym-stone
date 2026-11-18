@@ -91,9 +91,9 @@ su nueva ubicación.
 | `gym-stone/datos/rutinas/<id>.gym-stone.md` | Plan, sesiones y anotaciones de cada rutina |
 | `gym-stone/datos/medidas.gym-stone.md` | Medidas corporales |
 | `gym-stone/datos/ejercicios.gym-stone.md` | Catálogo y grupos musculares |
-| `gym-stone/plantillas/<nombre>.md` | Plantillas |
 
 La lista y las estadísticas de rutinas se calculan en memoria leyendo los archivos individuales.
+Las plantillas de versiones anteriores se conservan en el vault, pero ya no se crean ni se utilizan.
 No se crea ni se mantiene un archivo índice separado. Si ya tienes un
 `gym-stone/rutinas.gym-stone.md` de una versión anterior, puedes conservarlo: esta versión
 deja de consultarlo y no lo elimina ni modifica.
