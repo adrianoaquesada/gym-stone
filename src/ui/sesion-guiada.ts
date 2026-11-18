@@ -68,7 +68,7 @@ export const cerrarSesionesAbiertas = (): void => {
 
 type ObjetivoSesion = Pick<EjercicioDef,
     "series" | "repsObjetivo" | "tipoSerie" | "pesoObjetivo" | "descansoSeg" | "notas"
-    | "tipoEjercicio" | "tipoBloqueEspecial" | "duracionObjetivo" | "repsPesoDuranteTiempo"
+    | "tipoEjercicio" | "implemento" | "modalidadCarga" | "numeroMancuernas" | "tipoBloqueEspecial" | "duracionObjetivo" | "repsPesoDuranteTiempo"
     | "trabajoSeg" | "transicionSeg" | "grupos">;
 
 interface DefSesion {
@@ -236,7 +236,13 @@ const aEjercicioGuardado = (d: DefSesion, transcurridoMs?: number): EjercicioSes
             configuracionSesion: {
                 grupos: [...(d.grupos ?? [])],
                 tipoEjercicio: d.objetivo.tipoEjercicio ?? null,
-                tipoBloqueEspecial: d.objetivo.tipoBloqueEspecial ?? null,
+                implemento: d.objetivo.implemento ?? "barra",
+                modalidadCarga: d.objetivo.modalidadCarga ?? "externa",
+                numeroMancuernas: d.objetivo.numeroMancuernas ?? 2,
+                implemento: d.objetivo.implemento ?? "barra",
+        modalidadCarga: d.objetivo.modalidadCarga ?? "externa",
+        numeroMancuernas: d.objetivo.numeroMancuernas ?? 2,
+        tipoBloqueEspecial: d.objetivo.tipoBloqueEspecial ?? null,
                 series: Math.max(1, Number(d.objetivo.series) || 1),
                 repsObjetivo: repsObjetivoDe(d.objetivo),
                 pesoObjetivo: d.objetivo.pesoObjetivo ?? null,
