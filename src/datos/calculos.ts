@@ -40,13 +40,13 @@ export const programados = (rutina: Rutina, desde: string, hasta: string): { fec
 };
 
 export const esSaltada = (s: SerieSesion | undefined | null): boolean => Boolean(s?.saltada);
-export const volumenSerie = (s: SerieSesion | undefined | null): number =>
-    esSaltada(s) ? 0 : (Number(s?.reps) || 0) * (Number(s?.peso) || 0);
+export const volumenSerie = (s: SerieSesion | undefined | null, multiplicador = 1): number =>
+    esSaltada(s) ? 0 : (Number(s?.reps) || 0) * (Number(s?.peso) || 0) * multiplicador;
 
 export const volumenEjercicio =
-    (ej: { series?: SerieSesion[]; tipoEjercicio?: TipoEjercicio | null } | undefined | null): number =>
+    (ej: { series?: SerieSesion[]; tipoEjercicio?: TipoEjercicio | null; numeroMancuernas?: 1 | 2 } | undefined | null): number =>
         tipoEjercicioDe(ej) === "peso"
-            ? (ej?.series ?? []).reduce((t, s) => t + volumenSerie(s), 0)
+            ? (ej?.series ?? []).reduce((t, s) => t + volumenSerie(s, ej?.numeroMancuernas === 1 ? 1 : 2), 0)
             : 0;
 export const volumenSesion = (sesion: Sesion | undefined | null): number =>
     (sesion?.ejercicios ?? []).reduce((t, e) => t + volumenEjercicio(e), 0);
