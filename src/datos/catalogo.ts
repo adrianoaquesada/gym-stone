@@ -1,6 +1,5 @@
 import { rutaCatalogoEjercicios } from "../ajustes";
 import { contenidoNotaDatos, escribirSeguro, leerNotaDatos } from "./archivos";
-import { normalizarGrupos } from "./grupos";
 import type { EjercicioDef, TipoImplemento, ModalidadCarga } from "../tipos";
 
 export interface EjercicioCatalogoDef {
@@ -13,8 +12,20 @@ export interface EjercicioCatalogoDef {
 }
 interface DatosCatalogo { versionDatos: 1; ejercicios: EjercicioCatalogoDef[]; }
 
+const normalizarLista = (valor: unknown): string[] => {
+    if (!Array.isArray(valor)) return [];
+    const vistos = new Set<string>();
+    return valor.flatMap(item => {
+        if (typeof item !== "string") return [];
+        const nombre = item.trim().replace(/\\s+/g, " ");
+        const clave = nombre.toLocaleLowerCase("es");
+        if (!nombre || vistos.has(clave)) return [];
+        vistos.add(clave); return [nombre];
+    });
+};
+
 const normalizarEjercicio = (e: Partial<EjercicioCatalogoDef> & {id:string; nombre:string}): EjercicioCatalogoDef => ({
-    id: e.id, nombre: String(e.nombre ?? "").trim(), grupos: normalizarGrupos(e.grupos),
+    id: e.id, nombre: String(e.nombre ?? "").trim(), grupos: normalizarLista(e.grupos),
     implemento: e.implemento === "barra" || e.implemento === "mancuernas" || e.implemento === "corporal" ? e.implemento : "otro",
     modalidadCarga: e.modalidadCarga === "corporal" || e.modalidadCarga === "corporal-extra" ? e.modalidadCarga : "externa",
     numeroMancuernas: e.numeroMancuernas === 1 ? 1 : 2,
