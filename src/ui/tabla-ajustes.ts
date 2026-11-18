@@ -162,7 +162,7 @@ export class GymStoneTab extends PluginSettingTab {
         return [
             {
                 type: "group",
-                heading: "Datos y unidades",
+                heading: "Almacenamiento",
                 cls: "gym-ajustes-grupo",
                 items: [
                     {
@@ -170,6 +170,13 @@ export class GymStoneTab extends PluginSettingTab {
                         desc: "Carpeta donde se guardan los datos del plugin. Cambiarla no mueve los archivos existentes.",
                         control: { key: "carpetaRaiz", type: "text", placeholder: "gym-stone" },
                     },
+                ],
+            },
+            {
+                type: "group",
+                heading: "Unidades y medidas",
+                cls: "gym-ajustes-grupo",
+                items: [
                     {
                         name: "Unidad de talla",
                         desc: "Unidad en la que se muestra la talla. Los datos se guardan en centímetros.",
@@ -205,7 +212,7 @@ export class GymStoneTab extends PluginSettingTab {
             },
             {
                 type: "group",
-                heading: "Sonido",
+                heading: "Avisos",
                 cls: "gym-ajustes-grupo",
                 items: [
                     {
@@ -218,6 +225,13 @@ export class GymStoneTab extends PluginSettingTab {
                         desc: "Reproduce un pitido y vibra al terminar un descanso de la sesión guiada.",
                         control: { key: "sonidoDescanso", type: "toggle" },
                     },
+                ],
+            },
+            {
+                type: "group",
+                heading: "Personalización del sonido",
+                cls: "gym-ajustes-grupo",
+                items: [
                     {
                         name: "Tipo de sonido",
                         desc: "Elige la forma de onda del sintetizador.",
