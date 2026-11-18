@@ -1,14 +1,14 @@
 import { CONFIG } from "../config";
 import {
-    leerIndice, leerMedidas, progresionGlobal, type EntradaHistorialGlobal, type ProgresionEjercicioGlobal,
+    leerIndice, leerMedidas, leerRutina, progresionGlobal, type EntradaHistorialGlobal, type ProgresionEjercicioGlobal,
 } from "../datos";
-import type { IndiceRutina, LecturaNota, MedidasDatos, TipoEjercicio } from "../tipos";
+import type { IndiceRutina, LecturaNota, MedidasDatos, Rutina, TipoEjercicio } from "../tipos";
 import { fechaLegible, msgError, tsDe } from "../util";
 import { pesoActual, pesoMostrar, pesoTexto } from "../unidades";
 import { btn, el, KPI } from "./componentes";
 import { pintarNavegacion, pintarTituloSeccion, type BotonNav } from "./cabecera";
 import { grafica } from "./grafica";
-import { seccionMedidas } from "./estadisticas";
+import { seccionMedidas, seccionResumenGlobalSesiones } from "./estadisticas";
 
 interface OpcionesProgresion {
     rutinaId?: string | null;
@@ -85,6 +85,18 @@ export async function pintarResumenProgresion(
             KPI("Sesiones registradas", String(sesiones), CONFIG.VERDE),
         );
         cont.appendChild(resumenGlobal);
+
+        const lecturas = await Promise.all(indice.rutinas.map(r => leerRutina(r.id)));
+        const rutinasGlobales: Rutina[] = [];
+        for (const lectura of lecturas) {
+            if (lectura.error || !lectura.datos) {
+                cont.appendChild(el("div", "gym-error-vista",
+                    `⚠️ No pude incluir una rutina en el resumen global: ${lectura.error ?? "archivo vacío"}`));
+                continue;
+            }
+            rutinasGlobales.push(lectura.datos);
+        }
+        seccionResumenGlobalSesiones(cont, rutinasGlobales);
         cont.appendChild(el("div", "gym-tit", "Seguimiento por ejercicio"));
     }
 
