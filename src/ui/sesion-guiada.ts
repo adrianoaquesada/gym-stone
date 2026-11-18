@@ -329,6 +329,22 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     });
     if (!defs.length && !esLibre(rutina)) return toast("⚠️ Ese día no tiene ejercicios.", false);
 
+    // Sincroniza la configuración usada en la sesión con el día de la rutina.
+    // Se ejecuta tanto al guardar un progreso parcial como al terminar.
+    const actualizarPlanDesdeSesion = (): void => {
+        if (esLibre(rutina)) return;
+        const diaActual = diaPorId(rutina, dia.id) ?? dia;
+        diaActual.ejercicios = defs
+            .filter(d => !d.objetivo.tipoBloqueEspecial)
+            .map(d => ({
+                ...d.objetivo,
+                id: d.id,
+                nombre: d.nombre,
+                grupos: [...(d.grupos ?? [])],
+            }));
+        dia = diaActual;
+    };
+
     let idx = 0, pausado = false;
 
     let descanso: { restanteMs: number; totalMs: number; ej: number; listoRestanteMs?: number } | null = null;
@@ -1633,7 +1649,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         bCambiar.title = ej.series.length > 0
             ? "No se puede cambiar después de registrar o saltar una serie"
             : cambioBloqueado ? "Termina o cancela el temporizador en marcha para cambiar"
-                : "Cambiar el ejercicio solo para esta sesión";
+                : "Cambiar el ejercicio; el cambio se guardará en esta rutina";
         bCambiar.onclick = async () => {
             if (ej.series.length || hold?.ej === idx || ciclo?.ej === idx) return;
             const nuevo = await editarEjercicioSesion(rutina, {
@@ -2473,6 +2489,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
             ejercicios: defs.map(d => aEjercicioGuardado(d, transcurridoMs())),
         };
         try {
+            actualizarPlanDesdeSesion();
             const iP = parcialGuard ? rutina.sesiones.indexOf(parcialGuard) : -1;
             if (iP >= 0) rutina.sesiones.splice(iP, 1);
             rutina.sesiones.push(sesion);
@@ -2562,51 +2579,13 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
             ejercicios: defs.map(aEjercicioGuardado),
         };
         try {
+            actualizarPlanDesdeSesion();
             const iP = parcialGuard ? rutina.sesiones.indexOf(parcialGuard) : -1;
             if (iP >= 0) rutina.sesiones.splice(iP, 1);
             parcialGuard = null;
             rutina.sesiones.push(sesion);
             rutina.sesiones.sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0));
             await escribirRutina(rutina);
-            dia = diaPorId(rutina, dia.id) ?? dia;
-            const sustituciones = defs.filter(d => d.planDeRutina && d.ejercicioPlanificado);
-            if (sustituciones.length && await confirmar(
-                "Actualizar el plan",
-                `La sesión ya está guardada. ¿Quieres aplicar estas sustituciones al mismo puesto del día «${dia.nombre}» para futuras sesiones?\n\n` +
-                sustituciones.map(d => `· ${d.ejercicioPlanificado!.nombre} → ${d.nombre}`).join("\n") +
-                "\n\nNo se cambiarán otras apariciones ni otras rutinas.",
-                "Actualizar el plan", "Solo esta sesión",
-            )) {
-                const cambios = sustituciones.map(d => ({
-                    def: d,
-                    indice: d.ejercicioPlanificado!.indice,
-                    idOriginal: d.ejercicioPlanificado!.ejercicioId,
-                }));
-                const desactualizados = cambios.filter(c =>
-                    dia.ejercicios[c.indice]?.id !== c.idOriginal);
-                if (desactualizados.length) {
-                    toast("⚠️ La sesión se guardó, pero no actualicé el plan porque el puesto original ya no coincide.", false);
-                } else {
-                    const previos = cambios.map(c => dia.ejercicios[c.indice]);
-                    try {
-                        for (const cambio of cambios) {
-                            dia.ejercicios[cambio.indice] = {
-                                ...cambio.def.objetivo,
-                                id: cambio.def.id,
-                                nombre: cambio.def.nombre,
-                                grupos: [...(cambio.def.grupos ?? [])],
-                            };
-                        }
-                        await escribirRutina(rutina);
-                        toast("✅ Sustituciones aplicadas solo a los puestos originales de este día.");
-                    } catch (e: unknown) {
-                        const diaActual = diaPorId(rutina, dia.id) ?? dia;
-                        cambios.forEach((cambio, indice) => { diaActual.ejercicios[cambio.indice] = previos[indice]; });
-                        console.error("[Gym Stone actualizar plan tras sesión]", e);
-                        toast("⚠️ La sesión se guardó, pero no pude actualizar el plan: " + msgError(e), false);
-                    }
-                }
-            }
             cerrar();
             void pintar();
             mostrarResumen(sesion, recordesFinales, duracionRealMs);
