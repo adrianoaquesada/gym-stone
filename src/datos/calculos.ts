@@ -242,7 +242,7 @@ export const detectarRecordesSesion = (
                 if (Number.isFinite(peso) && peso >= 0 && Number.isFinite(reps) && reps > 0) {
                     candidato("repeticiones", id, indiceEjercicio, indiceSerie, reps, peso);
                 }
-                const volumen = volumenSerie(serie);
+                const volumen = volumenSerie(serie, ej.implemento === "mancuernas" && ej.numeroMancuernas !== 1 ? 2 : 1);
                 if (Number.isFinite(volumen) && volumen > 0) {
                     estadoVolumen.acumulado += volumen;
                     volumenTotal += volumen;
