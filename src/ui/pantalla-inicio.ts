@@ -1,5 +1,5 @@
 import { CONFIG } from "../config";
-import { carpetaDatos, rutaIndice, rutaMedidas } from "../ajustes";
+import { carpetaDatos, rutaMedidas } from "../ajustes";
 import { borrarRutina, leerIndice, leerMedidas, leerRutina, ultimaMedida } from "../datos";
 import type { IndiceRutina } from "../tipos";
 import { diffDias, fechaLegible, hoy, msgError } from "../util";
@@ -70,7 +70,7 @@ export class PantallaInicio {
         if (error) {
             cont.createDiv({
                 cls: "gym-error-vista",
-                text: "⚠️ " + error + " — no lo sobrescribo: repáralo a mano (o bórralo y se regenerará vacío).",
+                text: "⚠️ " + error + " — revisa los archivos individuales indicados; las demás rutinas siguen disponibles.,
             });
         }
 
@@ -168,7 +168,7 @@ export class PantallaInicio {
 
     private async borrar(f: IndiceRutina): Promise<void> {
         const ok = await confirmar("🗑 Borrar rutina",
-            `¿Borrar «${f.nombre}»? Se eliminarán su archivo de datos y su fila del índice. Esta acción no se puede deshacer. Las plantillas y las medidas no se tocan.`,
+            `¿Borrar «${f.nombre}»? Se eliminará su archivo de datos. Esta acción no se puede deshacer. Las plantillas y las medidas no se tocan.`,
             "Borrar", "Cancelar", true);
         if (!ok) return;
         try {
@@ -203,4 +203,4 @@ export class PantallaInicio {
 }
 
 export const esRutaDeInicio = (ruta: string): boolean =>
-    ruta === rutaIndice() || ruta === rutaMedidas() || ruta.startsWith(carpetaDatos() + "/");
+    ruta === rutaMedidas() || ruta.startsWith(carpetaDatos() + "/");

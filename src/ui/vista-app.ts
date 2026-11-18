@@ -1,6 +1,5 @@
 import { ItemView, type ViewStateResult, type WorkspaceLeaf } from "obsidian";
 import { aplicacion } from "../estado";
-import { rutaIndice } from "../ajustes";
 import { leerRutina, rutaDatosDe } from "../datos";
 import type { Rutina } from "../tipos";
 import { el, ponerTextoConIconos } from "./componentes";
@@ -82,7 +81,7 @@ export class VistaApp extends ItemView {
     rutaMarkdown(): string | null {
         return this.pantalla === "rutina"
             ? (this.rutinaId ? rutaDatosDe(this.rutinaId) : null)
-            : this.pantalla === "lista" ? rutaIndice() : null;
+            : null;
     }
 
     async pintar(): Promise<void> {

@@ -64,7 +64,7 @@ export async function pintarResumenProgresion(
     if (estadisticasGlobales) {
         const [{ indice, error }, medidas] = await Promise.all([leerIndice(), leerMedidas()]);
         if (error) {
-            cont.appendChild(el("div", "gym-error-vista", `⚠️ No pude cargar el resumen de rutinas: ${error}`));
+            cont.appendChild(el("div", "gym-error-vista", `⚠️ No pude leer algunos archivos de rutina: ${error}`));
         } else {
             rutinasDisponibles = indice.rutinas;
         }

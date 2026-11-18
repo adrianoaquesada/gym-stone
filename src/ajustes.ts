@@ -88,7 +88,6 @@ export function normalizarAjustes(
     return out;
 }
 
-export const rutaIndice = (): string => `${conf().carpetaRaiz}/rutinas${SUFIJO_MD}`;
 export const carpetaDatos = (): string => `${conf().carpetaRaiz}/datos/rutinas`;
 export const rutaMedidas = (): string => `${conf().carpetaRaiz}/datos/medidas${SUFIJO_MD}`;
 export const rutaGrupos = (): string => `${conf().carpetaRaiz}/datos/ejercicios${SUFIJO_MD}`;

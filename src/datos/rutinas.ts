@@ -6,7 +6,6 @@ import { hoy, sumarDias, diffDias } from "../util/fechas";
 import { slug } from "../util/texto";
 import { contenidoNotaDatos, escribirSeguro, leerNotaDatos } from "./archivos";
 import { normalizarGrupos } from "./grupos";
-import { guardarEnIndice, quitarDeIndice } from "./indice";
 import type { DiaRutina, EjercicioDef, LecturaNota, Rutina, SerieSesion, TipoEjercicio, TipoSerie } from "../tipos";
 
 export const rutinaVacia = (): Rutina => ({
@@ -118,7 +117,6 @@ export const escribirRutina = async (rutina: Rutina): Promise<string> => {
     }));
     rutina.modificado = hoy();
     await escribirSeguro(ruta, contenidoNotaDatos(rutina));
-    await guardarEnIndice(rutina);
     return ruta;
 };
 
@@ -133,7 +131,6 @@ export const borrarRutina = async (id: string): Promise<void> => {
         }
         await aplicacion().fileManager.trashFile(f);
     }
-    await quitarDeIndice(id);
 };
 
 export const idNuevo = async (nombre: string, prefijoFecha = hoy().slice(0, 7)): Promise<string> => {
