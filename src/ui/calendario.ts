@@ -433,10 +433,27 @@ const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
         bloque.appendChild(el("div", "font-size:.78em;font-weight:600;margin-bottom:4px;", titulo));
         const barra = el("div", "display:flex;align-items:stretch;gap:2px;width:100%;height:25px;min-width:0;overflow:hidden;border-radius:6px;");
         const total = segmentos.reduce((n, x) => n + x.cantidad, 0);
+        const visibles = segmentos.filter(segmento => segmento.cantidad > 0);
+        const colorEn = (posicion: number): string => {
+            if (colores.length === 1) return colores[0];
+            const escala = posicion * (colores.length - 1);
+            const tramo = Math.min(Math.floor(escala), colores.length - 2);
+            const mezcla = escala - tramo;
+            const rgb = (hex: string): number[] => {
+                const limpio = hex.replace("#", "");
+                return [0, 2, 4].map(i => parseInt(limpio.slice(i, i + 2), 16));
+            };
+            const inicio = rgb(colores[tramo]);
+            const fin = rgb(colores[tramo + 1]);
+            const interpolado = inicio.map((valor, i) => Math.round(valor + (fin[i] - valor) * mezcla));
+            return "#" + interpolado.map(valor => valor.toString(16).padStart(2, "0")).join("");
+        };
         let indiceColor = 0;
         for (const segmento of segmentos) {
             if (segmento.cantidad <= 0) continue;
-            const color = colores[Math.min(indiceColor++, colores.length - 1)];
+            const posicion = visibles.length <= 1 ? 0 : indiceColor / (visibles.length - 1);
+            const color = colorEn(posicion);
+            indiceColor++;
             const parte = el("div", `display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden;padding:0 3px;background:${color};`);
             parte.style.flex = `${segmento.cantidad} 1 0`;
             parte.textContent = segmento.etiqueta;
