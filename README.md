@@ -6,7 +6,7 @@ en tu vault.
 
 ## Funciones
 
-- Crea rutinas semanales desde cero o a partir de plantillas.
+- Crea rutinas semanales desde cero y edítalas cuando lo necesites.
 - Registra sesiones guiadas o manuales, con ejercicios de peso, tiempo e intervalos.
 - Añade calentamiento y estiramiento al día: la sesión guiada cronometra estos bloques antes
   o después de los ejercicios según el orden de la rutina; el registro manual permite anotar
@@ -40,7 +40,7 @@ sesión guiada. Desde Inicio también puedes registrar medidas, explorar el cat�
 estadísticas.
 
 En cada rutina, la sección **Estadísticas** reúne el resumen, la evolución por ejercicio y el
-historial filtrable con la comparación entre el plan y lo realizado.
+historial filtrable con la evolución del ejercicio y los registros realizados.
 
 En Inicio, **Estadísticas** muestra el resumen global de rutinas, las medidas corporales y la
 evolución e historial de ejercicios entre rutinas. Desde ahí también puedes registrar medidas.
@@ -74,7 +74,7 @@ descanso de la última serie de un ejercicio, avanza automáticamente al siguien
 
 El historial compara las series y el peso planificados con lo realizado. Al terminar una
 sesión o iniciar otra, puedes aplicar al objetivo del día actual los valores sugeridos según
-el último registro; la plantilla no se modifica.
+el último registro; los ajustes se guardan directamente en la rutina y cada sesión conserva sus valores aplicados.
 
 ## Datos
 
@@ -91,9 +91,9 @@ su nueva ubicación.
 | `gym-stone/datos/rutinas/<id>.gym-stone.md` | Plan, sesiones y anotaciones de cada rutina |
 | `gym-stone/datos/medidas.gym-stone.md` | Medidas corporales |
 | `gym-stone/datos/ejercicios.gym-stone.md` | Catálogo y grupos musculares |
-| `gym-stone/plantillas/<nombre>.md` | Plantillas |
 
 La lista y las estadísticas de rutinas se calculan en memoria leyendo los archivos individuales.
+Las plantillas de versiones anteriores se conservan en el vault, pero ya no se crean ni se utilizan.
 No se crea ni se mantiene un archivo índice separado. Si ya tienes un
 `gym-stone/rutinas.gym-stone.md` de una versión anterior, puedes conservarlo: esta versión
 deja de consultarlo y no lo elimina ni modifica.
