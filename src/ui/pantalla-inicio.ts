@@ -1,8 +1,9 @@
 import { CONFIG } from "../config";
 import { carpetaDatos, rutaMedidas } from "../ajustes";
-import { borrarRutina, leerIndice, leerMedidas, leerRutina } from "../datos";
+import { borrarRutina, leerIndice, leerMedidas, leerRutina, ultimaMedida } from "../datos";
 import type { IndiceRutina } from "../tipos";
 import { diffDias, fechaLegible, hoy, msgError } from "../util";
+import { pesoTexto, tallaTexto } from "../unidades";
 import { KPI, btn, confirmar, el, ponerTextoConIconos, toast } from "./componentes";
 import { pintarCabecera, pintarNavegacion, pintarTituloSeccion, type BotonNav } from "./cabecera";
 import { pintarGestionEjercicios } from "./ejercicios-ui";
@@ -73,7 +74,21 @@ export class PantallaInicio {
         resumen.appendChild(KPI("Rutinas", String(indice.rutinas.length), CONFIG.NARANJA,
             indice.rutinas.length ? `${activas} activas` : undefined));
 
-
+        const medidas = await leerMedidas();
+        if (medidas.error) toast("⚠️ " + medidas.error, false);
+        const ult = ultimaMedida(medidas.datos);
+        if (ult.pesoKg != null) {
+            resumen.appendChild(KPI("Peso actual", pesoTexto(ult.pesoKg), CONFIG.AZUL));
+        }
+        if (ult.tallaCm != null || ult.imc != null) {
+            const tallaImc = [
+                ult.tallaCm != null ? `Talla: ${tallaTexto(ult.tallaCm)}` : "",
+                ult.imc != null ? `IMC: ${ult.imc.toFixed(1)}` : "",
+            ].filter(Boolean).join("\\n");
+            const tarjetaTallaImc = KPI("Talla e IMC", tallaImc, CONFIG.VERDE);
+            tarjetaTallaImc.querySelector<HTMLElement>(".v")!.style.whiteSpace = "pre-line";
+            resumen.appendChild(tarjetaTallaImc);
+        }
 
         if (!indice.rutinas.length) {
             cont.createDiv({
