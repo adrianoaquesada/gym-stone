@@ -6,7 +6,7 @@ en tu vault.
 
 ## Funciones
 
-- Crea rutinas semanales desde cero o a partir de plantillas.
+- Crea rutinas semanales desde cero y edítalas cuando lo necesites.
 - Registra sesiones guiadas o manuales, con ejercicios de peso, tiempo e intervalos.
 - Añade calentamiento y estiramiento al día: la sesión guiada cronometra estos bloques antes
   o después de los ejercicios según el orden de la rutina; el registro manual permite anotar
@@ -40,7 +40,7 @@ sesión guiada. Desde Inicio también puedes registrar medidas, explorar el cat�
 estadísticas.
 
 En cada rutina, la sección **Estadísticas** reúne el resumen, la evolución por ejercicio y el
-historial filtrable con la comparación entre el plan y lo realizado.
+historial filtrable con la evolución del ejercicio y los registros realizados.
 
 En Inicio, **Estadísticas** muestra el resumen global de rutinas, las medidas corporales y la
 evolución e historial de ejercicios entre rutinas. Desde ahí también puedes registrar medidas.
