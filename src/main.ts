@@ -1,5 +1,5 @@
 import { MarkdownView, Plugin, type EventRef, type Menu, type WorkspaceLeaf } from "obsidian";
-import { normalizarAjustes, rutaIndice, type AjustesGym } from "./ajustes";
+import { carpetaDatos, normalizarAjustes, type AjustesGym } from "./ajustes";
 import { asegurarCarpeta } from "./datos/archivos";
 import { reiniciarDespierta } from "./despierta";
 import { iniciarEstado, actualizarAjustes } from "./estado";
@@ -30,7 +30,7 @@ export default class GymStone extends Plugin {
         const datosGuardados = await this.loadData() as Record<string, unknown> | null;
         this.ajustes = normalizarAjustes(datosGuardados ?? {});
         iniciarEstado(this.app, this.ajustes, ajustes => this.guardarAjustes(ajustes));
-        if (typeof datosGuardados?.carpetaRaiz !== "string") await asegurarCarpeta(rutaIndice());
+        if (typeof datosGuardados?.carpetaRaiz !== "string") await asegurarCarpeta(`${carpetaDatos()}/.gym-stone`);
         restaurarEstadoTemporizadores();
         this.register(enfocarCamposAlTocar());
 
@@ -102,7 +102,7 @@ export default class GymStone extends Plugin {
                 this.marcarVistaMarkdownGym(hoja);
             }
             try {
-                if (!this.ajustes.avisoListo && !this.app.vault.getAbstractFileByPath(rutaIndice())) {
+                if (!this.ajustes.avisoListo) {
                     toast("🏋️ Gym Stone: pulsa la campana de mancuerna (izquierda) o el comando «Abrir la lista de rutinas».");
                     void this.guardarAjustes({ ...this.ajustes, avisoListo: true });
                 }
