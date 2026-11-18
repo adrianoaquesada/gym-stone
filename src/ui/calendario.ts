@@ -424,31 +424,40 @@ const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
             `${e.nombre} — ${Math.round(e.seg)} s en ${e.series} serie${e.series === 1 ? "" : "s"} hecha${e.series === 1 ? "" : "s"}`));
     }
 
+    const barraDistribucion = (
+        titulo: string,
+        segmentos: { etiqueta: string; cantidad: number; ayuda: string }[],
+        color: string,
+    ): void => {
+        const bloque = el("div", "margin:5px 0 8px;min-width:0;");
+        bloque.appendChild(el("div", "font-size:.78em;font-weight:600;margin-bottom:4px;", titulo));
+        const barra = el("div", "display:flex;align-items:stretch;gap:2px;width:100%;height:25px;min-width:0;overflow:hidden;border-radius:6px;");
+        const total = segmentos.reduce((n, x) => n + x.cantidad, 0);
+        for (const segmento of segmentos) {
+            if (segmento.cantidad <= 0) continue;
+            const parte = el("div", `display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden;padding:0 3px;background:${color};opacity:.${Math.max(35, Math.round(100 * segmento.cantidad / Math.max(total, 1)))};`);
+            parte.style.flex = `${segmento.cantidad} 1 0`;
+            parte.textContent = segmento.etiqueta;
+            parte.style.fontSize = ".68em";
+            parte.style.whiteSpace = "nowrap";
+            parte.style.color = "var(--text-on-accent, white)";
+            conAyuda(parte, () => segmento.ayuda, true);
+            barra.appendChild(parte);
+        }
+        bloque.appendChild(barra);
+        padre.appendChild(bloque);
+    };
+
     if (cargas.size) {
-        padre.appendChild(el("div", "gym-et", "📊 Series por carga (histograma)"));
         const arr = [...cargas.values()].sort((a, b) => (a.peso ?? 1e9) - (b.peso ?? 1e9));
-        const max = Math.max(...arr.map(x => x.n), 1);
-        for (const c of arr) padre.appendChild(barraH(max, c.peso != null ? pesoTexto(c.peso) : "sin peso", c.n, `${c.n} series`, CONFIG.AZUL,
-            `${c.peso != null ? pesoTexto(c.peso) : "Sin peso (al peso corporal)"}: ${c.n} serie${c.n === 1 ? "" : "s"} hecha${c.n === 1 ? "" : "s"} · ${c.reps} reps en total`));
+        barraDistribucion("📊 Series por carga", arr.map(x => ({
+            etiqueta: `${x.peso != null ? pesoTexto(x.peso) : "S/P"} · ${x.n}`,
+            cantidad: x.n,
+            ayuda: `${x.peso != null ? pesoTexto(x.peso) : "Sin peso (al peso corporal)"}: ${x.n} serie${x.n === 1 ? "" : "s"} hecha${x.n === 1 ? "" : "s"} · ${x.reps} reps en total`,
+        })), CONFIG.AZUL);
     }
 
     if (deltas.length) {
-        padre.appendChild(el("div", "gym-et", "⏱ Entre serie y serie (histograma)"));
-        const ch = el("div", "display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px;");
-        const c2 = (txt: string, titulo = ""): void => {
-            const c = el("span", "gym-chip", txt);
-            if (titulo) conAyuda(c, () => titulo);
-            ch.appendChild(c);
-        };
-        const media = deltas.reduce((a, b) => a + b, 0) / deltas.length;
-        const ord = [...deltas].sort((a, b) => a - b);
-        c2(`media ${relojMs(media)}`, "Tiempo medio entre registros consecutivos (descanso + ejecución de la serie siguiente)");
-        c2(`mediana ${relojMs(ord[Math.floor((ord.length - 1) / 2)])}`);
-        if (descReal.length) c2(`descanso medio ${relojMs(descReal.reduce((a, b) => a + b, 0) / descReal.length)}`,
-            "Descanso REAL: del registro de la serie anterior al «¡Listo!» (o al saltarlo)");
-        if (ejecs.length) c2(`ejecución media ${relojMs(ejecs.reduce((a, b) => a + b, 0) / ejecs.length)}`,
-            "Tiempo (aprox.) entre el «¡Listo!» y registrar la serie");
-        padre.appendChild(ch);
         const rangos = [
             { txt: "< 1 min", n: 0 }, { txt: "1–1:30", n: 0 }, { txt: "1:30–2", n: 0 },
             { txt: "2–3 min", n: 0 }, { txt: "> 3 min", n: 0 },
@@ -457,9 +466,11 @@ const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
             const mnt = d / 60000;
             rangos[mnt < 1 ? 0 : mnt < 1.5 ? 1 : mnt < 2 ? 2 : mnt < 3 ? 3 : 4].n++;
         }
-        const maxR = Math.max(...rangos.map(x => x.n), 1);
-        for (const r of rangos) padre.appendChild(barraH(maxR, r.txt, r.n, `${r.n}×`, CONFIG.VERDE,
-            `Entre «${r.txt}»: ${r.n} de ${deltas.length} registros entre series`));
+        barraDistribucion("⏱ Entre serie y serie", rangos.map(x => ({
+            etiqueta: `${x.txt} · ${x.n}`,
+            cantidad: x.n,
+            ayuda: `${x.n} de ${deltas.length} intervalos: ${x.txt}`,
+        })), CONFIG.VERDE);
     }
 };
 
