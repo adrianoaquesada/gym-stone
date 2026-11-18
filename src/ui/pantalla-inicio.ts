@@ -70,7 +70,7 @@ export class PantallaInicio {
         if (error) {
             cont.createDiv({
                 cls: "gym-error-vista",
-                text: "⚠️ " + error + " — revisa los archivos individuales indicados; las demás rutinas siguen disponibles.,
+                text: "⚠️ " + error + " — revisa los archivos individuales indicados; las demás rutinas siguen disponibles.",
             });
         }
 
