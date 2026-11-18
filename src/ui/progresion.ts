@@ -2,7 +2,7 @@ import { CONFIG } from "../config";
 import {
     leerIndice, leerMedidas, progresionGlobal, type EntradaHistorialGlobal, type ProgresionEjercicioGlobal,
 } from "../datos";
-import type { IndiceRutina, TipoEjercicio } from "../tipos";
+import type { IndiceRutina, LecturaNota, MedidasDatos, TipoEjercicio } from "../tipos";
 import { fechaLegible, msgError, tsDe } from "../util";
 import { pesoActual, pesoMostrar, pesoTexto } from "../unidades";
 import { btn, el, KPI } from "./componentes";
@@ -47,6 +47,7 @@ export async function pintarResumenProgresion(
     cont.empty();
     const { rutinaId, alVolver, estadisticasGlobales = false, alRegistrarMedidas } = opciones;
     let rutinasDisponibles: IndiceRutina[] = [];
+    let medidasGlobal: LecturaNota<MedidasDatos> | null = null;
     pintarTituloSeccion(cont,
         estadisticasGlobales ? "📊 Estadísticas" : "📈 Progresión",
         estadisticasGlobales
@@ -64,6 +65,7 @@ export async function pintarResumenProgresion(
 
     if (estadisticasGlobales) {
         const [{ indice, error }, medidas] = await Promise.all([leerIndice(), leerMedidas()]);
+        medidasGlobal = medidas;
         if (error) {
             cont.appendChild(el("div", "gym-error-vista", `⚠️ No pude leer algunos archivos de rutina: ${error}`));
         } else {
@@ -83,15 +85,6 @@ export async function pintarResumenProgresion(
             KPI("Sesiones registradas", String(sesiones), CONFIG.VERDE),
         );
         cont.appendChild(resumenGlobal);
-        const tituloMedidas = el("div", "gym-tit");
-        tituloMedidas.append(el("span", null, "Medidas e IMC"));
-        if (alRegistrarMedidas) tituloMedidas.appendChild(btn("⚖️ Registrar medidas", "primario", alRegistrarMedidas));
-        cont.appendChild(tituloMedidas);
-        if (medidas.error) {
-            cont.appendChild(el("div", "gym-error-vista", `⚠️ No pude cargar las medidas: ${medidas.error}`));
-        } else {
-            seccionMedidas(cont, medidas, { titulo: false });
-        }
         cont.appendChild(el("div", "gym-tit", "Seguimiento por ejercicio"));
     }
 
@@ -406,4 +399,15 @@ export async function pintarResumenProgresion(
         };
     }
     pintarLista();
+    if (estadisticasGlobales && medidasGlobal) {
+        const tituloMedidas = el("div", "gym-tit");
+        tituloMedidas.append(el("span", null, "Medidas e IMC"));
+        if (alRegistrarMedidas) tituloMedidas.appendChild(btn("⚖️ Registrar medidas", "primario", alRegistrarMedidas));
+        cont.appendChild(tituloMedidas);
+        if (medidasGlobal.error) {
+            cont.appendChild(el("div", "gym-error-vista", `⚠️ No pude cargar las medidas: ${medidasGlobal.error}`));
+        } else {
+            seccionMedidas(cont, medidasGlobal, { titulo: false });
+        }
+    }
 }
