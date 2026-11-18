@@ -1,6 +1,6 @@
 import { CONFIG } from "../config";
 import { carpetaDatos, rutaMedidas } from "../ajustes";
-import { borrarRutina, leerIndice, leerMedidas, leerRutina, ultimaMedida } from "../datos";
+import { borrarRutina, leerIndice, leerMedidas, leerRutina } from "../datos";
 import type { IndiceRutina } from "../tipos";
 import { diffDias, fechaLegible, hoy, msgError } from "../util";
 import { KPI, btn, confirmar, el, ponerTextoConIconos, toast } from "./componentes";
@@ -42,8 +42,6 @@ export class PantallaInicio {
 
         if (this.seccion === "rutinas") {
             botones.push({ texto: "＋ Nueva rutina", principal: true, alPulsar: () => void abrirFormulario({ modo: "crear" }) });
-        } else if (this.seccion === "estadisticas") {
-            botones.push({ texto: "＋ Registrar medidas", principal: true, alPulsar: () => void this.abrirMedidas() });
         }
         botones.push({ texto: "⏱ Temporizador", alPulsar: () => void abrirTemporizador(), derecha: true });
         pintarNavegacion(cont, botones);
