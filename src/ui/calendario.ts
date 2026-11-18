@@ -427,15 +427,17 @@ const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
     const barraDistribucion = (
         titulo: string,
         segmentos: { etiqueta: string; cantidad: number; ayuda: string }[],
-        color: string,
+        colores: string[],
     ): void => {
         const bloque = el("div", "margin:5px 0 8px;min-width:0;");
         bloque.appendChild(el("div", "font-size:.78em;font-weight:600;margin-bottom:4px;", titulo));
         const barra = el("div", "display:flex;align-items:stretch;gap:2px;width:100%;height:25px;min-width:0;overflow:hidden;border-radius:6px;");
         const total = segmentos.reduce((n, x) => n + x.cantidad, 0);
+        let indiceColor = 0;
         for (const segmento of segmentos) {
             if (segmento.cantidad <= 0) continue;
-            const parte = el("div", `display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden;padding:0 3px;background:${color};opacity:.${Math.max(35, Math.round(100 * segmento.cantidad / Math.max(total, 1)))};`);
+            const color = colores[indiceColor++ % colores.length];
+            const parte = el("div", `display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden;padding:0 3px;background:${color};`);
             parte.style.flex = `${segmento.cantidad} 1 0`;
             parte.textContent = segmento.etiqueta;
             parte.style.fontSize = ".68em";
@@ -454,7 +456,7 @@ const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
             etiqueta: `${x.peso != null ? pesoTexto(x.peso) : "S/P"} · ${x.n}`,
             cantidad: x.n,
             ayuda: `${x.peso != null ? pesoTexto(x.peso) : "Sin peso (al peso corporal)"}: ${x.n} serie${x.n === 1 ? "" : "s"} hecha${x.n === 1 ? "" : "s"} · ${x.reps} reps en total`,
-        })), CONFIG.AZUL);
+        })), ["#2563eb", "#0891b2", "#7c3aed", "#db2777", "#ea580c", "#0d9488"]);
     }
 
     if (deltas.length) {
@@ -470,7 +472,7 @@ const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
             etiqueta: `${x.txt} · ${x.n}`,
             cantidad: x.n,
             ayuda: `${x.n} de ${deltas.length} intervalos: ${x.txt}`,
-        })), CONFIG.VERDE);
+        })), ["#16a34a", "#65a30d", "#0d9488", "#d97706", "#dc2626"]);
     }
 };
 
