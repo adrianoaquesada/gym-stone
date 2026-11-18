@@ -28,6 +28,7 @@ export function seccionEstadisticas(
 ): void {
 
     const c2 = c;
+    c2.appendChild(el("div", "gym-tit", "Resumen de la rutina"));
     const sesiones = [...(rutina.sesiones ?? [])].filter(s => esFechaValida(s.fecha));
     const adher = adherencia(rutina);
 
@@ -432,7 +433,7 @@ export function seccionMedidas(
 ): void {
     if (titulo) {
         const tit = el("div", "gym-tit");
-        tit.append(el("span", null, "Peso corporal"), " — evolución e IMC");
+        tit.append(el("span", null, "Medidas e IMC"), " — peso corporal y evolución");
         c.appendChild(tit);
     }
     const regs = (medidas.datos?.registros ?? []).filter(r => esFechaValida(r.fecha) && Number.isFinite(Number(r.pesoKg)));
