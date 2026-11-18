@@ -471,7 +471,6 @@ function seccionSeguimientoEjercicio(c: HTMLElement, rutina: Rutina): void {
     });
     refrescarHoy();
     pintarEjercicio();
-    });
 }
 
 export function seccionMedidas(
