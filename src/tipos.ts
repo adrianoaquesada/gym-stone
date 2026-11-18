@@ -139,8 +139,6 @@ export interface NotaDia {
 export interface Rutina {
     versionDatos?: 2;
     id: string;
-    /** ID estable de la plantilla de origen. */
-    plantillaOrigen?: string | null;
     nombre: string;
     objetivo: string;
     tipo: TipoRutina;
@@ -154,16 +152,6 @@ export interface Rutina {
     estado: EstadoRutina;
     creado: string;
     modificado: string;
-}
-
-export interface PlantillaRutina {
-    versionDatos?: 2;
-    id?: string;
-    nombre: string;
-    objetivo: string;
-    semanas: number;
-    diasSemana: number[];
-    dias: DiaRutina[];
 }
 
 export interface EjercicioCatalogo {

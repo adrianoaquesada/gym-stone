@@ -1,14 +1,14 @@
 import { CONFIG } from "../config";
 import {
-    adherencia, compararPlanes, ejerciciosConDatos, esLibre, historialEjercicio,
-    leerPlantillaOrigen, nombreDia, normalizarGrupos, resumenLibre,
+    adherencia, ejerciciosConDatos, esLibre, historialEjercicio,
+    nombreDia, normalizarGrupos, resumenLibre,
     semanaActual, semanasTotales, segundosSesion, textoRepsObjetivo, tipoEjercicioDe,
     segundosEjercicio, serieConDatos, totalSeries, ultimaMedida, volumenEjercicio, volumenSesion,
 } from "../datos";
 import { decimal, dos, esFechaValida, fechaLegible, hoy, msgError, nombreMes, tsDe } from "../util";
 import { pesoActual, pesoMostrar, pesoTexto, tallaTexto } from "../unidades";
 import type { EjercicioDef, LecturaNota, MedidasDatos, Rutina, Sesion } from "../tipos";
-import { ponerTextoConIconos, el, KPI, tablaEn } from "./componentes";
+import { btn, ponerTextoConIconos, el, KPI, tablaEn } from "./componentes";
 import { grafica } from "./grafica";
 
 let filtroEjercicio = "";
@@ -24,10 +24,11 @@ const tiempoTexto = (seg: number): string => {
 };
 
 export function seccionEstadisticas(
-    c: HTMLElement, rutina: Rutina, medidas: LecturaNota<MedidasDatos>,
+    c: HTMLElement, rutina: Rutina, medidas: LecturaNota<MedidasDatos>, alRegistrarMedidas?: () => void,
 ): void {
 
     const c2 = c;
+    c2.appendChild(el("div", "gym-tit", "Resumen de la rutina"));
     const sesiones = [...(rutina.sesiones ?? [])].filter(s => esFechaValida(s.fecha));
     const adher = adherencia(rutina);
 
@@ -140,8 +141,116 @@ export function seccionEstadisticas(
     ]);
 
     seccionSeguimientoEjercicio(c2, rutina);
-    seccionMedidas(c2, medidas);
+    const tituloMedidas = el("div", "gym-tit");
+    tituloMedidas.append(el("span", null, "Medidas e IMC"));
+    if (alRegistrarMedidas) tituloMedidas.appendChild(btn("⚖️ Registrar medidas", "primario", alRegistrarMedidas));
+    c2.appendChild(tituloMedidas);
+    seccionMedidas(c2, medidas, { titulo: false });
     seccionRecords(c2, rutina, sesiones);
+}
+
+
+/**
+ * Bloques de análisis compartidos por las estadísticas de rutina y globales.
+ * En el alcance global cada sesión conserva la rutina a la que pertenece.
+ */
+export function seccionResumenGlobalSesiones(c: HTMLElement, rutinas: Rutina[]): void {
+    const registros = rutinas.flatMap(rutina =>
+        (rutina.sesiones ?? []).filter(s => !s.enCurso && esFechaValida(s.fecha))
+            .map(sesion => ({ rutina, sesion })));
+    const sesiones = registros.map(r => r.sesion);
+    const volumenTotal = sesiones.reduce((t, s) => t + volumenSesion(s), 0);
+    const segundosTotal = sesiones.reduce((t, s) => t + segundosSesion(s), 0);
+    const hayTiempo = segundosTotal > 0;
+    const minutos = sesiones.map(s => Number(s.duracionMin)).filter(n => Number.isFinite(n) && n > 0);
+    const mediaMin = minutos.length ? minutos.reduce((a, b) => a + b, 0) / minutos.length : NaN;
+
+    c.appendChild(el("div", "gym-tit", "Actividad y carga de entrenamiento"));
+    const fila = el("div", "display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;");
+    fila.append(
+        KPI("Sesiones", String(sesiones.length), CONFIG.VERDE),
+        KPI("Volumen total", pesoTexto(volumenTotal), CONFIG.AZUL, "Σ series × reps × peso · ejercicios de peso"),
+        KPI("Tiempo de trabajo", tiempoTexto(segundosTotal), CONFIG.NARANJA, "series de tiempo e intervalo"),
+        KPI("Duración media", Number.isFinite(mediaMin) ? `${Math.round(mediaMin)} min` : "–",
+            "var(--text-muted)", `${minutos.length} sesiones con duración`),
+    );
+    c.appendChild(fila);
+
+    const nombreSesion = (rutina: Rutina, sesion: Sesion): string =>
+        `${rutina.nombre || "Rutina"} · ${nombreDia(rutina, sesion.diaId)}`;
+    if (volumenTotal > 0 || !hayTiempo) {
+        c.appendChild(el("div", "gym-tit", `Volumen por sesión — ${pesoActual()} × reps · solo peso`));
+        grafica(c, [{
+            nombre: "Volumen", color: CONFIG.NARANJA,
+            puntos: registros.map(({ rutina, sesion }) => ({
+                ts: tsDe(sesion.fecha), v: pesoMostrar(volumenSesion(sesion)) ?? 0,
+                titulo: `${pesoTexto(volumenSesion(sesion))} · ${nombreSesion(rutina, sesion)}`,
+            })),
+        }]);
+    }
+    if (hayTiempo) {
+        c.appendChild(el("div", "gym-tit", "Tiempo de trabajo por sesión"));
+        grafica(c, [{
+            nombre: "Tiempo (s)", color: CONFIG.AZUL,
+            puntos: registros.map(({ rutina, sesion }) => ({
+                ts: tsDe(sesion.fecha), v: segundosSesion(sesion),
+                titulo: `${tiempoTexto(segundosSesion(sesion))} · ${nombreSesion(rutina, sesion)}`,
+            })),
+        }], { fmt: v => `${Math.round(v)} s` });
+    }
+
+    const porClave = (extraer: (fecha: string) => string) => {
+        const mapa = new Map<string, { clave: string; sesiones: number; vol: number; seg: number; min: number }>();
+        for (const sesion of sesiones) {
+            const clave = extraer(sesion.fecha);
+            if (!mapa.has(clave)) mapa.set(clave, { clave, sesiones: 0, vol: 0, seg: 0, min: 0 });
+            const actual = mapa.get(clave)!;
+            actual.sesiones++;
+            actual.vol += volumenSesion(sesion);
+            actual.seg += segundosSesion(sesion);
+            actual.min += Number(sesion.duracionMin) || 0;
+        }
+        return [...mapa.values()].sort((x, y) => x.clave.localeCompare(y.clave));
+    };
+    const semanas = porClave(fecha => {
+        const d = new Date(tsDe(fecha));
+        const lunes = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
+        return `${lunes.getFullYear()}-${dos(lunes.getMonth() + 1)}-${dos(lunes.getDate())}`;
+    });
+    const meses = porClave(fecha => fecha.slice(0, 7));
+    c.appendChild(el("div", "gym-tit", "Volumen y tiempo por semana y por mes"));
+    const cabecera = hayTiempo
+        ? ["Periodo", "Sesiones", "Volumen", "Tiempo", "Minutos"]
+        : ["Periodo", "Sesiones", "Volumen", "Minutos"];
+    const filaPeriodo = (etiqueta: string, w: { sesiones: number; vol: number; seg: number; min: number }): string[] => {
+        const celdas = [etiqueta, String(w.sesiones), w.vol > 0 ? pesoTexto(w.vol) : w.seg > 0 ? "–" : pesoTexto(0)];
+        if (hayTiempo) celdas.push(w.seg > 0 ? tiempoTexto(w.seg) : "–");
+        celdas.push(String(w.min || "–"));
+        return celdas;
+    };
+    tablaEn(c, cabecera, [
+        ...[...semanas].reverse().slice(0, 8).map(w =>
+            filaPeriodo(`Sem. ${w.clave.slice(8)}/${w.clave.slice(5, 7)}`, w)),
+        ...[...meses].reverse().slice(0, 6).map(m =>
+            filaPeriodo(`${nombreMes(Number(m.clave.slice(5, 7)) - 1)} ${m.clave.slice(0, 4)}`, m)),
+    ]);
+
+    c.appendChild(el("div", "gym-tit", "🏆 Récords de sesión"));
+    const records: string[][] = [];
+    if (registros.length) {
+        const masSeries = [...registros].sort((x, y) => totalSeries(y.sesion) - totalSeries(x.sesion))[0];
+        records.push(["Sesión con más series",
+            `${totalSeries(masSeries.sesion)} series — ${fechaLegible(masSeries.sesion.fecha)} · ${masSeries.rutina.nombre}`]);
+        const conMin = registros.map(r => ({ ...r, minutos: Number(r.sesion.duracionMin) }))
+            .filter(r => Number.isFinite(r.minutos) && r.minutos > 0);
+        if (conMin.length) {
+            const larga = conMin.sort((x, y) => y.minutos - x.minutos)[0];
+            records.push(["Sesión más larga",
+                `${larga.minutos} min — ${fechaLegible(larga.sesion.fecha)} · ${larga.rutina.nombre}`]);
+        }
+    }
+    if (records.length) tablaEn(c, ["Récord", "Valor"], records.map(r => [r[0], el("b", null, r[1])]));
+    else c.appendChild(el("div", "opacity:.7;font-size:.86em;", "Registra sesiones para ver los récords."));
 }
 
 function seccionSeguimientoEjercicio(c: HTMLElement, rutina: Rutina): void {
@@ -210,26 +319,6 @@ function seccionSeguimientoEjercicio(c: HTMLElement, rutina: Rutina): void {
     c.appendChild(envoltorio);
     c.appendChild(cont);
 
-    let resultadoOrigen: Awaited<ReturnType<typeof leerPlantillaOrigen>> | null = null;
-    const textoPlan = (ejercicio: EjercicioDef | null): string => {
-        if (!ejercicio) return "—";
-        const tipo = tipoEjercicioDe(ejercicio);
-        const grupos = normalizarGrupos(ejercicio.grupos);
-        const nombre = `${ejercicio.nombre || "Ejercicio"}${grupos.length ? ` · grupos: ${grupos.join(", ")}` : ""}`;
-        if (tipo === "peso") {
-            return `${nombre} · ${ejercicio.series}×${textoRepsObjetivo(ejercicio)} reps · ${pesoTexto(ejercicio.pesoObjetivo)}`;
-        }
-        if (tipo === "tiempo") {
-            const duracion = Math.round(Number(ejercicio.duracionObjetivo) || 0);
-            return ejercicio.repsPesoDuranteTiempo
-                ? `${nombre} · ${ejercicio.series} series · reps y peso durante ${duracion || "?"} s`
-                : `${nombre} · ${ejercicio.series}×hold${duracion ? ` de ${duracion} s` : ""}`;
-        }
-        const trabajo = Math.round(Number(ejercicio.trabajoSeg) || 0);
-        const descanso = Math.round(Number(ejercicio.transicionSeg ?? ejercicio.descansoSeg) || 0);
-        return `${nombre} · ${ejercicio.series} ciclos · ${trabajo || "?"} s trabajo · ${descanso} s descanso entre ciclos`;
-    };
-
     const pintarEjercicio = () => {
         cont.empty();
         const info = ejercicios.find(e => e.id === sel.value) ?? null;
@@ -253,41 +342,6 @@ function seccionSeguimientoEjercicio(c: HTMLElement, rutina: Rutina): void {
             .map(e => ({ sesion: s, ejercicio: e })))
             .sort((a, b) => a.sesion.fecha < b.sesion.fecha ? 1
                 : a.sesion.fecha > b.sesion.fecha ? -1 : 0);
-        const origen = resultadoOrigen;
-
-        const comparacion = el("div", "margin:8px 0 12px;");
-        comparacion.appendChild(el("div", "gym-tit", "Plan base y ajuste actual"));
-        if (!info) {
-            comparacion.appendChild(el("div", "opacity:.7;font-size:.86em;",
-                "Selecciona un ejercicio para consultar su comparación con el plan base."));
-        } else if (!origen) {
-            comparacion.appendChild(el("div", "opacity:.7;font-size:.86em;", "Cargando comparación con la plantilla de origen…"));
-        } else if (origen.estado === "sin-origen") {
-            comparacion.appendChild(el("div", "opacity:.7;font-size:.86em;", "Esta rutina no tiene plantilla de origen para comparar."));
-        } else if (origen.estado === "eliminada") {
-            comparacion.appendChild(el("div", "opacity:.7;font-size:.86em;", "La plantilla de origen fue eliminada; la rutina y sus estadísticas siguen disponibles, pero ya no se puede comparar el plan base."));
-        } else if ("error" in origen) {
-            comparacion.appendChild(el("div", "opacity:.7;font-size:.86em;", `No se pudo leer la plantilla de origen: ${origen.error}`));
-        } else if (origen.estado === "disponible" && origen.plantilla) {
-            const filasPlan = compararPlanes(origen.plantilla, rutina)
-                .filter(f => f.ejercicioId === info.id);
-            if (!filasPlan.length) {
-                comparacion.appendChild(el("div", "opacity:.7;font-size:.86em;", "Este ejercicio no tiene una definición asociada al plan base o al plan activo."));
-            } else {
-                tablaEn(comparacion, ["Estado", "Día base", "Plan base", "Día activo", "Plan activo"],
-                    filasPlan.map(f => [
-                        f.estado === "sin-cambios" ? "Sin cambios"
-                            : f.estado === "ajustado" ? "Ajustado"
-                                : f.estado === "añadido" ? "Añadido a la rutina" : "Retirado de la rutina",
-                        f.diaBase?.nombre ?? "—",
-                        textoPlan(f.base),
-                        f.diaActivo?.nombre ?? "—",
-                        textoPlan(f.activo),
-                    ]), { filasVisibles: 4 });
-            }
-        }
-        cont.appendChild(comparacion);
-
         const tipo = hist[hist.length - 1]?.tipoEjercicio;
         const histTipo = tipo ? hist.filter(h => h.tipoEjercicio === tipo) : [];
         if (info && histTipo.length) {
@@ -417,13 +471,6 @@ function seccionSeguimientoEjercicio(c: HTMLElement, rutina: Rutina): void {
     });
     refrescarHoy();
     pintarEjercicio();
-    void leerPlantillaOrigen(rutina).then(resultado => {
-        resultadoOrigen = resultado;
-        pintarEjercicio();
-    }).catch((e: unknown) => {
-        console.error("[Gym Stone comparación de estadísticas]", e);
-        resultadoOrigen = { estado: "error", error: msgError(e) };
-        pintarEjercicio();
     });
 }
 
@@ -432,7 +479,7 @@ export function seccionMedidas(
 ): void {
     if (titulo) {
         const tit = el("div", "gym-tit");
-        tit.append(el("span", null, "Peso corporal"), " — evolución e IMC");
+        tit.append(el("span", null, "Medidas e IMC"), " — peso corporal y evolución");
         c.appendChild(tit);
     }
     const regs = (medidas.datos?.registros ?? []).filter(r => esFechaValida(r.fecha) && Number.isFinite(Number(r.pesoKg)));

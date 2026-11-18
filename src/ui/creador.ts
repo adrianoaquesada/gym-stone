@@ -1,9 +1,7 @@
 import { CONFIG, DIAS, DIAS_LARGO } from "../config";
-import { carpetaPlantillas } from "../ajustes";
 import {
     escribirRutina, ejercicioVacio, finDesde, camposVisiblesEjercicio,
-    listarPlantillas, leerPlantilla, plantillaDeRutina, plantillaExiste,
-    rutaDatosDe, rutinaVacia, escribirPlantilla, tipoEjercicioDe, tipoSerieDe,
+    rutaDatosDe, rutinaVacia, tipoEjercicioDe, tipoSerieDe,
     catalogoGestion, normalizarGrupos, etiquetasDeDia,
 } from "../datos";
 import { aNumero, clonarJSON, esFechaValida, hoy, limpiarNombre, msgError, norm, slug, tsDe } from "../util";
@@ -12,7 +10,6 @@ import { pesoActual, pesoACampo, pesoAKg } from "../unidades";
 import type { DiaRutina, EjercicioDef, EstadoRutina, Rutina, TipoBloqueEspecial } from "../tipos";
 import { btn, confirmar, el, modal, pedirTexto, ponerTextoConIconos, ponerX, selectorUnidad, toast } from "./componentes";
 import { abrirRutina } from "./vistas";
-import { crearComparacionPlan } from "./comparacion-plan";
 
 interface EstadoForm {
     modo: "crear" | "editar";
@@ -23,14 +20,8 @@ interface EstadoForm {
     inicio: string;
     semanas: number;
     dias: DiaRutina[];
-    plantilla: string;
-    plantillaOrigen: string | null;
-    comoPlantilla: boolean;
-    nombrePlantilla: string;
-    plantillaEditada: boolean;
     estadoRutina: EstadoRutina;
     guardado: boolean;
-    guardandoPlantilla: boolean;
 }
 
 const almacen: Record<string, EstadoForm> = {};
@@ -62,14 +53,8 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             inicio: base.inicio,
             semanas: base.semanas,
             dias: (base.dias ?? []).length ? base.dias : [nuevoDia("A")],
-            plantilla: "",
-            plantillaOrigen: base.plantillaOrigen ?? null,
-            comoPlantilla: false,
-            nombrePlantilla: base.nombre ?? "",
-            plantillaEditada: false,
             estadoRutina: base.estado === "pausada" || base.estado === "finalizada" ? base.estado : "activa",
             guardado: false,
-            guardandoPlantilla: false,
         };
     }
 
@@ -118,16 +103,6 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         return f;
     };
 
-    let campoOrigen: HTMLDivElement | null = null, campoEstructura: HTMLDivElement | null = null;
-    let campoPlantilla: HTMLDivElement | null = null, refPintaPlantilla: (() => void) | null = null;
-    const aplicaTipo = () => {
-        const libre = estado.tipo === "libre";
-        if (libre) estado.comoPlantilla = false;
-        if (campoOrigen) campoOrigen.style.display = libre ? "none" : "";
-        if (campoEstructura) campoEstructura.style.display = libre ? "none" : "";
-        if (campoPlantilla) campoPlantilla.style.display = libre ? "none" : "";
-        if (refPintaPlantilla) refPintaPlantilla();
-    };
     const filaTipo = el("div", "gym-dias-semana");
     const pintarTipo = () => {
         filaTipo.empty();
@@ -154,126 +129,11 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             }
             filaTipo.appendChild(b);
         }
-        aplicaTipo();
     };
     campo("Tipo de rutina", filaTipo, esEdicion
         ? "No se puede cambiar al editar: el tipo fija la estructura de la rutina (días, ejercicios y sesiones)."
         : "Planificada = días de la semana con ejercicios fijos. Libre = sin plan: cada día anotas lo que haces.");
     pintarTipo();
-
-    const selPlantilla = el("select");
-    const plantillas = listarPlantillas();
-    if (estado.modo === "editar" && estado.plantillaOrigen && !estado.plantilla) {
-        for (const nombre of plantillas) {
-            const lectura = await leerPlantilla(nombre);
-            if (!lectura.error && lectura.datos?.id === estado.plantillaOrigen) {
-                estado.plantilla = nombre;
-                break;
-            }
-        }
-    }
-    const opBlanco = createEl("option");
-    opBlanco.value = "";
-    opBlanco.textContent = "En blanco";
-    selPlantilla.appendChild(opBlanco);
-    for (const p of plantillas) {
-        const o = createEl("option");
-        o.value = p; o.textContent = p;
-        selPlantilla.appendChild(o);
-    }
-    if (estado.modo === "editar" && estado.plantillaOrigen && !estado.plantilla) {
-        const o = createEl("option");
-        o.value = "__origen_no_disponible__";
-        o.textContent = "Plantilla de origen no disponible";
-        selPlantilla.appendChild(o);
-        estado.plantilla = o.value;
-    }
-    selPlantilla.value = estado.plantilla ?? "";
-    if (estado.modo === "editar") selPlantilla.disabled = true;
-    const controlOrigen = el("div", "display:flex;flex-direction:column;align-items:flex-start;gap:8px;");
-    controlOrigen.appendChild(selPlantilla);
-    const btnCompararPlantilla = el("button", "gym-chip", "🔎 Comparar plan base con los ajustes actuales");
-    btnCompararPlantilla.type = "button";
-    btnCompararPlantilla.disabled = !estado.plantilla || estado.plantilla === "__origen_no_disponible__";
-    btnCompararPlantilla.onclick = async () => {
-        const nombre = estado.plantilla;
-        if (!nombre || nombre === "__origen_no_disponible__") return;
-        const lectura = await leerPlantilla(nombre);
-        if (lectura.error || !lectura.datos) {
-            const mensaje = lectura.error ?? `No se pudo leer la plantilla «${nombre}».`;
-            console.error("[Gym Stone comparación desde la plantilla]", mensaje);
-            toast(`⚠️ ${mensaje}`, false);
-            return;
-        }
-        const m = modal("Plan base y ajustes actuales", nombre);
-        ponerX(m);
-        m.caja.appendChild(crearComparacionPlan(lectura.datos, construir()));
-    };
-    controlOrigen.appendChild(btnCompararPlantilla);
-    selPlantilla.onchange = () => {
-        estado.plantilla = selPlantilla.value;
-        btnCompararPlantilla.disabled = !estado.plantilla;
-        if (estado.plantilla) void aplicarPlantilla(estado.plantilla);
-        else estado.plantillaOrigen = null;
-        limpiarError();
-    };
-    const ayudaOrigen = estado.modo === "editar"
-        ? estado.plantillaOrigen && estado.plantilla !== "__origen_no_disponible__"
-            ? "Plantilla de origen de solo lectura; los ajustes de esta rutina se guardan aparte."
-            : estado.plantillaOrigen
-                ? "La rutina conserva la referencia a su plantilla, pero esta ya no está disponible para comparar."
-                : "Esta rutina no tiene una plantilla de origen."
-        : plantillas.length
-            ? "Partir de una plantilla precarga días y ejercicios; la rutina guarda su propia copia editable."
-            : "Todavía no hay plantillas: se crean desde una rutina existente con el botón «Guardar como plantilla».";
-    campoOrigen = campo("Origen", controlOrigen, ayudaOrigen);
-
-    const aplicarPlantilla = async (nombre: string): Promise<void> => {
-        const r = await leerPlantilla(nombre);
-        if (r.error) {
-            error(r.error);
-            selPlantilla.value = estado.plantilla = "";
-            estado.plantillaOrigen = null;
-            return;
-        }
-        if (estado.dias.length && !(await confirmar("📋 Plantilla",
-            `¿Reemplazar la estructura actual por la plantilla «${nombre}»?`,
-            "Reemplazar", "Cancelar"))) {
-            selPlantilla.value = estado.plantilla = "";
-            estado.plantillaOrigen = null;
-            return;
-        }
-        const p = r.datos!;
-        estado.plantillaOrigen = p.id ?? null;
-
-        estado.tipo = "planificada";
-        estado.nombre = estado.nombre || p.nombre || "";
-        estado.objetivo = p.objetivo || estado.objetivo;
-        estado.semanas = p.semanas || estado.semanas;
-        estado.dias = (p.dias ?? []).map(d => ({
-            id: d.id || slug(d.nombre || "dia"),
-            nombre: d.nombre || "Día",
-            diasSemana: [...(d.diasSemana ?? [])],
-            etiquetasPersonalizadas: normalizarGrupos(d.etiquetasPersonalizadas),
-            ejercicios: (d.ejercicios ?? []).map(e => ({
-                ...ejercicioVacio(), ...e, grupos: normalizarGrupos(e.grupos),
-            })),
-        }));
-        if (!estado.dias.length) estado.dias = [nuevoDia("A")];
-        estado.nombrePlantilla = estado.nombrePlantilla || p.nombre || "";
-
-        estado.plantillaEditada = true;
-
-        inNombre.value = estado.nombre;
-        pintarObjetivos();
-        inSemanas.value = String(estado.semanas);
-        pintaFin();
-        inPlantillaNombre.value = estado.nombrePlantilla;
-        revisaConflicto();
-        limpiarError();
-        pintarTipo();
-        repintar();
-    };
 
     const inNombre = el("input");
     inNombre.type = "text";
@@ -282,11 +142,6 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
     inNombre.oninput = () => {
         estado.nombre = inNombre.value;
 
-        if (!esEdicion && !estado.plantillaEditada) {
-            estado.nombrePlantilla = inNombre.value;
-            inPlantillaNombre.value = estado.nombrePlantilla;
-            revisaConflicto();
-        }
         actualizaRuta(); limpiarError();
     };
     campo("Nombre de la rutina", inNombre, "Obligatorio. Es el nombre del dashboard y del archivo de datos.");
@@ -355,7 +210,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         "Se muestra y se teclea solo en esa unidad; el archivo de datos siempre guarda kg.");
 
     const contDias = el("div");
-    campoEstructura = campo("Estructura por día de rutina", contDias,
+    campo("Estructura por día de rutina", contDias,
         "Cada día declara SUS días de la semana (p. ej. «Push» el lunes y el jueves). Los ejercicios se precargan con los objetivos que pongas aquí; puedes reordenarlos arrastrando el asa.");
 
     function nuevoDia(letra: string): DiaRutina {
@@ -988,59 +843,6 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         }
     };
 
-    const contPlantilla = el("div", null);
-    const inPlantillaNombre = el("input", "margin-top:8px;");
-    inPlantillaNombre.type = "text";
-    inPlantillaNombre.placeholder = "Nombre de la plantilla";
-    inPlantillaNombre.value = estado.nombrePlantilla || estado.nombre || "";
-
-    const hintPlantilla = el("div", `font-size:.7em;color:var(--text-error, ${CONFIG.ROJO});margin-top:5px;`);
-    contPlantilla.appendChild(hintPlantilla);
-    const revisaConflicto = () => {
-        const n = limpiarNombre(estado.nombrePlantilla || "");
-        const choque = estado.comoPlantilla && n && plantillaExiste(n);
-        hintPlantilla.textContent = choque
-            ? `⚠️ Ya existe una plantilla «${n}.md». No se guardará así para no pisarla: cambia el nombre (o desactiva el botón).`
-            : "";
-    };
-    inPlantillaNombre.oninput = () => {
-        estado.nombrePlantilla = inPlantillaNombre.value;
-
-        estado.plantillaEditada = Boolean(inPlantillaNombre.value.trim()) &&
-            inPlantillaNombre.value.trim() !== (estado.nombre ?? "").trim();
-        revisaConflicto(); limpiarError();
-    };
-
-    const btnPlantilla = el("button", "gym-chip", "📦 Guardar esta rutina como plantilla");
-    btnPlantilla.type = "button";
-    btnPlantilla.title = "Actívalo para poder reutilizar esta estructura en rutinas futuras";
-    const pintaPlantilla = () => {
-        const on = Boolean(estado.comoPlantilla);
-        btnPlantilla.classList.toggle("on", on);
-        btnPlantilla.setAttribute("aria-pressed", String(on));
-        inPlantillaNombre.style.display = on ? "" : "none";
-    };
-    refPintaPlantilla = pintaPlantilla;
-    btnPlantilla.onclick = () => {
-        estado.comoPlantilla = !estado.comoPlantilla;
-
-        if (estado.comoPlantilla && !estado.plantillaEditada) {
-            estado.nombrePlantilla = estado.nombre;
-            inPlantillaNombre.value = estado.nombrePlantilla;
-        }
-        pintaPlantilla();
-        revisaConflicto(); limpiarError();
-        if (estado.comoPlantilla) inPlantillaNombre.focus();
-    };
-    pintaPlantilla();
-    revisaConflicto();
-
-    contPlantilla.appendChild(btnPlantilla);
-    contPlantilla.appendChild(inPlantillaNombre);
-    campoPlantilla = campo("Plantilla (opcional)", contPlantilla,
-        "Se guarda solo la estructura (días y ejercicios), sin fechas ni registros, en " + carpetaPlantillas() +
-        ". Pulsa el botón para activarlo: se rellenará el nombre con el de la rutina y podrás cambiarlo.");
-
     const rutaVista = el("div", "gym-ruta");
     raiz.appendChild(rutaVista);
     const idPropuesto = (): string => {
@@ -1077,25 +879,16 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             estado.inicio = hoy();
             estado.semanas = CONFIG.SEMANAS_POR_DEFECTO;
             estado.dias = [nuevoDia("A")];
-            estado.plantilla = "";
-            estado.plantillaOrigen = null;
-            estado.comoPlantilla = false;
-            estado.nombrePlantilla = "";
-            estado.plantillaEditada = false;
             estado.estadoRutina = "activa";
             estado.id = "";
             estado.guardado = false;
 
             inNombre.value = "";
-            selPlantilla.value = "";
             pintarObjetivos();
             pintarTipo();
             inInicio.value = estado.inicio;
             inSemanas.value = String(estado.semanas);
             pintaFin();
-            pintaPlantilla();
-            revisaConflicto();
-            inPlantillaNombre.value = "";
             limpiarError();
             repintar();
             inNombre.focus();
@@ -1165,7 +958,6 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         const libre = estado.tipo === "libre";
         return {
             id: idPropuesto(),
-            plantillaOrigen: estado.plantillaOrigen ?? null,
             nombre: limpiarNombre(estado.nombre),
             objetivo: estado.objetivo || "",
             tipo: libre ? "libre" : "planificada",
@@ -1217,38 +1009,12 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
                 ? ` → ${sinDias.map(d => `«${d.nombre}»`).join(", ")}` : ""));
             return;
         }
-        if (estado.comoPlantilla) {
-            const nomPlant = limpiarNombre(estado.nombrePlantilla);
-            if (!nomPlant) { error("Has marcado «guardar como plantilla» pero no le has puesto nombre."); return; }
-            if (plantillaExiste(nomPlant)) {
-                error(`Ya existe una plantilla «${nomPlant}.md». Para no pisarla, pon otro nombre de plantilla (o desactiva «📦 Guardar como plantilla») y vuelve a guardar.`);
-                return;
-            }
-        }
-
         guardando = true;
         btnGuardar.disabled = true;
         btnGuardar.textContent = "Guardando…";
 
         try {
             await escribirRutina(rutina);
-
-            if (estado.comoPlantilla) {
-                try {
-                    const idPlantilla = uid("plantilla");
-                    await escribirPlantilla(limpiarNombre(estado.nombrePlantilla), {
-                        ...plantillaDeRutina(rutina),
-                        id: idPlantilla,
-                    });
-                    if (!rutina.plantillaOrigen) {
-                        const rutinaConOrigen = { ...rutina, plantillaOrigen: idPlantilla };
-                        await escribirRutina(rutinaConOrigen);
-                        Object.assign(rutina, rutinaConOrigen);
-                    }
-                } catch (e: unknown) {
-                    toast("⚠️ La rutina se guardó, pero no pude guardar o vincular la plantilla: " + msgError(e), false);
-                }
-            }
 
             estado.guardado = true;
             guardando = false;
@@ -1267,7 +1033,6 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
     };
     btnGuardar.onclick = guardar;
 
-    aplicaTipo();
     repintar();
 };
 

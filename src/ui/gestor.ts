@@ -15,7 +15,7 @@ import { abrirTemporizador } from "./temporizador";
 import { elegirDiaGuiada, prepararBotonSesionGuiada } from "./sesion-guiada";
 import { fijarPintar, type Pintar } from "./pintar";
 import { seccionCalendario } from "./calendario";
-import { abrirRegistro, formularioAnotacion, formularioMedidas } from "./registro";
+import { formularioAnotacion, formularioMedidas } from "./registro";
 import { seccionEstadisticas } from "./estadisticas";
 
 export interface OpcionesDashboard {
@@ -77,9 +77,7 @@ export const pintarDashboard = async (
         },
         { texto: "✏️ Editar", alPulsar: () => void abrirFormulario({ modo: "editar", rutinaId }) },
         { texto: "🎯 Empezar sesión guiada", alPulsar: () => elegirDiaGuiada(rutina, pintar), principal: true },
-        { texto: "＋ Registrar sesión", alPulsar: () => abrirRegistro(rutina, { fecha: hoy(), diaId: rutina.dias?.[0]?.id }, pintar) },
         { texto: "📝 Anotación", alPulsar: () => formularioAnotacion(rutina, hoy(), pintar) },
-        { texto: "Registrar medidas", alPulsar: () => formularioMedidas(medidas, pintar) },
         {
             texto: "Estadísticas",
             activo: ops.seccion === "estadisticas",
@@ -95,7 +93,7 @@ export const pintarDashboard = async (
     if (ops.seccion === "estadisticas") {
         const contenido = el("div", "gym-rutina-contenido");
         cont2.appendChild(contenido);
-        seccionEstadisticas(contenido, rutina, medidas);
+        seccionEstadisticas(contenido, rutina, medidas, () => formularioMedidas(medidas, pintar));
     } else {
         seccionDetalles(cont2, rutina, pintar);
         seccionCalendario(cont2, rutina, pintar);

@@ -522,7 +522,7 @@ export function elegirEjercicio(
 
 export const pintarGestionEjercicios = (cont: HTMLElement): void => {
     cont.appendChild(el("div", "opacity:.75;font-size:.82em;",
-        "Renombrar actualiza las rutinas y sesiones, pero no las plantillas guardadas. El id estable conserva el historial."));
+        "Renombrar actualiza las rutinas y sesiones. El id estable conserva el historial."));
 
     const inBusca = el("input", "gym-ejercicios-busca");
     inBusca.type = "text";
@@ -552,8 +552,8 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
         if (!huerfanos.length) return;
         const ok = await confirmar("🧹 Purgar entradas sin uso",
             `Se quitarán ${huerfanos.length} ejercicio(s) del fichero de grupos: ya no ` +
-            "aparecen en ninguna rutina ni plantilla." +
-            "\n\nNo se toca ninguna rutina ni plantilla.", "Purgar", "Cancelar");
+            "aparecen en ninguna rutina." +
+            "\n\nNo se toca ninguna rutina.", "Purgar", "Cancelar");
         if (!ok) return;
         try {
             btnPurga.disabled = true;
@@ -641,7 +641,7 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
         lista.empty();
         if (cargando) {
             lista.appendChild(el("div", "padding:12px;opacity:.65;font-size:.86em;",
-                "Leyendo todas las rutinas y plantillas…"));
+                "Leyendo todas las rutinas…"));
         } else if (!visibles.length) {
             lista.appendChild(el("div", "padding:12px;opacity:.65;font-size:.86em;",
                 cat.length ? q ? "Ningún ejercicio coincide con la búsqueda."
@@ -657,7 +657,6 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
             const sitio = [
                 e.grupos.length ? e.grupos.join(", ") : "Sin grupo",
                 e.rutinas.length ? `en ${e.rutinas.length} rutina${e.rutinas.length > 1 ? "s" : ""}` : "",
-                e.plantillas.length ? `${e.plantillas.length} plantilla${e.plantillas.length > 1 ? "s" : ""}` : "",
                 `${e.apariciones} aparicion${e.apariciones === 1 ? "" : "es"}`,
             ].filter(Boolean).join(" · ");
             detalle.appendChild(el("div", "gym-ej-sub", sitio));
@@ -745,9 +744,6 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
                     const nuevosGrupos = [...seleccionGrupos];
                     const cambioGrupos = nuevosGrupos.length !== e.grupos.length ||
                         nuevosGrupos.some(grupo => !e.grupos.includes(grupo));
-                    if (cambioNombre && !e.rutinas.length) {
-                        return toast("⚠️ Este ejercicio solo aparece en plantillas de solo lectura; no se puede renombrar.", false);
-                    }
                     if (!cambioNombre && !cambioGrupos) {
                         editando.delete(e.id);
                         pintar();
@@ -760,7 +756,7 @@ export const pintarGestionEjercicios = (cont: HTMLElement): void => {
                             : "";
                         const ok = await confirmar("✏️ Renombrar ejercicio",
                             `Se pasará «${e.nombre}» → «${nuevoNombre}» en ${e.rutinas.length} rutina(s).` +
-                            "\nLas plantillas guardadas permanecen intactas y el historial conserva el id del ejercicio." + aviso,
+                            "\nEl historial conserva el id del ejercicio." + aviso,
                             "Renombrar", "Cancelar");
                         if (!ok) return;
                     }
