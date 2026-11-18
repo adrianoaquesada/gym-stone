@@ -1,6 +1,6 @@
 import type { WorkspaceLeaf } from "obsidian";
 import { aplicacion } from "../estado";
-import { carpetaDatos, rutaIndice, SUFIJO_MD } from "../ajustes";
+import { carpetaDatos, SUFIJO_MD } from "../ajustes";
 import { toast } from "./componentes";
 import { hojaFormulario } from "./hoja";
 
@@ -51,8 +51,7 @@ export const cerrarPlugin = (): void => {
 };
 
 export const esArchivoGym = (ruta: string): boolean =>
-    ruta === rutaIndice()
-    || (ruta.startsWith(carpetaDatos() + "/") && ruta.endsWith(SUFIJO_MD));
+    ruta.startsWith(carpetaDatos() + "/") && ruta.endsWith(SUFIJO_MD);
 
 let mdSellado: { ruta: string; t: number } | null = null;
 
@@ -65,11 +64,6 @@ export const esMdRecienteDelPlugin = (ruta: string): boolean => {
 };
 
 export const abrirArchivoComoPlugin = async (leaf: WorkspaceLeaf, ruta: string): Promise<boolean> => {
-    if (ruta === rutaIndice()) {
-        await leaf.setViewState({ type: VISTA_APP, active: true, state: { pantalla: "lista" } });
-        void aplicacion().workspace.revealLeaf(leaf);
-        return true;
-    }
     if (ruta.startsWith(carpetaDatos() + "/") && ruta.endsWith(SUFIJO_MD)) {
 
         const id = ruta.slice(ruta.lastIndexOf("/") + 1, -SUFIJO_MD.length);
