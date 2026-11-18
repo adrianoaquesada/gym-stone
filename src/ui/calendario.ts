@@ -456,7 +456,7 @@ const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
             etiqueta: `${x.peso != null ? pesoTexto(x.peso) : "S/P"} · ${x.n}`,
             cantidad: x.n,
             ayuda: `${x.peso != null ? pesoTexto(x.peso) : "Sin peso (al peso corporal)"}: ${x.n} serie${x.n === 1 ? "" : "s"} hecha${x.n === 1 ? "" : "s"} · ${x.reps} reps en total`,
-        })), ["#2563eb", "#0891b2", "#7c3aed", "#db2777", "#ea580c", "#0d9488"]);
+        })), ["#2563eb", "#06b6d4", "#22c55e", "#eab308", "#f97316", "#dc2626"]);
     }
 
     if (deltas.length) {
@@ -472,7 +472,7 @@ const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
             etiqueta: `${x.txt} · ${x.n}`,
             cantidad: x.n,
             ayuda: `${x.n} de ${deltas.length} intervalos: ${x.txt}`,
-        })), ["#16a34a", "#65a30d", "#0d9488", "#d97706", "#dc2626"]);
+        })), ["#2563eb", "#06b6d4", "#22c55e", "#f97316", "#dc2626"]);
     }
 };
 
