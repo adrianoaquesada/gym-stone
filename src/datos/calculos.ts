@@ -46,7 +46,7 @@ export const volumenSerie = (s: SerieSesion | undefined | null, multiplicador = 
 export const volumenEjercicio =
     (ej: { series?: SerieSesion[]; tipoEjercicio?: TipoEjercicio | null; numeroMancuernas?: 1 | 2 } | undefined | null): number =>
         tipoEjercicioDe(ej) === "peso"
-            ? (ej?.series ?? []).reduce((t, s) => t + volumenSerie(s, ej?.numeroMancuernas === 1 ? 1 : 2), 0)
+            ? (ej?.series ?? []).reduce((t, s) => t + volumenSerie(s, (ej as { implemento?: string })?.implemento === "mancuernas" && ej?.numeroMancuernas !== 1 ? 2 : 1), 0)
             : 0;
 export const volumenSesion = (sesion: Sesion | undefined | null): number =>
     (sesion?.ejercicios ?? []).reduce((t, e) => t + volumenEjercicio(e), 0);
