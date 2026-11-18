@@ -17,7 +17,7 @@ const normalizarLista = (valor: unknown): string[] => {
     const vistos = new Set<string>();
     return valor.flatMap(item => {
         if (typeof item !== "string") return [];
-        const nombre = item.trim().replace(/\\s+/g, " ");
+        const nombre = item.trim().replace(/\s+/g, " ");
         const clave = nombre.toLocaleLowerCase("es");
         if (!nombre || vistos.has(clave)) return [];
         vistos.add(clave); return [nombre];
