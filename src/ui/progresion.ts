@@ -68,6 +68,7 @@ export async function pintarResumenProgresion(
         } else {
             rutinasDisponibles = indice.rutinas;
         }
+        cont.appendChild(el("div", "gym-tit", "Resumen global"));
         const resumenGlobal = el("div", "gym-kpis");
         const activas = indice.rutinas.filter(r => r.estado === "activa").length;
         const pausadas = indice.rutinas.filter(r => r.estado === "pausada").length;
@@ -84,9 +85,10 @@ export async function pintarResumenProgresion(
         if (medidas.error) {
             cont.appendChild(el("div", "gym-error-vista", `⚠️ No pude cargar las medidas: ${medidas.error}`));
         } else {
-            seccionMedidas(cont, medidas);
+            seccionMedidas(cont, medidas, { titulo: false });
         }
-        cont.appendChild(el("div", "gym-tit", "Evolución e historial por ejercicio"));
+        cont.appendChild(el("div", "gym-tit", "Seguimiento por ejercicio"));
+        cont.appendChild(el("div", "gym-tit", "Medidas e IMC"));
     }
 
     let modo: "global" | "rutina" = rutinaId ? "rutina" : "global";
