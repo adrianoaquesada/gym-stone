@@ -11,7 +11,6 @@ import type { DiaRutina, EjercicioDef, LecturaNota, Rutina, SerieSesion, TipoEje
 export const rutinaVacia = (): Rutina => ({
     versionDatos: 2,
     id: "", nombre: "", objetivo: "",
-    plantillaOrigen: null,
     tipo: "planificada",
     inicio: hoy(), fin: "", semanas: CONFIG.SEMANAS_POR_DEFECTO,
     diasSemana: [],
@@ -102,10 +101,8 @@ export const escribirRutina = async (rutina: Rutina): Promise<string> => {
         if (!esRutinaFormatoActual(previa.datos)) {
             throw new Error(`El archivo ${ruta} usa un formato anterior; no se modifica.`);
         }
-        if (rutina.plantillaOrigen === undefined) {
-            rutina.plantillaOrigen = previa.datos.plantillaOrigen ?? null;
-        }
     }
+    delete (rutina as Rutina & { plantillaOrigen?: string | null }).plantillaOrigen;
     rutina.versionDatos = 2;
     rutina.dias = (rutina.dias ?? []).map(dia => ({
         ...dia,
