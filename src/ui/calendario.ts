@@ -590,15 +590,30 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
         tramo.style.width = `${Math.max(1, pct(finTramo) - pct(inicioTramo))}%`;
         pista.appendChild(tramo);
 
-        const anadirTramoEjecucion = (desde: number, hasta: number): void => {
+        f.evs.forEach((ev, iS) => {
+            const duracionEjecucion = ev.ejecMs ?? (ev.bloqueEspecial && ev.dur != null ? ev.dur * 1000 : null);
+            if (!ev.hecha || duracionEjecucion == null
+                || !Number.isFinite(duracionEjecucion) || duracionEjecucion <= 0) return;
+
+            const desde = Math.max(0, ev.t - duracionEjecucion);
             let cursor = desde;
             let pausasAcumuladas = 0;
+            const detalle = `${f.nombre} · serie ${iS + 1}${ev.dur != null
+                ? ` — ${Math.round(ev.dur)} s`
+                : ` — ${ev.reps} reps${ev.peso != null ? ` × ${pesoTexto(ev.peso)}` : ""}`} · ${relojMs(ev.t)}` +
+                (iS > 0 ? ` · ${relojMs(ev.t - f.evs[iS - 1].t)} después de la anterior` : " · primera del ejercicio") +
+                (ev.descansoMs != null || ev.ejecMs != null
+                    ? ` (${[
+                        ev.descansoMs != null ? `${relojMs(ev.descansoMs)} de descanso` : null,
+                        ev.ejecMs != null ? `${relojMs(ev.ejecMs)} de ejecución` : null,
+                    ].filter(Boolean).join(" + ")})` : "");
+
             const anadirSegmento = (inicioActivo: number, finActivo: number, pausaAcumulada: number): void => {
                 if (finActivo <= inicioActivo) return;
                 const segmento = el("div", `position:absolute;top:3px;bottom:3px;border-radius:3px;background:${color};opacity:.95;`);
                 segmento.style.left = `${pct(inicioActivo + pausaAcumulada)}%`;
                 segmento.style.width = `${Math.max(0, pct(finActivo + pausaAcumulada) - pct(inicioActivo + pausaAcumulada))}%`;
-                conAyuda(segmento, () => `Tiempo haciendo ${f.nombre}: ${relojMs(finActivo - inicioActivo)}`, true);
+                conAyuda(segmento, () => `${detalle} · tiempo haciendo ${f.nombre}: ${relojMs(duracionEjecucion)}`, true);
                 pista.appendChild(segmento);
             };
             for (const pausa of pausas) {
@@ -606,36 +621,12 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
                     pausasAcumuladas += pausa.ms;
                     continue;
                 }
-                if (pausa.t >= hasta) break;
+                if (pausa.t >= ev.t) break;
                 anadirSegmento(cursor, pausa.t, pausasAcumuladas);
                 cursor = pausa.t;
                 pausasAcumuladas += pausa.ms;
             }
-            anadirSegmento(cursor, hasta, pausasAcumuladas);
-        };
-        f.evs.forEach(ev => {
-            const duracionEjecucion = ev.ejecMs ?? (ev.bloqueEspecial && ev.dur != null ? ev.dur * 1000 : null);
-            if (ev.hecha && duracionEjecucion != null
-                && Number.isFinite(duracionEjecucion) && duracionEjecucion > 0) {
-                anadirTramoEjecucion(Math.max(0, ev.t - duracionEjecucion), ev.t);
-            }
-        });
-
-        f.evs.forEach((ev, iS) => {
-            const tick = el("div", `position:absolute;top:2px;bottom:2px;width:4px;border-radius:2px;background:${ev.hecha ? color : "var(--text-faint)"};`);
-            tick.style.left = `calc(${pct(tiempoReal(ev.t))}% - 2px)`;
-            conAyuda(tick, () => `${f.nombre} · serie ${iS + 1}${ev.hecha
-                ? ev.dur != null
-                    ? ` — ${Math.round(ev.dur)} s`
-                    : ` — ${ev.reps} reps${ev.peso != null ? ` × ${pesoTexto(ev.peso)}` : ""}`
-                : " — ⏭ saltada"} · ${relojMs(ev.t)}` +
-                (iS > 0 ? ` · ${relojMs(ev.t - f.evs[iS - 1].t)} después de la anterior` : " · primera del ejercicio") +
-                (ev.descansoMs != null || ev.ejecMs != null
-                    ? ` (${[
-                        ev.descansoMs != null ? `${relojMs(ev.descansoMs)} de descanso` : null,
-                        ev.ejecMs != null ? `${relojMs(ev.ejecMs)} de ejecución` : null,
-                    ].filter(Boolean).join(" + ")})` : ""), true);
-            pista.appendChild(tick);
+            anadirSegmento(cursor, ev.t, pausasAcumuladas);
         });
         fila.appendChild(pista);
         seccion.appendChild(fila);
