@@ -887,6 +887,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         const due = ciclo.ej;
         ciclo = null;
         confirmarCancelarCiclo = false;
+        sonarTemporizador();
         if (due >= 0 && due !== idx && due < defs.length && !animando) deslizarA(due);
         else pintarEjercicio();
     };
