@@ -8,7 +8,7 @@ import {
 import { decimal, dos, esFechaValida, fechaLegible, hoy, msgError, nombreMes, tsDe } from "../util";
 import { pesoActual, pesoMostrar, pesoTexto, tallaTexto } from "../unidades";
 import type { EjercicioDef, LecturaNota, MedidasDatos, Rutina, Sesion } from "../tipos";
-import { ponerTextoConIconos, el, KPI, tablaEn } from "./componentes";
+import { btn, ponerTextoConIconos, el, KPI, tablaEn } from "./componentes";
 import { grafica } from "./grafica";
 
 let filtroEjercicio = "";
@@ -24,7 +24,7 @@ const tiempoTexto = (seg: number): string => {
 };
 
 export function seccionEstadisticas(
-    c: HTMLElement, rutina: Rutina, medidas: LecturaNota<MedidasDatos>,
+    c: HTMLElement, rutina: Rutina, medidas: LecturaNota<MedidasDatos>, alRegistrarMedidas?: () => void,
 ): void {
 
     const c2 = c;
@@ -141,7 +141,11 @@ export function seccionEstadisticas(
     ]);
 
     seccionSeguimientoEjercicio(c2, rutina);
-    seccionMedidas(c2, medidas);
+    const tituloMedidas = el("div", "gym-tit");
+    tituloMedidas.append(el("span", null, "Medidas e IMC"));
+    if (alRegistrarMedidas) tituloMedidas.appendChild(btn("⚖️ Registrar medidas", "primario", alRegistrarMedidas));
+    c2.appendChild(tituloMedidas);
+    seccionMedidas(c2, medidas, { titulo: false });
     seccionRecords(c2, rutina, sesiones);
 }
 
