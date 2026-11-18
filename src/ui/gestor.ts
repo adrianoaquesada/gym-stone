@@ -93,8 +93,7 @@ export const pintarDashboard = async (
     if (ops.seccion === "estadisticas") {
         const contenido = el("div", "gym-rutina-contenido");
         cont2.appendChild(contenido);
-        contenido.appendChild(btn("⚖️ Registrar medidas", "primario", () => formularioMedidas(medidas, pintar)));
-        seccionEstadisticas(contenido, rutina, medidas);
+        seccionEstadisticas(contenido, rutina, medidas, () => formularioMedidas(medidas, pintar));
     } else {
         seccionDetalles(cont2, rutina, pintar);
         seccionCalendario(cont2, rutina, pintar);
