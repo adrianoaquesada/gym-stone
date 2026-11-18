@@ -78,7 +78,6 @@ export const pintarDashboard = async (
         { texto: "✏️ Editar", alPulsar: () => void abrirFormulario({ modo: "editar", rutinaId }) },
         { texto: "🎯 Empezar sesión guiada", alPulsar: () => elegirDiaGuiada(rutina, pintar), principal: true },
         { texto: "📝 Anotación", alPulsar: () => formularioAnotacion(rutina, hoy(), pintar) },
-        { texto: "Registrar medidas", alPulsar: () => formularioMedidas(medidas, pintar) },
         {
             texto: "Estadísticas",
             activo: ops.seccion === "estadisticas",
@@ -94,6 +93,7 @@ export const pintarDashboard = async (
     if (ops.seccion === "estadisticas") {
         const contenido = el("div", "gym-rutina-contenido");
         cont2.appendChild(contenido);
+        contenido.appendChild(btn("⚖️ Registrar medidas", "primario", () => formularioMedidas(medidas, pintar)));
         seccionEstadisticas(contenido, rutina, medidas);
     } else {
         seccionDetalles(cont2, rutina, pintar);
