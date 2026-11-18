@@ -682,13 +682,17 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             selMancuernas.value = String(ej.numeroMancuernas ?? 2);
             celda("Cantidad",selMancuernas).c.classList.add("gym-ej-tipo");
             const pintarCarga = () => {
-                ej.implemento = selImplemento.value as "barra"|"mancuernas"|"corporal"|"otro";
+                const implemento = selImplemento.value;
+                if (implemento === "corporal" && selCarga.value === "externa") selCarga.value = "corporal";
+                if (implemento !== "corporal" && selCarga.value === "corporal") selCarga.value = "externa";
+                ej.implemento = implemento as "barra"|"mancuernas"|"corporal"|"otro";
                 ej.modalidadCarga = selCarga.value as "externa"|"corporal"|"corporal-extra";
                 ej.numeroMancuernas = selMancuernas.value === "1" ? 1 : 2;
-                selMancuernas.parentElement!.parentElement!.style.display = ej.implemento === "mancuernas" ? "" : "none";
-                if (ej.implemento === "corporal") selCarga.value = ej.modalidadCarga === "corporal-extra" ? "corporal-extra" : "corporal";
-                if (ej.modalidadCarga === "corporal") celdaPeso.c.style.display = "none";
-                else pintaCampos();
+                selMancuernas.parentElement!.parentElement!.style.display = implemento === "mancuernas" ? "" : "none";
+                celdaPeso.l.textContent = implemento === "corporal" ? "Carga extra" :
+                    implemento === "mancuernas" ? (ej.numeroMancuernas === 2 ? "Peso por mancuerna" : "Peso de mancuerna") :
+                    implemento === "barra" ? "Peso total (incluida la barra)" : "Peso";
+                pintaCampos();
             };
             selImplemento.onchange = () => {
                 if (selImplemento.value === "corporal") selCarga.value = "corporal";
