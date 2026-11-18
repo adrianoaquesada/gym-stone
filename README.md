@@ -74,7 +74,7 @@ descanso de la última serie de un ejercicio, avanza automáticamente al siguien
 
 El historial compara las series y el peso planificados con lo realizado. Al terminar una
 sesión o iniciar otra, puedes aplicar al objetivo del día actual los valores sugeridos según
-el último registro; la plantilla no se modifica.
+el último registro; los ajustes se guardan directamente en la rutina y cada sesión conserva sus valores aplicados.
 
 ## Datos
 
