@@ -525,6 +525,9 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
                 ej.id = existente.id;
                 ej.nombre = existente.nombre;
                 ej.grupos = normalizarGrupos(existente.grupos);
+                ej.implemento = existente.implemento;
+                ej.modalidadCarga = existente.modalidadCarga;
+                ej.numeroMancuernas = existente.numeroMancuernas;
                 gruposDisponibles = normalizarGrupos([...gruposDisponibles, ...existente.grupos]);
                 inEj.value = existente.nombre;
                 cerrarResultados();
@@ -670,7 +673,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             for (const [v,t] of [["externa","Carga externa"],["corporal","Solo peso corporal"],["corporal-extra","Peso corporal + extra"]] as const) {
                 const o=el("option",null,t); o.value=v; selCarga.appendChild(o);
             }
-            selCarga.value = ej.modalidadCarga ?? "externa";
+            selCarga.value = ej.modalidadCarga ?? (ej.implemento === "corporal" ? "corporal" : "externa");
             celda("Carga",selCarga).c.classList.add("gym-ej-tipo");
             const selMancuernas = el("select","gym-mini");
             for (const [v,t] of [["1","Una mancuerna"],["2","Dos mancuernas"]] as const) {
