@@ -269,6 +269,9 @@ const aEjercicioGuardado = (d: DefSesion, transcurridoMs?: number): EjercicioSes
     if (descSeg != null && (desc > 0 || tipoEjercicioDe(d.objetivo) === "intervalo"))
         ej.descansoSeg = Math.round(desc);
     ej.tipoEjercicio = tipoEjercicioDe(d.objetivo);
+    ej.implemento = d.objetivo.implemento ?? "barra";
+    ej.modalidadCarga = d.objetivo.modalidadCarga ?? "externa";
+    ej.numeroMancuernas = d.objetivo.numeroMancuernas ?? 2;
     if (tipoEjercicioDe(d.objetivo) === "tiempo" && d.objetivo.repsPesoDuranteTiempo)
         ej.repsPesoDuranteTiempo = true;
     const num = (v: number | null | undefined): number | null => {
