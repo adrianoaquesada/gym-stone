@@ -102,6 +102,7 @@ export const escribirRutina = async (rutina: Rutina): Promise<string> => {
             throw new Error(`El archivo ${ruta} usa un formato anterior; no se modifica.`);
         }
     }
+    delete (rutina as Rutina & { plantillaOrigen?: string | null }).plantillaOrigen;
     rutina.versionDatos = 2;
     rutina.dias = (rutina.dias ?? []).map(dia => ({
         ...dia,
