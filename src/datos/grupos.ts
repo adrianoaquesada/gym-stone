@@ -1,6 +1,7 @@
 import { rutaGrupos } from "../ajustes";
 import { contenidoNotaDatos, escribirSeguro, leerNotaDatos } from "./archivos";
 import type { DiaRutina, EjercicioDef, GruposDatos, LecturaNota } from "../tipos";
+import { leerCatalogoEjercicios, guardarCatalogoEjercicios } from "./catalogo";
 
 export { rutaGrupos };
 
@@ -103,6 +104,9 @@ export const fijarGrupos = async (id: string, grupos: string[]): Promise<void> =
     actual[id] = normalizarGrupos(grupos);
     const datos: GruposDatos = { versionDatos: 3, grupos: actual };
     await escribirSeguro(ultima.ruta, contenidoNotaDatos(datos));
+    const catalogo = await leerCatalogoEjercicios();
+    const ejercicio = catalogo.find(e => e.id === id);
+    if (ejercicio) { ejercicio.grupos = normalizarGrupos(grupos); await guardarCatalogoEjercicios(catalogo); }
     cache = actual;
 };
 
