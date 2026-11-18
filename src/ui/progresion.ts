@@ -244,7 +244,7 @@ export async function pintarResumenProgresion(
                 KPI("Ciclos", String(ciclos), CONFIG.VERDE),
             );
         }
-        if (!estadisticasGlobales) detalle.appendChild(kpis);
+        detalle.appendChild(kpis);
 
         const puntos = historial.map(h => ({
             ts: tsDe(h.fecha),
