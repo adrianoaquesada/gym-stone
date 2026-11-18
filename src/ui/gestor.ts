@@ -186,7 +186,7 @@ const seccionDetalles = (c: HTMLElement, rutina: Rutina, pintar: Pintar): void =
                 const desc = tipoEjercicioDe(e) === "intervalo"
                     ? (descSeg > 0 ? ` · desc. ${Math.round(descSeg)}s` : " · sin descanso")
                     : (e.descansoSeg ? ` · desc. ${e.descansoSeg}s` : "");
-                li.append(e.nombre, " ",
+                li.append(el("span", "gym-caja-ej-nombre", e.nombre), " ",
                     el("span", "gym-tenue", `· ${textoObjetivoDe(e)}${desc}`));
                 ul.appendChild(li);
             }
