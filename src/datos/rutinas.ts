@@ -6,6 +6,7 @@ import { hoy, sumarDias, diffDias } from "../util/fechas";
 import { slug } from "../util/texto";
 import { contenidoNotaDatos, escribirSeguro, leerNotaDatos } from "./archivos";
 import { normalizarGrupos } from "./grupos";
+import { enriquecerDefinicion, guardarDefinicionesEjercicio, leerCatalogoEjercicios } from "./catalogo";
 import type { DiaRutina, EjercicioDef, LecturaNota, Rutina, SerieSesion, TipoEjercicio, TipoSerie } from "../tipos";
 
 export const rutinaVacia = (): Rutina => ({
@@ -89,12 +90,15 @@ export const leerRutina = async (id: string): Promise<LecturaNota<Rutina>> => {
         return { error: `El archivo ${r.ruta} usa un formato anterior; se ignora y no se modifica.`, ruta: r.ruta };
     }
     if (!r.datos?.id) return { error: `El archivo ${r.ruta} no tiene una rutina dentro.`, ruta: r.ruta };
+    const catalogo = await leerCatalogoEjercicios();
+    r.datos.dias = (r.datos.dias ?? []).map(d => ({ ...d, ejercicios: (d.ejercicios ?? []).map(e => enriquecerDefinicion(e, catalogo)) }));
     return r;
 };
 
 export const escribirRutina = async (rutina: Rutina): Promise<string> => {
     if (!rutina?.id) throw new Error("La rutina no tiene id.");
     const ruta = rutaDatosDe(rutina.id);
+    await guardarDefinicionesEjercicio((rutina.dias ?? []).flatMap(d => d.ejercicios ?? []));
     if (aplicacion().vault.getAbstractFileByPath(ruta)) {
         const previa = await leerNotaDatos<Rutina>(ruta);
         if (previa.error) throw new Error(previa.error);
@@ -104,16 +108,20 @@ export const escribirRutina = async (rutina: Rutina): Promise<string> => {
     }
     delete (rutina as Rutina & { plantillaOrigen?: string | null }).plantillaOrigen;
     rutina.versionDatos = 2;
-    rutina.dias = (rutina.dias ?? []).map(dia => ({
-        ...dia,
-        etiquetasPersonalizadas: normalizarGrupos(dia.etiquetasPersonalizadas),
-        ejercicios: (dia.ejercicios ?? []).map(ejercicio => ({
-            ...ejercicio,
-            grupos: normalizarGrupos(ejercicio.grupos),
+    const serializada: Rutina = {
+        ...rutina,
+        dias: (rutina.dias ?? []).map(dia => ({
+            ...dia,
+            etiquetasPersonalizadas: normalizarGrupos(dia.etiquetasPersonalizadas),
+            ejercicios: (dia.ejercicios ?? []).map(ejercicio => {
+                const { nombre: _nombre, grupos: _grupos, implemento: _implemento,
+                    modalidadCarga: _modalidad, numeroMancuernas: _mancuernas, ...prescripcion } = ejercicio;
+                return prescripcion as EjercicioDef;
+            }),
         })),
-    }));
-    rutina.modificado = hoy();
-    await escribirSeguro(ruta, contenidoNotaDatos(rutina));
+    };
+    serializada.modificado = hoy();
+    await escribirSeguro(ruta, contenidoNotaDatos(serializada));
     return ruta;
 };
 
