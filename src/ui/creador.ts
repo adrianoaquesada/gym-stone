@@ -282,11 +282,6 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
     inNombre.oninput = () => {
         estado.nombre = inNombre.value;
 
-        if (!esEdicion && !estado.plantillaEditada) {
-            estado.nombrePlantilla = inNombre.value;
-            inPlantillaNombre.value = estado.nombrePlantilla;
-            revisaConflicto();
-        }
         actualizaRuta(); limpiarError();
     };
     campo("Nombre de la rutina", inNombre, "Obligatorio. Es el nombre del dashboard y del archivo de datos.");
