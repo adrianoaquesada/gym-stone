@@ -149,6 +149,110 @@ export function seccionEstadisticas(
     seccionRecords(c2, rutina, sesiones);
 }
 
+
+/**
+ * Bloques de análisis compartidos por las estadísticas de rutina y globales.
+ * En el alcance global cada sesión conserva la rutina a la que pertenece.
+ */
+export function seccionResumenGlobalSesiones(c: HTMLElement, rutinas: Rutina[]): void {
+    const registros = rutinas.flatMap(rutina =>
+        (rutina.sesiones ?? []).filter(s => !s.enCurso && esFechaValida(s.fecha))
+            .map(sesion => ({ rutina, sesion })));
+    const sesiones = registros.map(r => r.sesion);
+    const volumenTotal = sesiones.reduce((t, s) => t + volumenSesion(s), 0);
+    const segundosTotal = sesiones.reduce((t, s) => t + segundosSesion(s), 0);
+    const hayTiempo = segundosTotal > 0;
+    const minutos = sesiones.map(s => Number(s.duracionMin)).filter(n => Number.isFinite(n) && n > 0);
+    const mediaMin = minutos.length ? minutos.reduce((a, b) => a + b, 0) / minutos.length : NaN;
+
+    c.appendChild(el("div", "gym-tit", "Actividad y carga de entrenamiento"));
+    const fila = el("div", "display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;");
+    fila.append(
+        KPI("Sesiones", String(sesiones.length), CONFIG.VERDE),
+        KPI("Volumen total", pesoTexto(volumenTotal), CONFIG.AZUL, "Σ series × reps × peso · ejercicios de peso"),
+        KPI("Tiempo de trabajo", tiempoTexto(segundosTotal), CONFIG.NARANJA, "series de tiempo e intervalo"),
+        KPI("Duración media", Number.isFinite(mediaMin) ? `${Math.round(mediaMin)} min` : "–",
+            "var(--text-muted)", `${minutos.length} sesiones con duración`),
+    );
+    c.appendChild(fila);
+
+    const nombreSesion = (rutina: Rutina, sesion: Sesion): string =>
+        `${rutina.nombre || "Rutina"} · ${nombreDia(rutina, sesion.diaId)}`;
+    if (volumenTotal > 0 || !hayTiempo) {
+        c.appendChild(el("div", "gym-tit", `Volumen por sesión — ${pesoActual()} × reps · solo peso`));
+        grafica(c, [{
+            nombre: "Volumen", color: CONFIG.NARANJA,
+            puntos: registros.map(({ rutina, sesion }) => ({
+                ts: tsDe(sesion.fecha), v: pesoMostrar(volumenSesion(sesion)) ?? 0,
+                titulo: `${pesoTexto(volumenSesion(sesion))} · ${nombreSesion(rutina, sesion)}`,
+            })),
+        }]);
+    }
+    if (hayTiempo) {
+        c.appendChild(el("div", "gym-tit", "Tiempo de trabajo por sesión"));
+        grafica(c, [{
+            nombre: "Tiempo (s)", color: CONFIG.AZUL,
+            puntos: registros.map(({ rutina, sesion }) => ({
+                ts: tsDe(sesion.fecha), v: segundosSesion(sesion),
+                titulo: `${tiempoTexto(segundosSesion(sesion))} · ${nombreSesion(rutina, sesion)}`,
+            })),
+        }], { fmt: v => `${Math.round(v)} s` });
+    }
+
+    const porClave = (extraer: (fecha: string) => string) => {
+        const mapa = new Map<string, { clave: string; sesiones: number; vol: number; seg: number; min: number }>();
+        for (const sesion of sesiones) {
+            const clave = extraer(sesion.fecha);
+            if (!mapa.has(clave)) mapa.set(clave, { clave, sesiones: 0, vol: 0, seg: 0, min: 0 });
+            const actual = mapa.get(clave)!;
+            actual.sesiones++;
+            actual.vol += volumenSesion(sesion);
+            actual.seg += segundosSesion(sesion);
+            actual.min += Number(sesion.duracionMin) || 0;
+        }
+        return [...mapa.values()].sort((x, y) => x.clave.localeCompare(y.clave));
+    };
+    const semanas = porClave(fecha => {
+        const d = new Date(tsDe(fecha));
+        const lunes = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
+        return `${lunes.getFullYear()}-${dos(lunes.getMonth() + 1)}-${dos(lunes.getDate())}`;
+    });
+    const meses = porClave(fecha => fecha.slice(0, 7));
+    c.appendChild(el("div", "gym-tit", "Volumen y tiempo por semana y por mes"));
+    const cabecera = hayTiempo
+        ? ["Periodo", "Sesiones", "Volumen", "Tiempo", "Minutos"]
+        : ["Periodo", "Sesiones", "Volumen", "Minutos"];
+    const filaPeriodo = (etiqueta: string, w: { sesiones: number; vol: number; seg: number; min: number }): string[] => {
+        const celdas = [etiqueta, String(w.sesiones), w.vol > 0 ? pesoTexto(w.vol) : w.seg > 0 ? "–" : pesoTexto(0)];
+        if (hayTiempo) celdas.push(w.seg > 0 ? tiempoTexto(w.seg) : "–");
+        celdas.push(String(w.min || "–"));
+        return celdas;
+    };
+    tablaEn(c, cabecera, [
+        ...[...semanas].reverse().slice(0, 8).map(w =>
+            filaPeriodo(`Sem. ${w.clave.slice(8)}/${w.clave.slice(5, 7)}`, w)),
+        ...[...meses].reverse().slice(0, 6).map(m =>
+            filaPeriodo(`${nombreMes(Number(m.clave.slice(5, 7)) - 1)} ${m.clave.slice(0, 4)}`, m)),
+    ]);
+
+    c.appendChild(el("div", "gym-tit", "🏆 Récords de sesión"));
+    const records: string[][] = [];
+    if (registros.length) {
+        const masSeries = [...registros].sort((x, y) => totalSeries(y.sesion) - totalSeries(x.sesion))[0];
+        records.push(["Sesión con más series",
+            `${totalSeries(masSeries.sesion)} series — ${fechaLegible(masSeries.sesion.fecha)} · ${masSeries.rutina.nombre}`]);
+        const conMin = registros.map(r => ({ ...r, minutos: Number(r.sesion.duracionMin) }))
+            .filter(r => Number.isFinite(r.minutos) && r.minutos > 0);
+        if (conMin.length) {
+            const larga = conMin.sort((x, y) => y.minutos - x.minutos)[0];
+            records.push(["Sesión más larga",
+                `${larga.minutos} min — ${fechaLegible(larga.sesion.fecha)} · ${larga.rutina.nombre}`]);
+        }
+    }
+    if (records.length) tablaEn(c, ["Récord", "Valor"], records.map(r => [r[0], el("b", null, r[1])]));
+    else c.appendChild(el("div", "opacity:.7;font-size:.86em;", "Registra sesiones para ver los récords."));
+}
+
 function seccionSeguimientoEjercicio(c: HTMLElement, rutina: Rutina): void {
     const ejercicios = ejerciciosConDatos(rutina);
     const conHistorial = ejercicios.filter(e => (rutina.sesiones ?? []).some(s =>
