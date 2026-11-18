@@ -2,7 +2,6 @@ import { carpetaDatos } from "../ajustes";
 import { limpiarNombre } from "../util";
 import { archivosMdEnCarpeta, leerNotaDatos } from "./archivos";
 import { esRutinaFormatoActual, escribirRutina } from "./rutinas";
-import { leerPlantilla, listarPlantillas } from "./plantillas";
 import { cargarGrupos, gruposEnMemoria, normalizarGrupos } from "./grupos";
 import { esBloqueEspecial } from "./calculos";
 import type { Rutina } from "../tipos";
@@ -12,7 +11,6 @@ export interface EjercicioGestion {
     nombre: string;
     grupos: string[];
     rutinas: string[];
-    plantillas: string[];
     apariciones: number;
 }
 
@@ -27,7 +25,6 @@ interface Cuenta {
     nombresRutina: Map<string, number>;
     grupos: Set<string>;
     rutinas: Set<string>;
-    plantillas: Set<string>;
     n: number;
 }
 
@@ -35,24 +32,24 @@ export const catalogoGestion = async (): Promise<EjercicioGestion[]> => {
     await cargarGrupos();
     const mapa = new Map<string, Cuenta>();
     const apuntar = (
-        id: string, nombre: string, donde: string, esPlantilla: boolean, grupos: string[] = [],
+        id: string, nombre: string, donde: string, grupos: string[] = [],
     ): void => {
         if (!id) return;
         let c = mapa.get(id);
         if (!c) {
             c = {
                 nombres: new Map(), nombresRutina: new Map(), grupos: new Set(),
-                rutinas: new Set(), plantillas: new Set(), n: 0,
+                rutinas: new Set(), n: 0,
             };
             mapa.set(id, c);
         }
         const nom = String(nombre ?? "").trim();
         if (nom) {
             c.nombres.set(nom, (c.nombres.get(nom) ?? 0) + 1);
-            if (!esPlantilla) c.nombresRutina.set(nom, (c.nombresRutina.get(nom) ?? 0) + 1);
+            c.nombresRutina.set(nom, (c.nombresRutina.get(nom) ?? 0) + 1);
         }
         for (const grupo of normalizarGrupos(grupos)) c.grupos.add(grupo);
-        (esPlantilla ? c.plantillas : c.rutinas).add(donde);
+        c.rutinas.add(donde);
         c.n++;
     };
 
@@ -63,23 +60,13 @@ export const catalogoGestion = async (): Promise<EjercicioGestion[]> => {
         for (const d of rut.dias ?? []) {
             for (const e of d.ejercicios ?? []) {
                 if (esBloqueEspecial(e)) continue;
-                apuntar(e.id, e.nombre, rut.id, false, e.grupos);
+                apuntar(e.id, e.nombre, rut.id, e.grupos);
             }
         }
         for (const s of rut.sesiones ?? []) {
             for (const e of s.ejercicios ?? []) {
                 if (esBloqueEspecial(e)) continue;
-                apuntar(e.ejercicioId, e.nombre, rut.id, false);
-            }
-        }
-    }
-    for (const nom of listarPlantillas()) {
-        const r = await leerPlantilla(nom);
-        if (r.error || !r.datos) continue;
-        for (const d of r.datos.dias ?? []) {
-            for (const e of d.ejercicios ?? []) {
-                if (esBloqueEspecial(e)) continue;
-                apuntar(e.id, e.nombre, nom, true, e.grupos);
+                apuntar(e.ejercicioId, e.nombre, rut.id);
             }
         }
     }
@@ -96,7 +83,7 @@ export const catalogoGestion = async (): Promise<EjercicioGestion[]> => {
             : normalizarGrupos([...c.grupos]);
         fuera.push({
             id, nombre, grupos: normalizarGrupos(grupos),
-            rutinas: [...c.rutinas], plantillas: [...c.plantillas], apariciones: c.n,
+            rutinas: [...c.rutinas], apariciones: c.n,
         });
     }
     fuera.sort((a, b) => a.nombre.localeCompare(b.nombre, "es") || a.id.localeCompare(b.id));
