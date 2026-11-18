@@ -129,7 +129,6 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             }
             filaTipo.appendChild(b);
         }
-        aplicaTipo();
     };
     campo("Tipo de rutina", filaTipo, esEdicion
         ? "No se puede cambiar al editar: el tipo fija la estructura de la rutina (días, ejercicios y sesiones)."
@@ -1034,7 +1033,6 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
     };
     btnGuardar.onclick = guardar;
 
-    aplicaTipo();
     repintar();
 };
 
