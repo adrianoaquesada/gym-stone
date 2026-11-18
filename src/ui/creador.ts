@@ -660,6 +660,41 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             pintarGrupos();
             celda("Grupos", cajaGrupos).c.classList.add("gym-ej-grupos");
 
+            const selImplemento = el("select", "gym-mini");
+            for (const [v,t] of [["barra","Barra"],["mancuernas","Mancuernas"],["corporal","Peso corporal"],["otro","Otro"]] as const) {
+                const o=el("option",null,t); o.value=v; selImplemento.appendChild(o);
+            }
+            selImplemento.value = ej.implemento ?? "barra";
+            celda("Implemento", selImplemento).c.classList.add("gym-ej-tipo");
+            const selCarga = el("select","gym-mini");
+            for (const [v,t] of [["externa","Carga externa"],["corporal","Solo peso corporal"],["corporal-extra","Peso corporal + extra"]] as const) {
+                const o=el("option",null,t); o.value=v; selCarga.appendChild(o);
+            }
+            selCarga.value = ej.modalidadCarga ?? "externa";
+            celda("Carga",selCarga).c.classList.add("gym-ej-tipo");
+            const selMancuernas = el("select","gym-mini");
+            for (const [v,t] of [["1","Una mancuerna"],["2","Dos mancuernas"]] as const) {
+                const o=el("option",null,t); o.value=v; selMancuernas.appendChild(o);
+            }
+            selMancuernas.value = String(ej.numeroMancuernas ?? 2);
+            celda("Cantidad",selMancuernas).c.classList.add("gym-ej-tipo");
+            const pintarCarga = () => {
+                ej.implemento = selImplemento.value as "barra"|"mancuernas"|"corporal"|"otro";
+                ej.modalidadCarga = selCarga.value as "externa"|"corporal"|"corporal-extra";
+                ej.numeroMancuernas = selMancuernas.value === "1" ? 1 : 2;
+                selMancuernas.parentElement!.parentElement!.style.display = ej.implemento === "mancuernas" ? "" : "none";
+                if (ej.implemento === "corporal") selCarga.value = ej.modalidadCarga === "corporal-extra" ? "corporal-extra" : "corporal";
+                if (ej.modalidadCarga === "corporal") celdaPeso.c.style.display = "none";
+                else pintaCampos();
+            };
+            selImplemento.onchange = () => {
+                if (selImplemento.value === "corporal") selCarga.value = "corporal";
+                else if (selCarga.value === "corporal") selCarga.value = "externa";
+                pintarCarga();
+            };
+            selCarga.onchange = pintarCarga;
+            selMancuernas.onchange = pintarCarga;
+
             const selTipo = el("select", "gym-mini");
             for (const [v, t] of [["peso", "Peso"], ["tiempo", "Tiempo"], ["intervalo", "Intervalo"]] as const) {
                 const o = el("option", null, t); o.value = v; selTipo.appendChild(o);
@@ -759,7 +794,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
                     : "Repeticiones objetivo";
 
                 celdaTiempo.c.style.display = campos.duracion || campos.trabajo || campos.transicion ? "" : "none";
-                celdaPeso.c.style.display = campos.peso ? "" : "none";
+                celdaPeso.c.style.display = campos.peso && ej.modalidadCarga !== "corporal" ? "" : "none";
                 celdaModoTiempoPeso.c.style.display = campos.registroTiempo ? "" : "none";
                 chkTiempoPeso.checked = ej.repsPesoDuranteTiempo === true;
 
@@ -785,6 +820,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
                 pintaCampos();
             };
             pintaCampos();
+            pintarCarga();
 
             fila.appendChild(accionesOrden(ej.nombre || "ejercicio"));
             return fila;
@@ -937,6 +973,9 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
                     id: e.id || `${slug(d.nombre || "dia")}-${slug(e.nombre || `ej-${j}`)}`,
                     nombre: limpiarNombre(e.nombre),
                     grupos: normalizarGrupos(e.grupos),
+                    implemento: e.implemento ?? "barra",
+                    modalidadCarga: e.modalidadCarga ?? "externa",
+                    numeroMancuernas: e.numeroMancuernas ?? 2,
                     tipoEjercicio: e.tipoEjercicio ?? null,
                     series: Math.max(1, Number(e.series) || 1),
                     repsObjetivo: t !== "peso" || tipoSerieDe(e) === "fallo"
