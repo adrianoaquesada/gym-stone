@@ -798,6 +798,9 @@ export function formularioSesion(
                 const out: EjercicioSesion = {
                     ejercicioId: e.ejercicioId, nombre: e.nombre, notas: e.notas ?? "", series: serie,
                 };
+                out.implemento = e.implemento ?? defDia?.implemento ?? "barra";
+                out.modalidadCarga = e.modalidadCarga ?? defDia?.modalidadCarga ?? "externa";
+                out.numeroMancuernas = e.numeroMancuernas ?? defDia?.numeroMancuernas ?? 2;
                 if (e.puestoPlanificado != null) out.puestoPlanificado = e.puestoPlanificado;
                 if (e.ejercicioPlanificado) out.ejercicioPlanificado = { ...e.ejercicioPlanificado };
                 if (e.configuracionSesion) out.configuracionSesion = { ...e.configuracionSesion };
