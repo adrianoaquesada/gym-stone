@@ -116,7 +116,7 @@ export const escribirRutina = async (rutina: Rutina): Promise<string> => {
             ejercicios: (dia.ejercicios ?? []).map(ejercicio => {
                 const { nombre: _nombre, grupos: _grupos, implemento: _implemento,
                     modalidadCarga: _modalidad, numeroMancuernas: _mancuernas, ...prescripcion } = ejercicio;
-                return prescripcion as EjercicioDef;
+                return prescripcion as unknown as EjercicioDef;
             }),
         })),
     };
