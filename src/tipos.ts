@@ -27,6 +27,8 @@ export interface ParcialCronometro {
 }
 
 export type TipoEjercicio = "peso" | "tiempo" | "intervalo";
+export type TipoImplemento = "barra" | "mancuernas" | "corporal" | "otro";
+export type ModalidadCarga = "externa" | "corporal" | "corporal-extra";
 
 export type TipoBloqueEspecial = "calentamiento" | "estiramiento";
 
@@ -37,6 +39,9 @@ export interface EjercicioDef {
     nombre: string;
     grupos?: string[];
     tipoEjercicio?: TipoEjercicio | null;
+    implemento?: TipoImplemento;
+    modalidadCarga?: ModalidadCarga;
+    numeroMancuernas?: 1 | 2;
     tipoBloqueEspecial?: TipoBloqueEspecial | null;
     series: number;
 
@@ -105,6 +110,10 @@ export interface EjercicioSesion {
     notas?: string;
     descansoSeg?: number;
     tipoEjercicio?: TipoEjercicio | null;
+    implemento?: TipoImplemento;
+    modalidadCarga?: ModalidadCarga;
+    numeroMancuernas?: 1 | 2;
+    pesoCorporalKg?: number | null;
     tipoBloqueEspecial?: TipoBloqueEspecial | null;
     bloqueEspecialTranscurridoMs?: number;
 
@@ -157,6 +166,10 @@ export interface Rutina {
 export interface EjercicioCatalogo {
     id: string;
     nombre: string;
+    grupos?: string[];
+    implemento?: TipoImplemento;
+    modalidadCarga?: ModalidadCarga;
+    numeroMancuernas?: 1 | 2;
     dia: string;
     rutina?: string;
     huerfano?: boolean;

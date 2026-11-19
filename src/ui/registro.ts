@@ -29,6 +29,9 @@ interface EjercicioTrabajo {
     notas?: string;
     descansoSeg?: number | null;
     tipoEjercicio?: TipoEjercicio | null;
+    implemento?: "barra" | "mancuernas" | "corporal" | "otro";
+    modalidadCarga?: "externa" | "corporal" | "corporal-extra";
+    numeroMancuernas?: 1 | 2;
     tipoBloqueEspecial?: TipoBloqueEspecial | null;
     bloqueEspecialTranscurridoMs?: number;
     duracionObjetivo?: number | null;
@@ -49,6 +52,14 @@ interface SesionTrabajo {
     idx?: number;
     transcurridoMs?: number;
 }
+
+const etiquetaCarga = (ej: Pick<EjercicioTrabajo, "implemento" | "modalidadCarga" | "numeroMancuernas">): string => {
+    if (ej.modalidadCarga === "corporal-extra") return "Carga extra";
+    if (ej.modalidadCarga === "corporal") return "Peso corporal";
+    if (ej.implemento === "mancuernas") return ej.numeroMancuernas === 1 ? "Peso de mancuerna" : "Peso por mancuerna";
+    if (ej.implemento === "barra") return "Peso total (incluida la barra)";
+    return "Peso";
+};
 
 const tipoDe = (ej: EjercicioTrabajo): TipoEjercicio => tipoEjercicioDe(ej);
 
@@ -400,10 +411,10 @@ export function formularioSesion(
             celda("Reps", inReps, "Repeticiones en todas las series (si varían, se vacía y lo que escribas se aplica a todas)");
 
             const inPeso = el("input"); inPeso.type = "number"; inPeso.min = "0"; inPeso.step = "0.5";
-            inPeso.inputMode = "decimal"; inPeso.placeholder = `peso (${pesoActual()})`;
+            inPeso.inputMode = "decimal"; inPeso.placeholder = `${etiquetaCarga(ej)} (${pesoActual()})`;
             inPeso.value = pesoACampo(comun("peso"));
             inPeso.oninput = () => aplicaComun("peso", pesoAKg(inPeso.value));
-            celda(`Peso (${pesoActual()})`, inPeso, "Peso en todas las series, en la unidad activa (en el archivo se guarda siempre en kg)");
+            celda(`${etiquetaCarga(ej)} (${pesoActual()})`, inPeso, "En mancuernas dobles indica el peso de cada mancuerna; con barra, el peso total incluida la barra.");
         }
         if (tipo !== "peso") {
 
@@ -571,7 +582,7 @@ export function formularioSesion(
                     inputReps = r;
                     const p = el("input", "min-width:0;"); p.type = "number"; p.min = "0"; p.step = "0.5"; p.inputMode = "decimal";
 
-                    p.placeholder = `peso (${pesoActual()})`; p.value = pesoACampo(s.peso);
+                    p.placeholder = `${etiquetaCarga(ej)} (${pesoActual()})`; p.value = pesoACampo(s.peso);
                     p.oninput = () => { s.peso = pesoAKg(p.value); if (conValor(p.value)) marcarHecho(); actualizaVol(); };
                     if (saltada) {   // serie saltada: sus campos no se editan, solo se puede rehacer
                         r.disabled = p.disabled = true;
@@ -584,7 +595,7 @@ export function formularioSesion(
                     r.oninput = () => { s.reps = aNumero(r.value); if (conValor(r.value)) marcarHecho(); actualizaVol(); };
                     inputReps = r;
                     const p = el("input"); p.type = "number"; p.min = "0"; p.step = "0.5"; p.inputMode = "decimal";
-                    p.placeholder = `peso (${pesoActual()})`; p.value = pesoACampo(s.peso);
+                    p.placeholder = `${etiquetaCarga(ej)} (${pesoActual()})`; p.value = pesoACampo(s.peso);
                     p.oninput = () => { s.peso = pesoAKg(p.value); if (conValor(p.value)) marcarHecho(); actualizaVol(); };
                     const grupo = el("div", "display:flex;gap:4px;min-width:0;");
                     grupo.append(r, p);
@@ -678,6 +689,8 @@ export function formularioSesion(
                     : "ejercicio nuevo · sin registros";
             const nuevo: EjercicioTrabajo = {
                 ejercicioId: r.id, nombre: r.nombre, notas: "", pista, tipoEjercicio: tipo,
+                implemento: defRutina?.implemento ?? "barra", modalidadCarga: defRutina?.modalidadCarga ?? "externa",
+                numeroMancuernas: defRutina?.numeroMancuernas ?? 2,
                 repsPesoDuranteTiempo,
                 duracionObjetivo: defRutina?.duracionObjetivo ?? null,
                 transicionSeg: defRutina?.transicionSeg ?? null,
@@ -793,6 +806,9 @@ export function formularioSesion(
                 const out: EjercicioSesion = {
                     ejercicioId: e.ejercicioId, nombre: e.nombre, notas: e.notas ?? "", series: serie,
                 };
+                out.implemento = e.implemento ?? defDia?.implemento ?? "barra";
+                out.modalidadCarga = e.modalidadCarga ?? defDia?.modalidadCarga ?? "externa";
+                out.numeroMancuernas = e.numeroMancuernas ?? defDia?.numeroMancuernas ?? 2;
                 if (e.puestoPlanificado != null) out.puestoPlanificado = e.puestoPlanificado;
                 if (e.ejercicioPlanificado) out.ejercicioPlanificado = { ...e.ejercicioPlanificado };
                 if (e.configuracionSesion) out.configuracionSesion = { ...e.configuracionSesion };

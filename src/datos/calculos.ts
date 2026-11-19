@@ -40,13 +40,13 @@ export const programados = (rutina: Rutina, desde: string, hasta: string): { fec
 };
 
 export const esSaltada = (s: SerieSesion | undefined | null): boolean => Boolean(s?.saltada);
-export const volumenSerie = (s: SerieSesion | undefined | null): number =>
-    esSaltada(s) ? 0 : (Number(s?.reps) || 0) * (Number(s?.peso) || 0);
+export const volumenSerie = (s: SerieSesion | undefined | null, multiplicador = 1): number =>
+    esSaltada(s) ? 0 : (Number(s?.reps) || 0) * (Number(s?.peso) || 0) * multiplicador;
 
 export const volumenEjercicio =
-    (ej: { series?: SerieSesion[]; tipoEjercicio?: TipoEjercicio | null } | undefined | null): number =>
+    (ej: { series?: SerieSesion[]; tipoEjercicio?: TipoEjercicio | null; implemento?: "barra" | "mancuernas" | "corporal" | "otro"; numeroMancuernas?: 1 | 2 } | undefined | null): number =>
         tipoEjercicioDe(ej) === "peso"
-            ? (ej?.series ?? []).reduce((t, s) => t + volumenSerie(s), 0)
+            ? (ej?.series ?? []).reduce((t, s) => t + volumenSerie(s, ej?.implemento === "mancuernas" && ej?.numeroMancuernas !== 1 ? 2 : 1), 0)
             : 0;
 export const volumenSesion = (sesion: Sesion | undefined | null): number =>
     (sesion?.ejercicios ?? []).reduce((t, e) => t + volumenEjercicio(e), 0);
@@ -155,7 +155,7 @@ const acumularBaseSesion = (base: BaseRecordesPersonales, rutina: Rutina): void 
                             actualizarMaximo(ejercicio.repsPorPeso.get(peso) ?? null, reps) ?? 0,
                         );
                     }
-                    const volumen = volumenSerie(serie);
+                    const volumen = volumenSerie(serie, ej.implemento === "mancuernas" && ej.numeroMancuernas !== 1 ? 2 : 1);
                     if (Number.isFinite(volumen) && volumen > 0) {
                         volumenPorEjercicio.set(ej.ejercicioId,
                             (volumenPorEjercicio.get(ej.ejercicioId) ?? 0) + volumen);
@@ -242,7 +242,7 @@ export const detectarRecordesSesion = (
                 if (Number.isFinite(peso) && peso >= 0 && Number.isFinite(reps) && reps > 0) {
                     candidato("repeticiones", id, indiceEjercicio, indiceSerie, reps, peso);
                 }
-                const volumen = volumenSerie(serie);
+                const volumen = volumenSerie(serie, ej.implemento === "mancuernas" && ej.numeroMancuernas !== 1 ? 2 : 1);
                 if (Number.isFinite(volumen) && volumen > 0) {
                     estadoVolumen.acumulado += volumen;
                     volumenTotal += volumen;

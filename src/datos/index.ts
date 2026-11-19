@@ -5,3 +5,5 @@ export * from "./medidas";
 export * from "./grupos";
 export * from "./ejercicios";
 export * from "./calculos";
+
+export * from "./catalogo";
