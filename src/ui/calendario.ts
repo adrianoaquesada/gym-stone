@@ -439,7 +439,6 @@ const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
         const bloque = el("div", "margin:5px 0 8px;min-width:0;");
         bloque.appendChild(el("div", "font-size:.78em;font-weight:600;margin-bottom:4px;", titulo));
         const barra = el("div", "display:flex;align-items:stretch;gap:2px;width:100%;height:25px;min-width:0;overflow:hidden;border-radius:6px;");
-        const total = segmentos.reduce((n, x) => n + x.cantidad, 0);
         const visibles = segmentos.filter(segmento => segmento.cantidad > 0);
         const colorEn = (posicion: number): string => {
             if (colores.length === 1) return colores[0];
@@ -461,12 +460,9 @@ const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
             const posicion = visibles.length <= 1 ? 0 : indiceColor / (visibles.length - 1);
             const color = colorEn(posicion);
             indiceColor++;
-            const parte = el("div", `display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden;padding:0 3px;background:${color};`);
+            const parte = el("div", `gym-cal-distribucion-parte display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden;padding:0 3px;background:${color};`);
             parte.style.flex = `${segmento.cantidad} 1 0`;
             parte.textContent = segmento.etiqueta;
-            parte.style.fontSize = ".68em";
-            parte.style.whiteSpace = "nowrap";
-            parte.style.color = "var(--text-on-accent, white)";
             conAyuda(parte, () => segmento.ayuda, true);
             barra.appendChild(parte);
         }
