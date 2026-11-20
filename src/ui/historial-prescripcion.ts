@@ -3,8 +3,10 @@ import { fechaLegible } from "../util";
 import { pesoTexto } from "../unidades";
 import { el, modal, ponerX } from "./componentes";
 
-const buscar = (dias: RevisionPrescripcion["antes"], nombre: string): EjercicioDef | undefined =>
-    dias.flatMap(d => d.ejercicios ?? []).find(e => (e.nombre || e.id) === nombre);
+const buscar = (dias: RevisionPrescripcion["antes"], referencia: string): EjercicioDef | undefined => {
+    const [diaId, ejercicioId] = referencia.split("::");
+    return dias.find(d => d.id === diaId)?.ejercicios.find(e => e.id === ejercicioId);
+};
 
 const resumen = (ejercicio?: EjercicioDef): string => {
     if (!ejercicio) return "No estaba presente";
@@ -32,9 +34,10 @@ export const abrirHistorialPrescripcion = (rutina: Rutina): void => {
         caja.appendChild(el("div", "gym-tit-naranja",
             fechaLegible(revision.fecha) + " · " + (revision.alcance === "ejercicio" ? "Ejercicio" : "Rutina completa")));
         caja.appendChild(el("div", "gym-caja-sub", revision.motivo));
-        for (const nombre of revision.cambios ?? []) {
-            const antes = buscar(revision.antes, nombre);
-            const despues = buscar(revision.despues, nombre);
+        for (const referencia of revision.cambios ?? []) {
+            const antes = buscar(revision.antes, referencia);
+            const despues = buscar(revision.despues, referencia);
+            const nombre = despues?.nombre || antes?.nombre || referencia.split("::").pop() || "Ejercicio";
             const fila = el("div", "gym-campo");
             fila.appendChild(el("b", null, nombre));
             fila.appendChild(el("div", "gym-ayuda", "Antes: " + resumen(antes)));
