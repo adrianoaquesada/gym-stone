@@ -56,7 +56,7 @@ export const leerGrupos = async (): Promise<LecturaNota<GruposDatos>> => {
         return r;
     }
     if (r.datos?.versionDatos !== 3) {
-        return { error: `El archivo ${ruta} usa un formato anterior; se ignora y no se modifica.`, ruta };
+        return { error: `El archivo ${ruta} no pertenece al formato actual; no se modifica.`, ruta };
     }
     if (!r.datos.grupos || typeof r.datos.grupos !== "object" || Array.isArray(r.datos.grupos)) {
         return { error: `El archivo ${ruta} tiene una estructura de grupos no válida; no se modifica.`, ruta };
@@ -78,12 +78,6 @@ export const cargarGrupos = async (): Promise<Record<string, string[]>> => {
     if (!cargando) {
         cargando = leerGrupos()
             .then(r => {
-                if (r.error?.includes("formato anterior; se ignora y no se modifica")) {
-                    console.warn("[Gym Stone grupos]", r.error);
-                    cache = {};
-                    cargando = null;
-                    return cache;
-                }
                 if (r.error || !r.datos) throw new Error(r.error ?? `No pude leer los grupos de ${r.ruta}.`);
                 cache = r.datos.grupos;
                 cargando = null;
