@@ -1,7 +1,10 @@
 import type { EjercicioDef, RevisionPrescripcion, Rutina } from "../tipos";
 import { fechaLegible } from "../util";
 import { pesoTexto } from "../unidades";
-import { el, modal, ponerX } from "./componentes";
+import { escribirRutina } from "../datos";
+import { clonarJSON, msgError } from "../util";
+import { btn, confirmar, el, modal, ponerX, toast } from "./componentes";
+import { abrirRutina } from "./vistas";
 
 const buscar = (dias: RevisionPrescripcion["antes"], referencia: string): EjercicioDef | undefined => {
     const [diaId, ejercicioId] = referencia.split("::");
@@ -44,6 +47,25 @@ export const abrirHistorialPrescripcion = (rutina: Rutina): void => {
             fila.appendChild(el("div", "gym-ayuda", "Después: " + resumen(despues)));
             caja.appendChild(fila);
         }
+        caja.appendChild(btn("↩ Restaurar prescripción anterior", null, async () => {
+            const ok = await confirmar(
+                "Restaurar prescripción anterior",
+                "Se recuperará la prescripción que existía antes de esta revisión. Esto creará una nueva revisión; las sesiones ya registradas permanecerán intactas.",
+                "Restaurar versión", "Cancelar",
+            );
+            if (!ok) return;
+            const copia = clonarJSON(rutina);
+            copia.dias = clonarJSON(revision.antes);
+            copia.motivoProximaRevision = "Restauración de la prescripción del " + revision.fecha;
+            try {
+                await escribirRutina(copia);
+                m.cerrar();
+                toast("✅ Prescripción anterior restaurada como una nueva revisión.");
+                void abrirRutina(rutina.id);
+            } catch (error: unknown) {
+                toast("⚠️ No pude restaurar la prescripción: " + msgError(error), false);
+            }
+        }));
         m.caja.appendChild(caja);
     }
 };
