@@ -1,8 +1,7 @@
 import type { EjercicioDef, RevisionPrescripcion, Rutina } from "../tipos";
-import { fechaLegible } from "../util";
+import { clonarJSON, fechaLegible, msgError } from "../util";
 import { pesoTexto } from "../unidades";
 import { escribirRutina } from "../datos";
-import { clonarJSON, msgError } from "../util";
 import { btn, confirmar, el, modal, ponerX, toast } from "./componentes";
 import { abrirRutina } from "./vistas";
 
