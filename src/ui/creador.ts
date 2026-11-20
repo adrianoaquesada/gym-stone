@@ -58,7 +58,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         };
     }
 
-    const raiz = el("div", "margin:12px 0;line-height:1.45;");
+    const raiz = el("div", enHoja ? "margin:12px 0 0;line-height:1.45;" : "margin:12px 0;line-height:1.45;");
     raiz.className = "gym-form";
     raiz.classList.toggle("gym-form-hoja", enHoja);
     cont.appendChild(raiz);
