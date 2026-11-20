@@ -698,7 +698,8 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
                 const o=el("option",null,t); o.value=v; selMancuernas.appendChild(o);
             }
             selMancuernas.value = String(ej.numeroMancuernas ?? 2);
-            celda("Cantidad",selMancuernas).c.classList.add("gym-ej-tipo");
+            const celdaCantidad = celda("Cantidad",selMancuernas).c;
+            celdaCantidad.classList.add("gym-ej-tipo");
             const pintarCarga = () => {
                 const implemento = selImplemento.value;
                 if (implemento === "corporal" && selCarga.value === "externa") selCarga.value = "corporal";
@@ -706,7 +707,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
                 ej.implemento = implemento as "barra"|"mancuernas"|"corporal"|"otro";
                 ej.modalidadCarga = selCarga.value as "externa"|"corporal"|"corporal-extra";
                 ej.numeroMancuernas = selMancuernas.value === "1" ? 1 : 2;
-                selMancuernas.parentElement!.parentElement!.style.display = implemento === "mancuernas" ? "" : "none";
+                celdaCantidad.style.display = implemento === "mancuernas" ? "" : "none";
                 celdaPeso.l.textContent = implemento === "corporal" ? "Carga extra" :
                     implemento === "mancuernas" ? (ej.numeroMancuernas === 2 ? "Peso por mancuerna" : "Peso de mancuerna") :
                     implemento === "barra" ? "Peso total (incluida la barra)" : "Peso";
