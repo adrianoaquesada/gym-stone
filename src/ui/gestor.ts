@@ -195,7 +195,7 @@ const seccionDetalles = (c: HTMLElement, rutina: Rutina, pintar: Pintar): void =
                     const corregir = el("button", "gym-chip gym-chip-mini", "🛠 Corregir");
                     corregir.type = "button";
                     corregir.title = "Corregir la prescripción de " + e.nombre + "; las sesiones anteriores se conservan";
-                    corregir.onclick = () => abrirCorreccionEjercicio(rutina, d.id, e.id, () => void pintarDashboard(cont, rutina.id));
+                    corregir.onclick = () => abrirCorreccionEjercicio(rutina, d.id, e.id, pintar);
                     li.appendChild(corregir);
                 }
                 ul.appendChild(li);
