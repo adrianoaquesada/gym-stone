@@ -460,7 +460,8 @@ const bloqueResumenDia = (padre: HTMLElement, sesiones: Sesion[]): void => {
             const posicion = visibles.length <= 1 ? 0 : indiceColor / (visibles.length - 1);
             const color = colorEn(posicion);
             indiceColor++;
-            const parte = el("div", `gym-cal-distribucion-parte display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden;padding:0 3px;background:${color};`);
+            const parte = el("div", `display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden;padding:0 3px;background:${color};`);
+            parte.classList.add("gym-cal-distribucion-parte");
             parte.style.flex = `${segmento.cantidad} 1 0`;
             parte.textContent = segmento.etiqueta;
             conAyuda(parte, () => segmento.ayuda, true);
