@@ -706,9 +706,58 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         const seg = Math.ceil((descanso?.restanteMs ?? 0) / 1000);
         const listo = descanso && descanso.restanteMs <= 0;
         cajaDescanso.classList.toggle("listo", Boolean(listo));
+        cajaDescanso.classList.toggle("pausado", pausado && !listo);
         tDescanso.textContent = listo ? "¡Listo!" : `${Math.floor(seg / 60)}:${dos(seg % 60)}`;
         const pct = descanso && descanso.totalMs > 0 ? Math.max(0, Math.min(100, descanso.restanteMs / descanso.totalMs * 100)) : 0;
         barraDescanso.style.width = pct.toFixed(1) + "%";
+    };
+
+    /** Crea la caja de descanso (con su Pausa, ±15 s y Saltar). La usan los ejercicios y los bloques de calentamiento/estiramiento. */
+    const construirCajaDescanso = (): void => {
+        if (!descanso) return;
+        cajaDescanso = el("div", "gym-descanso gym-descanso-compacto");
+        tDescanso = el("div", "t");
+        const barraDescansoWrap = el("div", "gym-descanso-barra");
+        barraDescanso = el("div", `height:100%;width:100%;background:${CONFIG.NARANJA};`);
+        barraDescansoWrap.appendChild(barraDescanso);
+        const fDesc = el("div", "gym-descanso-controles");
+        const tituloDescanso = el("div", "gym-et", "⏳ Descanso");
+        const centroDescanso = el("div", "gym-descanso-centro");
+        centroDescanso.append(tituloDescanso, tDescanso);
+        const bMenos = el("button", "gym-btn-g", "−15 s"); bMenos.type = "button";
+        bMenos.title = "Restar 15 segundos al descanso";
+        if ((descanso?.restanteMs ?? 0) <= 0) bMenos.disabled = true;
+        bMenos.onclick = () => {
+            if (!descanso) return;
+            descanso.restanteMs = Math.max(0, descanso.restanteMs - 15000);
+
+            if (descanso.restanteMs <= 0) finDescanso();
+            else pintarDescanso();
+        };
+        const bMas = el("button", "gym-btn-g", "＋15 s"); bMas.type = "button";
+        bMas.title = "Añadir 15 segundos al descanso";
+        bMas.onclick = () => {
+            descanso!.listoRestanteMs = undefined;
+            descanso!.restanteMs += 15000;
+            descanso!.totalMs = Math.max(descanso!.totalMs, descanso!.restanteMs);
+            pintarDescanso();
+        };
+        const bSaltar = el("button", "gym-btn-g verde gym-btn-descanso-saltar", "⏭ Saltar"); bSaltar.type = "button";
+        bSaltar.title = "Saltar descanso";
+        bSaltar.setAttribute("aria-label", "Saltar descanso");
+        bSaltar.onclick = () => {
+            finalizarDescanso(descanso?.ej ?? -1);
+        };
+        fDesc.appendChild(btnPausa);
+        fDesc.append(bMenos, centroDescanso, bMas, bSaltar);
+        cajaDescanso.appendChild(fDesc);
+        cajaDescanso.appendChild(barraDescansoWrap);
+
+        if (descanso.ej !== idx) {
+            cajaDescanso.appendChild(el("div", "gym-descanso-propietario",
+                `de «${defs[descanso.ej].nombre}» — aquí solo miras`));
+        }
+        pintarDescanso();
     };
 
     const pintarCiclo = () => {
@@ -1517,9 +1566,17 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
             }
             btnAccion.type = "button";
             barraAccion.replaceChildren();
-            barraAccion.classList.remove("descansando");
-            if (iniciada && !pausado) barraAccion.appendChild(btnPausa);
-            barraAccion.appendChild(btnAccion);
+            cajaDescanso = null; tDescanso = null; barraDescanso = null;
+            if (descanso) construirCajaDescanso();
+            if (descanso && cajaDescanso) {
+                // Descanso en curso del ejercicio anterior: se sigue viendo (y pausando) aquí.
+                barraAccion.classList.add("descansando");
+                barraAccion.appendChild(cajaDescanso);
+            } else {
+                barraAccion.classList.remove("descansando");
+                if (iniciada && !pausado) barraAccion.appendChild(btnPausa);
+                barraAccion.appendChild(btnAccion);
+            }
             bVolver.disabled = idx === 0;
             bSiguiente.disabled = (iniciada && tiempoRegistrado == null && !bloqueOmitido)
                 || idx >= defs.length - 1;
@@ -1697,49 +1754,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         cajaCiclo = null; tCiclo = null; barraCiclo = null;
         cajaHold = null; tHold = null; valorHold = null; barraHold = null; diferenciaHold = null;
         if (descanso) {
-            cajaDescanso = el("div", "gym-descanso gym-descanso-compacto");
-            tDescanso = el("div", "t");
-            const barraDescansoWrap = el("div", "gym-descanso-barra");
-            barraDescanso = el("div", `height:100%;width:100%;background:${CONFIG.NARANJA};`);
-            barraDescansoWrap.appendChild(barraDescanso);
-            const fDesc = el("div", "gym-descanso-controles");
-            const tituloDescanso = el("div", "gym-et", "⏳ Descanso");
-            const centroDescanso = el("div", "gym-descanso-centro");
-            centroDescanso.append(tituloDescanso, tDescanso);
-            const bMenos = el("button", "gym-btn-g", "−15 s"); bMenos.type = "button";
-            bMenos.title = "Restar 15 segundos al descanso";
-            if ((descanso?.restanteMs ?? 0) <= 0) bMenos.disabled = true;
-            bMenos.onclick = () => {
-                if (!descanso) return;
-                descanso.restanteMs = Math.max(0, descanso.restanteMs - 15000);
-
-                if (descanso.restanteMs <= 0) finDescanso();
-                else pintarDescanso();
-            };
-            const bMas = el("button", "gym-btn-g", "＋15 s"); bMas.type = "button";
-            bMas.title = "Añadir 15 segundos al descanso";
-            bMas.onclick = () => {
-                descanso!.listoRestanteMs = undefined;
-                descanso!.restanteMs += 15000;
-                descanso!.totalMs = Math.max(descanso!.totalMs, descanso!.restanteMs);
-                pintarDescanso();
-            };
-            const bSaltar = el("button", "gym-btn-g verde gym-btn-descanso-saltar", "⏭ Saltar"); bSaltar.type = "button";
-            bSaltar.title = "Saltar descanso";
-            bSaltar.setAttribute("aria-label", "Saltar descanso");
-            bSaltar.onclick = () => {
-                finalizarDescanso(descanso?.ej ?? -1);
-            };
-            fDesc.appendChild(btnPausa);
-            fDesc.append(bMenos, centroDescanso, bMas, bSaltar);
-            cajaDescanso.appendChild(fDesc);
-            cajaDescanso.appendChild(barraDescansoWrap);
-
-            if (descanso.ej !== idx) {
-                cajaDescanso.appendChild(el("div", "gym-descanso-propietario",
-                    `de «${defs[descanso.ej].nombre}» — aquí solo miras`));
-            }
-            pintarDescanso();
+            construirCajaDescanso();
         } else if (ciclo) {
 
             const cEj = defs[ciclo.ej];

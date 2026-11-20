@@ -535,6 +535,15 @@ button.gym-btn-g.gym-modo-saltar-confirmable.gym-salto-confirmando:not(:disabled
   background:color-mix(in srgb,#2ecc71 9%,var(--background-primary));
 }
 .gym-descanso.listo .t { color:#2ecc71; }
+/* Descanso en pausa: todo en rojo (caja, tiempo, barra y botón Reanudar). */
+.gym-descanso.pausado {
+  border-color:#e74c3c; border-style:solid;
+  background:color-mix(in srgb,#e74c3c 12%,var(--background-primary));
+}
+.gym-descanso.pausado .t { color:#e74c3c; }
+.gym-descanso.pausado .gym-descanso-barra > div { background:#e74c3c !important; }
+.gym-descanso.pausado .gym-btn-pausa {
+  background:color-mix(in srgb,#e74c3c 30%,transparent); border-color:#e74c3c; color:#e74c3c; }
 
 .gym-colaps-tit { user-select:none; display:flex; align-items:center; justify-content:space-between;
   gap:8px; flex-wrap:wrap; }
