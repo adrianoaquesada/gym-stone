@@ -76,7 +76,7 @@ export const pintarDashboard = async (
             activo: !ops.seccion || ops.seccion === "rutina",
             alPulsar: () => cambiarSeccion("rutina"),
         },
-        { texto: "🛠 Corregir rutina completa", alPulsar: () => void abrirFormulario({ modo: "editar", rutinaId }) },
+        { texto: "✏️ Editar rutina", alPulsar: () => void abrirFormulario({ modo: "editar", rutinaId }) },
         { texto: "🕘 Historial de correcciones", alPulsar: () => abrirHistorialPrescripcion(rutina) },
         { texto: "🎯 Empezar sesión guiada", alPulsar: () => elegirDiaGuiada(rutina, pintar), principal: true },
         { texto: "📝 Anotación", alPulsar: () => formularioAnotacion(rutina, hoy(), pintar) },
