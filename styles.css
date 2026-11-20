@@ -1268,3 +1268,9 @@ button .gym-icono-nativo,
 .gym-cal-linea-ventana { box-sizing:border-box; min-width:0; max-width:100%; overflow-x:hidden; }
 .gym-cal-linea-ventana.gym-cal-linea-ampliada { overflow-x:auto; }
 .gym-cal-linea-ventana > div { box-sizing:border-box; min-width:0; }
+
+
+/* Distribución de series: etiquetas compactas y legibles. */
+.gym-cal-distribucion-parte { font-size:.68em; white-space:nowrap; color:var(--text-on-accent, white); }
+/* La tarjeta de talla e IMC conserva los saltos de línea. */
+.gym-kpi .v.gym-kpi-multiline { white-space:pre-line; }
