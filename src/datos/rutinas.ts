@@ -3,11 +3,11 @@ import { CONFIG } from "../config";
 import { aplicacion } from "../estado";
 import { carpetaDatos, SUFIJO_MD } from "../ajustes";
 import { hoy, sumarDias, diffDias } from "../util/fechas";
-import { slug } from "../util/texto";
+import { slug, uid } from "../util/texto";
 import { contenidoNotaDatos, escribirSeguro, leerNotaDatos } from "./archivos";
 import { normalizarGrupos } from "./grupos";
 import { enriquecerDefinicion, guardarDefinicionesEjercicio, leerCatalogoEjercicios } from "./catalogo";
-import type { DiaRutina, EjercicioDef, LecturaNota, Rutina, SerieSesion, TipoEjercicio, TipoSerie } from "../tipos";
+import type { DiaRutina, EjercicioDef, LecturaNota, RevisionPrescripcion, Rutina, SerieSesion, TipoEjercicio, TipoSerie } from "../tipos";
 
 export const rutinaVacia = (): Rutina => ({
     versionDatos: 2,
@@ -95,18 +95,68 @@ export const leerRutina = async (id: string): Promise<LecturaNota<Rutina>> => {
     return r;
 };
 
+const camposPrescripcion = [
+    "series", "repsObjetivo", "pesoObjetivo", "duracionObjetivo", "repsPesoDuranteTiempo",
+    "descansoSeg", "trabajoSeg", "transicionSeg", "notas", "tipoSerie", "tipoEjercicio", "tipoBloqueEspecial",
+] as const;
+
+const snapshotDias = (dias: DiaRutina[]): DiaRutina[] =>
+    JSON.parse(JSON.stringify(dias ?? [])) as DiaRutina[];
+
+const clavePrescripcion = (dias: DiaRutina[]): string => JSON.stringify((dias ?? []).map(dia => ({
+    id: dia.id,
+    ejercicios: (dia.ejercicios ?? []).map(ejercicio => ({
+        id: ejercicio.id,
+        ...Object.fromEntries(camposPrescripcion.map(campo => [campo, ejercicio[campo]])),
+    })),
+})));
+
+const cambiosPrescripcion = (antes: DiaRutina[], despues: DiaRutina[]): string[] => {
+    const mapa = (dias: DiaRutina[]) => new Map((dias ?? []).flatMap(dia =>
+        (dia.ejercicios ?? []).map(ejercicio => [
+            dia.id + "::" + ejercicio.id,
+            { nombre: ejercicio.nombre || ejercicio.id, valor: JSON.stringify({
+                id: ejercicio.id,
+                ...Object.fromEntries(camposPrescripcion.map(campo => [campo, ejercicio[campo]])),
+            }) },
+        ] as const)));
+    const a = mapa(antes), b = mapa(despues);
+    const claves = new Set([...a.keys(), ...b.keys()]);
+    return [...claves].filter(clave => a.get(clave)?.valor !== b.get(clave)?.valor)
+        .map(clave => b.get(clave)?.nombre ?? a.get(clave)?.nombre ?? clave);
+};
 export const escribirRutina = async (rutina: Rutina): Promise<string> => {
     if (!rutina?.id) throw new Error("La rutina no tiene id.");
     const ruta = rutaDatosDe(rutina.id);
     await guardarDefinicionesEjercicio((rutina.dias ?? []).flatMap(d => d.ejercicios ?? []));
+    let anterior: Rutina | undefined;
     if (aplicacion().vault.getAbstractFileByPath(ruta)) {
         const previa = await leerNotaDatos<Rutina>(ruta);
         if (previa.error) throw new Error(previa.error);
         if (!esRutinaFormatoActual(previa.datos)) {
             throw new Error(`El archivo ${ruta} usa un formato anterior; no se modifica.`);
         }
+        anterior = previa.datos;
     }
     delete (rutina as Rutina & { plantillaOrigen?: string | null }).plantillaOrigen;
+    const motivo = String(rutina.motivoProximaRevision ?? "").trim();
+    delete rutina.motivoProximaRevision;
+    if (anterior && clavePrescripcion(anterior.dias ?? []) !== clavePrescripcion(rutina.dias ?? [])) {
+        const cambios = cambiosPrescripcion(anterior.dias ?? [], rutina.dias ?? []);
+        const revisiones: RevisionPrescripcion[] = [...(anterior.revisionesPrescripcion ?? rutina.revisionesPrescripcion ?? [])];
+        revisiones.push({
+            id: uid(),
+            fecha: hoy(),
+            motivo: motivo || "Corrección de prescripción",
+            alcance: cambios.length === 1 ? "ejercicio" : "rutina",
+            cambios,
+            antes: snapshotDias(anterior.dias ?? []),
+            despues: snapshotDias(rutina.dias ?? []),
+        });
+        rutina.revisionesPrescripcion = revisiones;
+    } else if (anterior?.revisionesPrescripcion && !rutina.revisionesPrescripcion) {
+        rutina.revisionesPrescripcion = anterior.revisionesPrescripcion;
+    }
     rutina.versionDatos = 2;
     const serializada: Rutina = {
         ...rutina,
