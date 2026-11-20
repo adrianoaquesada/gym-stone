@@ -647,7 +647,7 @@ const lineaTiempo = (s: Sesion): HTMLDivElement | null => {
                 const segmento = el("div", `position:absolute;top:3px;bottom:3px;border-radius:3px;background:${color};opacity:.95;`);
                 segmento.style.left = `${pct(inicioActivo + pausaAcumulada)}%`;
                 segmento.style.width = `${Math.max(0, pct(finActivo + pausaAcumulada) - pct(inicioActivo + pausaAcumulada))}%`;
-                conAyuda(segmento, () => `${detalle} · tiempo haciendo ${f.nombre}: ${relojMs(duracionEjecucion)}`, true);
+                conAyuda(segmento, () => detalle, true);
                 pista.appendChild(segmento);
             };
             for (const pausa of pausas) {
