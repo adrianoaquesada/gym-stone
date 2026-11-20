@@ -123,7 +123,7 @@ const cambiosPrescripcion = (antes: DiaRutina[], despues: DiaRutina[]): string[]
     const a = mapa(antes), b = mapa(despues);
     const claves = new Set([...a.keys(), ...b.keys()]);
     return [...claves].filter(clave => a.get(clave)?.valor !== b.get(clave)?.valor)
-        .map(clave => b.get(clave)?.nombre ?? a.get(clave)?.nombre ?? clave);
+        .map(clave => clave);
 };
 export const escribirRutina = async (rutina: Rutina): Promise<string> => {
     if (!rutina?.id) throw new Error("La rutina no tiene id.");
