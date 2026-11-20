@@ -3,6 +3,7 @@ import { diffDias, diaSemana, esFechaValida, hoy, lunesDe, sumarDias, tsDe, tsAh
 import { norm, slug } from "../util/texto";
 import { archivosMdEnCarpeta, leerNotaDatos } from "./archivos";
 import { esRutinaFormatoActual, repsObjetivoDe, semanasTotales, tipoEjercicioDe, tipoSerieDe } from "./rutinas";
+import { enriquecerDefinicion, leerCatalogoEjercicios } from "./catalogo";
 import { normalizarGrupos } from "./grupos";
 import type {
     DiaRutina, EjercicioCatalogo, EjercicioDef, Rutina, SerieSesion, Sesion,
@@ -386,6 +387,8 @@ export const progresionGlobal = async (): Promise<ProgresionEjercicioGlobal[]> =
     const archivos = archivosMdEnCarpeta(carpetaDatos())
         .filter(f => f.path.endsWith(SUFIJO_MD));
     const porEjercicio = new Map<string, ProgresionEjercicioGlobal>();
+    // Las rutinas guardan solo el id; el nombre vive en el catálogo (como en leerRutina).
+    const catalogo = await leerCatalogoEjercicios();
     for (const archivo of archivos) {
         const lectura = await leerNotaDatos<Rutina>(archivo.path);
         if (lectura.error) throw new Error(lectura.error);
@@ -394,6 +397,9 @@ export const progresionGlobal = async (): Promise<ProgresionEjercicioGlobal[]> =
         if (!rutina.id) throw new Error(`El archivo ${archivo.path} no contiene una rutina válida.`);
         const completa: Rutina = {
             ...rutina,
+            dias: (rutina.dias ?? []).map(d => ({
+                ...d, ejercicios: (d.ejercicios ?? []).map(e => enriquecerDefinicion(e, catalogo)),
+            })),
             sesiones: (rutina.sesiones ?? []).filter(s => !s.enCurso),
         };
         for (const ejercicio of ejerciciosConDatos(completa)) {
@@ -404,7 +410,7 @@ export const progresionGlobal = async (): Promise<ProgresionEjercicioGlobal[]> =
                 if (!progresion) {
                     progresion = {
                         ejercicioId: ejercicio.id,
-                        nombre: ejercicio.nombre,
+                        nombre: ejercicio.nombre || ejercicio.id,
                         tipoEjercicio: entrada.tipoEjercicio,
                         historial: [],
                     };
@@ -425,7 +431,7 @@ export const progresionGlobal = async (): Promise<ProgresionEjercicioGlobal[]> =
             historial: p.historial.sort((a, b) =>
                 a.fecha.localeCompare(b.fecha) || a.rutinaNombre.localeCompare(b.rutinaNombre, "es")),
         }))
-        .sort((a, b) => a.nombre.localeCompare(b.nombre, "es")
+        .sort((a, b) => (a.nombre ?? "").localeCompare(b.nombre ?? "", "es")
             || a.tipoEjercicio.localeCompare(b.tipoEjercicio, "es"));
 };
 
