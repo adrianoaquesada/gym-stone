@@ -22,6 +22,8 @@ interface EstadoForm {
     dias: DiaRutina[];
     estadoRutina: EstadoRutina;
     guardado: boolean;
+    /** Huella de la rutina guardada de la que parte el borrador (solo al editar). */
+    origen?: string;
 }
 
 const almacen: Record<string, EstadoForm> = {};
@@ -37,6 +39,12 @@ interface OpcionesMontar {
 export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = false }: OpcionesMontar): Promise<void> => {
     cont.empty();
     const claveEstado = esEdicion ? `edit:${inicial?.id ?? ""}` : "crear";
+    // Huella de la rutina guardada: si cambió desde que se creó el borrador (sesión guiada,
+    // corrección, otra edición…), el borrador está obsoleto y taparía ejercicios nuevos.
+    const origen = esEdicion && inicial ? JSON.stringify(inicial) : undefined;
+    if (esEdicion && almacen[claveEstado] && almacen[claveEstado].origen !== origen) {
+        delete almacen[claveEstado];
+    }
     let estado = almacen[claveEstado];
 
     if (!estado) {
@@ -55,6 +63,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
             dias: (base.dias ?? []).length ? base.dias : [nuevoDia("A")],
             estadoRutina: base.estado === "pausada" || base.estado === "finalizada" ? base.estado : "activa",
             guardado: false,
+            origen,
         };
     }
 
