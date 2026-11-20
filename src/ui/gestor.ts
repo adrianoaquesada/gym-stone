@@ -191,11 +191,13 @@ const seccionDetalles = (c: HTMLElement, rutina: Rutina, pintar: Pintar): void =
                     : (e.descansoSeg ? ` · desc. ${e.descansoSeg}s` : "");
                 li.append(el("span", "gym-caja-ej-nombre", e.nombre), " ",
                     el("span", "gym-tenue", `· ${textoObjetivoDe(e)}${desc}`));
-                const corregir = el("button", "gym-chip gym-chip-mini", "🛠 Corregir");
-                corregir.type = "button";
-                corregir.title = "Corregir la prescripción de " + e.nombre + "; las sesiones anteriores se conservan";
-                corregir.onclick = () => abrirCorreccionEjercicio(rutina, d.id, e.id, () => void pintarDashboard(cont, rutina.id));
-                li.appendChild(corregir);
+                if (!e.tipoBloqueEspecial) {
+                    const corregir = el("button", "gym-chip gym-chip-mini", "🛠 Corregir");
+                    corregir.type = "button";
+                    corregir.title = "Corregir la prescripción de " + e.nombre + "; las sesiones anteriores se conservan";
+                    corregir.onclick = () => abrirCorreccionEjercicio(rutina, d.id, e.id, () => void pintarDashboard(cont, rutina.id));
+                    li.appendChild(corregir);
+                }
                 ul.appendChild(li);
             }
             box.appendChild(ul);
