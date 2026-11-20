@@ -86,7 +86,7 @@ export class PantallaInicio {
                 ult.imc != null ? `IMC: ${ult.imc.toFixed(1)}` : "",
             ].filter(Boolean).join("\\n");
             const tarjetaTallaImc = KPI("Talla e IMC", tallaImc, CONFIG.VERDE);
-            tarjetaTallaImc.querySelector<HTMLElement>(".v")!.style.whiteSpace = "pre-line";
+            tarjetaTallaImc.querySelector<HTMLElement>(".v")!.classList.add("gym-kpi-multiline");
             resumen.appendChild(tarjetaTallaImc);
         }
 
