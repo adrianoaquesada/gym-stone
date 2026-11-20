@@ -786,6 +786,7 @@ export function detalleDia(rutina: Rutina, fecha: string, pintar: Pintar): void 
     const m = modal(`📆 ${fechaLegible(fecha)}`, `${DIAS_LARGO[diaSemana(fecha) - 1] ?? ""}`);
     ponerX(m, "Cerrar detalles del día");
     m.cab.classList.add("gym-cal-detalle-cab");
+    m.caja.classList.add("gym-cal-detalle-caja");
     const cajaD = el("div", "min-width:0;max-width:100%;");
     m.caja.appendChild(cajaD);
 
