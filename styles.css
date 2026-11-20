@@ -24,18 +24,18 @@
 .gym-form .gym-ej-lista { position:relative; }
 .gym-form .gym-ej { display:grid; gap:6px; padding:8px; border-radius:8px; background:var(--background-primary);
   border:1px solid var(--background-modifier-border); margin-bottom:6px;
-  grid-template-columns:minmax(150px,1.7fr) minmax(100px,1.15fr) minmax(64px,.65fr)
-    minmax(56px,.55fr) minmax(150px,1.25fr) minmax(86px,.8fr) minmax(82px,.75fr)
-    minmax(130px,1.3fr) 68px; align-items:end; }
-.gym-form .gym-ej.gym-ej-tiempo { grid-template-columns:minmax(150px,1.7fr) minmax(100px,1.15fr)
-  minmax(64px,.65fr) minmax(56px,.55fr) minmax(120px,1.1fr) minmax(180px,1.6fr)
-  minmax(82px,.75fr) minmax(130px,1.3fr) 68px; }
-.gym-form .gym-ej.gym-ej-tiempo-con-peso { grid-template-columns:minmax(150px,1.7fr)
-  minmax(100px,1.15fr) minmax(64px,.65fr) minmax(56px,.55fr) minmax(120px,1.1fr)
-  minmax(86px,.8fr) minmax(180px,1.6fr) minmax(82px,.75fr) minmax(130px,1.3fr) 68px; }
-.gym-form .gym-ej.gym-ej-intervalo { grid-template-columns:minmax(150px,1.7fr)
-  minmax(100px,1.15fr) minmax(64px,.65fr) minmax(56px,.55fr) minmax(180px,1.7fr)
-  minmax(130px,1.3fr) 68px; }
+  grid-template-columns:minmax(105px,1.7fr) minmax(70px,1.15fr) minmax(64px,.65fr)
+    minmax(56px,.55fr) minmax(105px,1.25fr) minmax(60px,.8fr) minmax(57px,.75fr)
+    minmax(91px,1.3fr) 68px; align-items:end; }
+.gym-form .gym-ej.gym-ej-tiempo { grid-template-columns:minmax(105px,1.7fr) minmax(70px,1.15fr)
+  minmax(64px,.65fr) minmax(56px,.55fr) minmax(84px,1.1fr) minmax(126px,1.6fr)
+  minmax(57px,.75fr) minmax(91px,1.3fr) 68px; }
+.gym-form .gym-ej.gym-ej-tiempo-con-peso { grid-template-columns:minmax(105px,1.7fr)
+  minmax(70px,1.15fr) minmax(64px,.65fr) minmax(56px,.55fr) minmax(84px,1.1fr)
+  minmax(60px,.8fr) minmax(126px,1.6fr) minmax(57px,.75fr) minmax(91px,1.3fr) 68px; }
+.gym-form .gym-ej.gym-ej-intervalo { grid-template-columns:minmax(105px,1.7fr)
+  minmax(70px,1.15fr) minmax(64px,.65fr) minmax(56px,.55fr) minmax(126px,1.7fr)
+  minmax(91px,1.3fr) 68px; }
 .gym-form .gym-ej-acciones { display:flex; align-items:center; justify-content:flex-end; gap:4px; min-width:0; }
 .gym-form .gym-ej-acciones > .gym-ej-borrar-btn,
 .gym-form .gym-ej-acciones > .gym-ej-arrastrar {
@@ -1322,8 +1322,9 @@ button .gym-icono-nativo,
 /* Editar rutina: la rejilla del ejercicio no puede ser más ancha que su tarjeta.
    Las columnas 1fr no bajaban del ancho natural de los inputs (y la variante
    «tiempo con peso» necesita ~1110px), así que la fila se salía y provocaba
-   desplazamiento lateral. Se usa minmax(0,1fr), min-width:0 y los cortes de
-   diseño compacto se ajustan al ancho mínimo real de cada variante. */
+   desplazamiento lateral. Se usa minmax(0,1fr) en el diseño apilado, min-width:0 en
+   las celdas y se recortan los mínimos de las columnas del diseño ancho (menos
+   Implemento/Carga), así la tarjeta sigue compacta (2 líneas) sin salirse. */
 .gym-form .gym-ej { max-width:100%; box-sizing:border-box; }
 .gym-form .gym-ej > * { min-width:0; }
 .gym-form .gym-ej-registro-tiempo label { min-width:0; max-width:100%; overflow-wrap:anywhere; }
@@ -1336,26 +1337,9 @@ button .gym-icono-nativo,
   .gym-form .gym-ej.gym-ej-tiempo-con-peso,
   .gym-form .gym-ej.gym-ej-intervalo { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
-@container (max-width: 960px) {
-  .gym-form .gym-ej:not(.gym-ej-tiempo):not(.gym-ej-tiempo-con-peso):not(.gym-ej-intervalo):not(.gym-ej-bloque-especial) {
-    grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .gym-form .gym-ej:not(.gym-ej-tiempo):not(.gym-ej-tiempo-con-peso):not(.gym-ej-intervalo):not(.gym-ej-bloque-especial) > .gym-ej-nombre,
-  .gym-form .gym-ej:not(.gym-ej-tiempo):not(.gym-ej-tiempo-con-peso):not(.gym-ej-intervalo):not(.gym-ej-bloque-especial) > .gym-ej-grupos,
-  .gym-form .gym-ej:not(.gym-ej-tiempo):not(.gym-ej-tiempo-con-peso):not(.gym-ej-intervalo):not(.gym-ej-bloque-especial) > .gym-ej-notas,
-  .gym-form .gym-ej:not(.gym-ej-tiempo):not(.gym-ej-tiempo-con-peso):not(.gym-ej-intervalo):not(.gym-ej-bloque-especial) > .gym-ej-acciones { grid-column:1 / -1; }
-}
-@container (max-width: 1020px) {
-  .gym-form .gym-ej.gym-ej-tiempo { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .gym-form .gym-ej.gym-ej-tiempo > .gym-ej-nombre,
-  .gym-form .gym-ej.gym-ej-tiempo > .gym-ej-grupos,
-  .gym-form .gym-ej.gym-ej-tiempo > .gym-ej-notas,
-  .gym-form .gym-ej.gym-ej-tiempo > .gym-ej-acciones { grid-column:1 / -1; }
-}
-@container (max-width: 1110px) {
-  .gym-form .gym-ej.gym-ej-tiempo-con-peso { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .gym-form .gym-ej.gym-ej-tiempo-con-peso > .gym-ej-nombre,
-  .gym-form .gym-ej.gym-ej-tiempo-con-peso > .gym-ej-grupos,
-  .gym-form .gym-ej.gym-ej-tiempo-con-peso > .gym-ej-registro-tiempo,
-  .gym-form .gym-ej.gym-ej-tiempo-con-peso > .gym-ej-notas,
-  .gym-form .gym-ej.gym-ej-tiempo-con-peso > .gym-ej-acciones { grid-column:1 / -1; }
+@container (max-width: 940px) {
+  .gym-form .gym-ej,
+  .gym-form .gym-ej.gym-ej-tiempo,
+  .gym-form .gym-ej.gym-ej-tiempo-con-peso,
+  .gym-form .gym-ej.gym-ej-intervalo { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
