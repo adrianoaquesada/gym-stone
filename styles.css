@@ -1274,3 +1274,28 @@ button .gym-icono-nativo,
 .gym-cal-distribucion-parte { font-size:.68em; white-space:nowrap; color:var(--text-on-accent, white); }
 /* La tarjeta de talla e IMC conserva los saltos de línea. */
 .gym-kpi .v.gym-kpi-multiline { white-space:pre-line; }
+
+
+/* Cabecera del detalle del día: mantener la X visible y alineada. */
+.gym-modal-caja > .gym-cal-detalle-cab {
+    top:0;
+    display:flex;
+    flex-wrap:nowrap;
+    align-items:center;
+    gap:8px;
+}
+.gym-modal-caja > .gym-cal-detalle-cab > .gym-flex1 {
+    flex:1 1 auto;
+    min-width:0;
+}
+.gym-modal-caja > .gym-cal-detalle-cab > .gym-cerrar-x {
+    position:relative;
+    z-index:1;
+    flex:0 0 44px;
+    width:44px;
+    min-width:44px;
+    margin-left:auto;
+}
+@media (max-width: 720px) {
+    .gym-modal-caja > .gym-cal-detalle-cab { top:0; }
+}
