@@ -102,6 +102,15 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         raiz.appendChild(f);
         return f;
     };
+    let motivoCorreccion = "";
+    if (esEdicion) {
+        const inMotivo = el("input");
+        inMotivo.type = "text";
+        inMotivo.placeholder = "Ej. Ajuste de cargas tras revisar el rendimiento";
+        inMotivo.oninput = () => { motivoCorreccion = inMotivo.value; };
+        campo("Motivo de la corrección (opcional)", inMotivo,
+            "Quedará asociado a la revisión de la prescripción. Las sesiones anteriores no cambian.");
+    }
 
     const filaTipo = el("div", "gym-dias-semana");
     const pintarTipo = () => {
@@ -1048,6 +1057,7 @@ export const montar = async ({ cont, inicial, esEdicion, onGuardado, enHoja = fa
         limpiarError();
         unificaDiasSemana();
         const rutina = construir();
+        if (esEdicion) rutina.motivoProximaRevision = motivoCorreccion.trim() || "Corrección de rutina completa";
         const fallo = validar(rutina);
         if (fallo) {
             const sinDias = rutina.dias.filter(d => !d.diasSemana.length);

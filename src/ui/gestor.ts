@@ -17,6 +17,8 @@ import { fijarPintar, type Pintar } from "./pintar";
 import { seccionCalendario } from "./calendario";
 import { formularioAnotacion, formularioMedidas } from "./registro";
 import { seccionEstadisticas } from "./estadisticas";
+import { abrirCorreccionEjercicio } from "./correccion-prescripcion";
+import { abrirHistorialPrescripcion } from "./historial-prescripcion";
 
 export interface OpcionesDashboard {
 
@@ -75,7 +77,8 @@ export const pintarDashboard = async (
             activo: !ops.seccion || ops.seccion === "rutina",
             alPulsar: () => cambiarSeccion("rutina"),
         },
-        { texto: "✏️ Editar", alPulsar: () => void abrirFormulario({ modo: "editar", rutinaId }) },
+        { texto: "🛠 Corregir rutina completa", alPulsar: () => void abrirFormulario({ modo: "editar", rutinaId }) },
+        { texto: "🕘 Historial de correcciones", alPulsar: () => abrirHistorialPrescripcion(rutina) },
         { texto: "🎯 Empezar sesión guiada", alPulsar: () => elegirDiaGuiada(rutina, pintar), principal: true },
         { texto: "📝 Anotación", alPulsar: () => formularioAnotacion(rutina, hoy(), pintar) },
         {
@@ -188,6 +191,13 @@ const seccionDetalles = (c: HTMLElement, rutina: Rutina, pintar: Pintar): void =
                     : (e.descansoSeg ? ` · desc. ${e.descansoSeg}s` : "");
                 li.append(el("span", "gym-caja-ej-nombre", e.nombre), " ",
                     el("span", "gym-tenue", `· ${textoObjetivoDe(e)}${desc}`));
+                if (!e.tipoBloqueEspecial) {
+                    const corregir = el("button", "gym-chip gym-chip-mini", "🛠 Corregir");
+                    corregir.type = "button";
+                    corregir.title = "Corregir la prescripción de " + e.nombre + "; las sesiones anteriores se conservan";
+                    corregir.onclick = () => { void abrirCorreccionEjercicio(rutina, d.id, e.id, pintar); };
+                    li.appendChild(corregir);
+                }
                 ul.appendChild(li);
             }
             box.appendChild(ul);
