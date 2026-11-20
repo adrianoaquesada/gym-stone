@@ -145,6 +145,16 @@ export interface NotaDia {
     hora?: string;
 }
 
+export interface RevisionPrescripcion {
+    id: string;
+    fecha: string;
+    motivo: string;
+    alcance: "ejercicio" | "rutina";
+    cambios: string[];
+    antes: DiaRutina[];
+    despues: DiaRutina[];
+}
+
 export interface Rutina {
     versionDatos?: 2;
     id: string;
@@ -161,6 +171,9 @@ export interface Rutina {
     estado: EstadoRutina;
     creado: string;
     modificado: string;
+    revisionesPrescripcion?: RevisionPrescripcion[];
+    /** Motivo temporal consumido por escribirRutina; no se persiste en la rutina. */
+    motivoProximaRevision?: string;
 }
 
 export interface EjercicioCatalogo {
