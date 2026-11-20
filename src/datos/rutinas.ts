@@ -142,16 +142,19 @@ export const escribirRutina = async (rutina: Rutina): Promise<string> => {
     const motivo = String(rutina.motivoProximaRevision ?? "").trim();
     delete rutina.motivoProximaRevision;
     if (anterior && clavePrescripcion(anterior.dias ?? []) !== clavePrescripcion(rutina.dias ?? [])) {
-        const cambios = cambiosPrescripcion(anterior.dias ?? [], rutina.dias ?? []);
+        const catalogoRevision = await leerCatalogoEjercicios();
+        const antesDias = (anterior.dias ?? []).map(dia => ({ ...dia, ejercicios: (dia.ejercicios ?? []).map(ejercicio => enriquecerDefinicion(ejercicio, catalogoRevision)) }));
+        const despuesDias = (rutina.dias ?? []).map(dia => ({ ...dia, ejercicios: (dia.ejercicios ?? []).map(ejercicio => enriquecerDefinicion(ejercicio, catalogoRevision)) }));
+        const cambios = cambiosPrescripcion(antesDias, despuesDias);
         const revisiones: RevisionPrescripcion[] = [...(anterior.revisionesPrescripcion ?? rutina.revisionesPrescripcion ?? [])];
         revisiones.push({
-            id: uid(),
+            id: uid("revision"),
             fecha: hoy(),
             motivo: motivo || "Corrección de prescripción",
             alcance: cambios.length === 1 ? "ejercicio" : "rutina",
             cambios,
-            antes: snapshotDias(anterior.dias ?? []),
-            despues: snapshotDias(rutina.dias ?? []),
+            antes: snapshotDias(antesDias),
+            despues: snapshotDias(despuesDias),
         });
         rutina.revisionesPrescripcion = revisiones;
     } else if (anterior?.revisionesPrescripcion && !rutina.revisionesPrescripcion) {
