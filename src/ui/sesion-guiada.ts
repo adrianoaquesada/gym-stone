@@ -337,14 +337,14 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     const actualizarPlanDesdeSesion = (): void => {
         if (esLibre(rutina)) return;
         const diaActual = diaPorId(rutina, dia.id) ?? dia;
-        diaActual.ejercicios = defs
-            .filter(d => !d.objetivo.tipoBloqueEspecial)
-            .map(d => ({
-                ...d.objetivo,
-                id: d.id,
-                nombre: d.nombre,
-                grupos: [...(d.grupos ?? [])],
-            }));
+        diaActual.ejercicios = defs.map(d => ({
+            ...d.objetivo,
+            id: d.id,
+            nombre: d.objetivo.tipoBloqueEspecial
+                ? (d.nombre || nombreBloqueEspecial(d.objetivo.tipoBloqueEspecial))
+                : d.nombre,
+            grupos: [...(d.grupos ?? [])],
+        }));
         dia = diaActual;
     };
 
