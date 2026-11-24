@@ -1936,7 +1936,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
                 logrosSerie = recordes.filter(r => r.indiceEjercicio === idx && r.indiceSerie === i);
                 if (logrosSerie.length) {
                     const abierto = logrosAbiertos === i;
-                    botonLogros = el("button", "gym-modo-logros-btn", "🏆");
+                    botonLogros = el("button", "gym-modo-logros-btn", "🏆️");
                     botonLogros.type = "button";
                     botonLogros.dataset.serie = String(i);
                     botonLogros.setAttribute("aria-expanded", String(abierto));
@@ -2142,7 +2142,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
                     const nombre = nombreMetricaRecorde(recorde);
                     const detalle = el("div", "gym-modo-logro");
                     detalle.append(
-                        el("span", "gym-modo-logro-nombre", `🏆 ${nombre}`),
+                        el("span", "gym-modo-logro-nombre", `🏆️ ${nombre}`),
                         el("b", "gym-modo-logro-valor", valorRecorde(recorde)),
                     );
                     panelLogros.appendChild(detalle);
@@ -2552,7 +2552,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
                     : "Toda la sesión";
                 const fila = el("div", "gym-resumen-recorde");
                 fila.append(
-                    el("span", "gym-recorde-chip", "🏆"),
+                    el("span", "gym-recorde-chip", "🏆️"),
                     el("b", "", nombreMetricaRecorde(recorde)),
                     el("span", "", `${nombreEjercicio} · ${valorRecorde(recorde)}`),
                 );
