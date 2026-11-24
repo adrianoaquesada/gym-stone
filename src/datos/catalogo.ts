@@ -56,7 +56,8 @@ export const guardarDefinicionesEjercicio = async (defs: EjercicioDef[]): Promis
     const actuales = await leerCatalogoEjercicios();
     const mapa = new Map(actuales.map(e => [e.id, e]));
     for (const d of defs) {
-        if (!d.id || !d.nombre.trim() || d.tipoBloqueEspecial) continue;
+        // Los bloques especiales no forman parte del catálogo y pueden no tener nombre.
+        if (d.tipoBloqueEspecial || !d.id || typeof d.nombre !== "string" || !d.nombre.trim()) continue;
         mapa.set(d.id, normalizarEjercicio({
             id: d.id, nombre: d.nombre, grupos: d.grupos ?? [],
             implemento: d.implemento, modalidadCarga: d.modalidadCarga, numeroMancuernas: d.numeroMancuernas,
