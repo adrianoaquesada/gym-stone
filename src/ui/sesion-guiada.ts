@@ -2563,7 +2563,6 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     };
 
     const terminar = async () => {
-        const conDatos = defs.filter(d => d.series.length || d.notas);
         const conDatos = defs.filter(d => d.series.length || d.notas || d.inicioBloqueMs != null);
         const totalSeries = conDatos.reduce((t, d) => t + seriesHechas(d).length, 0);
         const totalSaltadas = conDatos.reduce((t, d) => t + d.series.filter(esSaltada).length, 0);
