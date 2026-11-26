@@ -1352,3 +1352,11 @@ button .gym-icono-nativo,
   .gym-form .gym-ej.gym-ej-tiempo-con-peso,
   .gym-form .gym-ej.gym-ej-intervalo { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
+
+/* Ejercicios con series completadas y saltadas: naranja sólido con trazo discontinuo. */
+.gym-modo-paso.mixto {
+    background:repeating-linear-gradient(135deg,#F99624 0 3px,transparent 3px 5px);
+}
+.gym-modo-paso.especial.mixto {
+    background:repeating-linear-gradient(135deg,#3498db 0 3px,transparent 3px 5px);
+}
