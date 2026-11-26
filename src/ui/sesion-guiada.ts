@@ -1089,6 +1089,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         }
         irAEjercicio(idx + 1);
     };
+    let esperandoInicioManual = false;
     const completarBloqueEspecial = (): void => {
         const ej = defs[idx];
         if (!ej?.objetivo.tipoBloqueEspecial || !bloqueEspecialPuedeIniciar(idx)) return;
@@ -1100,6 +1101,17 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         }
         ej.series = [{ duracionSeg: duracion, t: ahora }];
         ej.inicioBloqueMs = undefined;
+        const siguienteIdx = idx + 1;
+        const esFinCalentamiento = ej.objetivo.tipoBloqueEspecial === "calentamiento"
+            && defs[siguienteIdx] && !defs[siguienteIdx].objetivo.tipoBloqueEspecial;
+        if (esFinCalentamiento) {
+            esperandoInicioManual = true;
+            pausado = true;
+            pausaT0 = transcurridoMs();
+            pausaPend = Date.now();
+            siguiente();
+            return;
+        }
         siguiente();
     };
 
@@ -1307,6 +1319,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
             const completadas = def.series.filter(s => !s.saltada).length;
             const saltadas = def.series.filter(s => s.saltada).length;
             const terminado = def.series.length >= def.plan;
+            const mixto = completadas > 0 && saltadas > 0;
             const estado = i === idx ? "actual"
                 : completadas >= def.plan ? "completado"
                     : terminado && completadas === 0 && saltadas > 0 ? "omitido"
@@ -1316,7 +1329,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
                     : estado === "omitido" ? "omitido"
                         : estado === "parcial" ? "en curso" : "pendiente";
             const paso = indicadoresProgreso[i];
-            paso.className = `gym-modo-paso${def.objetivo.tipoBloqueEspecial ? " especial" : ""} ${estado}`;
+            paso.className = `gym-modo-paso${def.objetivo.tipoBloqueEspecial ? " especial" : ""} ${estado}${mixto ? " mixto" : ""}`;
             paso.title = `${def.nombre}: ${descripcion}`;
             paso.setAttribute("aria-label", `${def.nombre}: ${descripcion}`);
             if (i === idx) paso.setAttribute("aria-current", "step");
@@ -1551,8 +1564,12 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
                 btnAccion = el("button", "gym-btn-g gym-btn-accion primario", "▶ Iniciar sesión");
                 btnAccion.onclick = () => iniciar();
             } else if (pausado) {
-                btnAccion = el("button", "gym-btn-g gym-btn-accion pausa", "⏸ EN PAUSA — pulsa para continuar");
-                btnAccion.onclick = () => btnPausa.click();
+                btnAccion = el("button", "gym-btn-g gym-btn-accion pausa",
+                    esperandoInicioManual ? "▶ Iniciar primer ejercicio" : "⏸ EN PAUSA — pulsa para continuar");
+                btnAccion.onclick = () => {
+                    if (esperandoInicioManual) esperandoInicioManual = false;
+                    btnPausa.click();
+                };
             } else if (tiempoRegistrado != null || bloqueOmitido) {
                 const texto = idx + 1 >= defs.length ? "🏁 Terminar" : "⏭ Siguiente ejercicio";
                 btnAccion = el("button", "gym-btn-g gym-btn-accion verde", texto);
@@ -2247,7 +2264,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
     bNota.onclick = async () => {
         const ej = defs[idx];
         const r = await pedirTexto(`📝 Nota — ${ej.nombre}`, ej.notas || "");
-        if (r !== null) { ej.notas = r.trim(); pintarEjercicio(); }
+        if (r !== null) { ej.notas = r.trim(); void guardarProgreso(); pintarEjercicio(); }
     };
     const bSiguiente = el("button", "gym-btn-g", "▶ Siguiente"); bSiguiente.type = "button";
     bSiguiente.onclick = () => {
@@ -2327,14 +2344,7 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         toast(`⏭ ${ej.nombre}: sin registrar`);
         void siguiente();
     };
-    const bGuardar = el("button", "gym-btn-g", "💾 Guardar"); bGuardar.type = "button";
-    bGuardar.title = "Guardar el progreso actual y seguir: si se cierra la app, al volver podrás continuar";
-    bGuardar.onclick = () => guardarProgreso();
-    const bTerminar = el("button", "gym-btn-g verde", "🏁 Terminar"); bTerminar.type = "button";
-    bTerminar.title = "Terminar la sesión: guarda todo lo registrado y ajusta el plan";
-    bTerminar.onclick = () => terminar();
-
-    [bVolver, bSiguiente, bNota, bSaltar, bGuardar, bTerminar].forEach(b => pie.appendChild(b));
+    [bVolver, bSiguiente, bNota, bSaltar].forEach(b => pie.appendChild(b));
 
     let animando = false;
     let destinoEnCurso: number | null = null;
@@ -2466,45 +2476,29 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         }, 0);
     };
     btnCerrar.onclick = async () => {
-        const hay = defs.some(d => d.series.length || d.notas || d.inicioBloqueMs != null);
-        if (hay) {
-            const msg = parcialGuard
-                ? "¿Salir? Tu progreso ya está guardado: al volver a abrir este día continuarás donde lo dejaste.\n\nSe pierde solo lo hecho desde el último Guardar."
-                : "¿Salir sin guardar? Se pierde lo registrado en esta sesión.";
-            const ok = await confirmar("🎯 Sesión guiada", msg, "Salir sin guardar", "Seguir entrenando");
-            if (!ok) return;
-        }
+        await guardarProgreso();
         cerrar();
     };
 
+    let guardandoProgreso = false;
     const guardarProgreso = async () => {
-        if (!iniciada) return toast("⚠️ Pulsa ▶ Iniciar sesión antes de guardar.", false);
-        const conDatos = defs.filter(d => d.series.length || d.notas || d.inicioBloqueMs != null);
-        if (!conDatos.length) return toast("⚠️ Aún no hay nada que guardar: completa una serie o añade una nota.", false);
-        const totalSeries = conDatos.reduce((t, d) => t + seriesHechas(d).length, 0);
-        const totalSaltadas = conDatos.reduce((t, d) => t + d.series.filter(esSaltada).length, 0);
-        const totalSinRegistrar = defs.length - conDatos.length;
-        const duracionMin = Math.max(1, Math.round(transcurridoMs() / 60000));
-        if (!(await confirmar("💾 Guardar progreso",
-            `¿Guardar el progreso de «${dia.nombre}»?\n\n· ${conDatos.length} de ${defs.length} ejercicios\n· ${totalSeries} series · ~${duracionMin} min` +
-            (totalSaltadas ? `\n· ${totalSaltadas} serie${totalSaltadas > 1 ? "s" : ""} saltada${totalSaltadas > 1 ? "s" : ""} (quedan registradas como no hechas)` : "") +
-            (totalSinRegistrar ? `\n· ${totalSinRegistrar} ejercicio${totalSinRegistrar > 1 ? "s" : ""} sin registrar (se guardan marcados como no hechos)` : "") + "\n\n" +
-            "La sesión no se cierra. Si se cierra la app, al volver a abrir este día podrás continuar donde lo dejaste.",
-            "Guardar", "Cancelar"))) return;
+        if (!iniciada || guardandoProgreso) return;
+        guardandoProgreso = true;
         const pausasGuardadas = pausaPend != null
             ? [...pausas, { t: pausaT0, ms: Date.now() - pausaPend }]
             : pausas;
+        const conDatos = defs.filter(d => d.series.length || d.notas || d.inicioBloqueMs != null);
+        const duracionMin = Math.max(0, Math.round(transcurridoMs() / 60000));
         const sesion: Sesion = {
             fecha: hoy(),
             diaId: dia.id,
             duracionMin,
             anotaciones: "",
-            enCurso: true,           // marca de progreso sin terminar: se retira al Terminar
-            idx,                     // por qué ejercicio ibas (para reanudar)
-            transcurridoMs: transcurridoMs(),   // reloj activo acumulado (para que al reanudar siga contando)
+            enCurso: true,
+            idx,
+            transcurridoMs: transcurridoMs(),
             ...(inicioRealMs != null ? { inicioRealMs } : {}),
-            ...(pausasGuardadas.length ? { pausas: pausasGuardadas } : {}),   // las pausas viajan con la sesión
-
+            ...(pausasGuardadas.length ? { pausas: pausasGuardadas } : {}),
             ejercicios: defs.map(d => aEjercicioGuardado(d, transcurridoMs())),
         };
         try {
@@ -2515,11 +2509,11 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
             rutina.sesiones.sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0));
             await escribirRutina(rutina);
             parcialGuard = sesion;
-            toast(`💾 Progreso guardado · ${totalSeries} series · ${duracionMin} min — continúa cuando quieras`);
-            void pintar();
         } catch (e: unknown) {
-            console.error("[GymGestor guardar progreso]", e);
-            toast("⚠️ No pude guardar el progreso: " + msgError(e), false);
+            console.error("[GymGestor autoguardado]", e);
+            toast("⚠️ No pude guardar automáticamente el progreso: " + msgError(e), false);
+        } finally {
+            guardandoProgreso = false;
         }
     };
 
@@ -2565,21 +2559,12 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
 
     const terminar = async () => {
         const conDatos = defs.filter(d => d.series.length || d.notas);
-        if (!conDatos.length && !(await confirmar("📭 Sesión vacía",
-            "No has completado ni una serie ni una nota. ¿Guardar la sesión vacía?",
-            "Sí, guardar", "No, cancelar"))) return;
+        const conDatos = defs.filter(d => d.series.length || d.notas || d.inicioBloqueMs != null);
         const totalSeries = conDatos.reduce((t, d) => t + seriesHechas(d).length, 0);
         const totalSaltadas = conDatos.reduce((t, d) => t + d.series.filter(esSaltada).length, 0);
         const totalSinRegistrar = defs.length - conDatos.length;
         const duracionMin = Math.max(1, Math.round(transcurridoMs() / 60000));
 
-        if (!(await confirmar("🏁 Terminar sesión",
-            `¿Terminar y guardar la sesión de «${dia.nombre}»?\n\n· ${conDatos.length} de ${defs.length} ejercicios\n· ${totalSeries} series · ~${duracionMin} min` +
-            (totalSaltadas ? `\n· ${totalSaltadas} serie${totalSaltadas > 1 ? "s" : ""} saltada${totalSaltadas > 1 ? "s" : ""} (quedan registradas como no hechas)` : "") +
-            (totalSinRegistrar ? `\n· ${totalSinRegistrar} ejercicio${totalSinRegistrar > 1 ? "s" : ""} sin registrar (quedan marcados como no hechos)` : "") +
-            (conDatos.some(d => d.planDeRutina && tipoEjercicioDe(d.objetivo) === "peso")
-                ? "\n· Se guardará la diferencia entre el plan y las series/pesos realizados" : ""),
-            "Terminar y guardar", "Seguir entrenando"))) return;
         const recordesFinales = recordesDeSesion();
         const duracionRealMs = transcurridoMs();
         if (pausaPend != null) {
@@ -2623,10 +2608,16 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
         vibrar();
     };
 
+    let ultimoAutoGuardado = Date.now();
     const idReloj = window.setInterval(() => {
         const ahora = Date.now();
         const dt = Math.max(0, ahora - ultimoTick);
         ultimoTick = ahora;
+        if (iniciada && !pausado && !guardandoProgreso
+            && ahora - ultimoAutoGuardado >= 2000) {
+            ultimoAutoGuardado = ahora;
+            void guardarProgreso();
+        }
         ponerTextoConIconos(relojEl, `⏱ ${relojTexto(transcurridoMs())}`);
         const bloqueActual = defs[idx];
         if (lecturaBloque && bloqueActual?.objetivo.tipoBloqueEspecial && !bloqueActual.series.length) {
