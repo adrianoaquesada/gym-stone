@@ -1020,6 +1020,11 @@ const crearModoSesion = async (rutina: Rutina, diaId: string | null, pintar: Pin
             hold = null;
             confirmarCancelarHold = false;
         }
+        // La sesión se cierra al completar el último ejercicio; no exige pulsar «Terminar».
+        if (defs.every(def => def.series.length >= def.plan)) {
+            void terminar();
+            return;
+        }
         arrancarDescanso(Number(ej.objetivo.descansoSeg) || 90);
         // Al terminar las series planificadas, muestra ya el siguiente ejercicio;
         // el descanso sigue contando y pertenece al ejercicio que acaba de terminar.
